@@ -1,0 +1,78 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000/api';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: 'admin' | 'user';
+  first_name: string;
+  last_name: string;
+  created_at: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+  message: string;
+}
+
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  role?: 'admin' | 'user';
+}
+
+// Create axios instance with interceptor for authentication
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Add token to requests if available
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Token ${token}`;
+  }
+  return config;
+});
+
+export const authService = {
+  login: async (username: string, password: string): Promise<LoginResponse> => {
+    const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login/`, {
+      username,
+      password,
+    });
+    return response.data;
+  },
+
+  register: async (userData: RegisterData): Promise<LoginResponse> => {
+    const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/register/`, userData);
+    return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    try {
+      await apiClient.post('/auth/logout/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  },
+
+  getProfile: async (): Promise<User> => {
+    const response = await apiClient.get<User>('/auth/profile/');
+    return response.data;
+  },
+
+  checkAdmin: async (): Promise<{ is_admin: boolean; role: string }> => {
+    const response = await apiClient.get<{ is_admin: boolean; role: string }>('/auth/check-admin/');
+    return response.data;
+  },
+};
+
+export { apiClient };

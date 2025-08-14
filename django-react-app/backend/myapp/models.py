@@ -1,4 +1,19 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+class CustomUser(AbstractUser):
+    ROLE_CHOICES = [
+        ('admin', 'Admin'),
+        ('user', 'User'),
+    ]
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def is_admin(self):
+        return self.role == 'admin'
+    
+    def __str__(self):
+        return f"{self.username} ({self.role})"
 
 class Task(models.Model):
     title = models.CharField(max_length=200)
