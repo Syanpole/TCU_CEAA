@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import LogoutModal from './LogoutModal';
 import './Header.css';
 
 const Header: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
     logout();
+    setShowLogoutModal(false);
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
 
   return (
@@ -27,13 +38,20 @@ const Header: React.FC = () => {
           </div>
           
           <button 
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
             className="logout-button"
           >
             Logout
           </button>
         </div>
       </div>
+      
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+        userName={user?.first_name ? `${user.first_name} ${user.last_name}` : undefined}
+      />
     </header>
   );
 };
