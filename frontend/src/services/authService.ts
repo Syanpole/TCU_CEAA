@@ -6,9 +6,10 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'student';
   first_name: string;
   last_name: string;
+  student_id?: string;
   created_at: string;
 }
 
@@ -25,7 +26,8 @@ export interface RegisterData {
   password_confirm: string;
   first_name: string;
   last_name: string;
-  role?: 'admin' | 'user';
+  role?: 'admin' | 'user' | 'student';
+  student_id?: string;
 }
 
 // Create axios instance with interceptor for authentication

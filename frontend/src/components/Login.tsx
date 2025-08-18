@@ -5,9 +5,10 @@ import './Login.css';
 interface LoginProps {
   onToggleMode: () => void;
   isRegisterMode: boolean;
+  onStudentRegister: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode }) => {
+const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRegister }) => {
   const { login, register } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
@@ -75,28 +76,40 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode }) => {
   };
 
   return (
-    <div className="login-container">
+    <div className="modern-login-container">
       <div className="login-card">
         <div className="login-header">
+          <div className="tcu-logo">
+            <div className="logo-circle">TCU</div>
+          </div>
           <h1>TCU CEAA</h1>
-          <h2>{isRegisterMode ? 'Create Account' : 'Sign In'}</h2>
+          <h2>{isRegisterMode ? 'Create Admin Account' : 'Welcome Back'}</h2>
+          <p>{isRegisterMode ? 'Set up your administrator account' : 'Sign in to access your dashboard'}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              {error}
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              required
-              className="form-input"
-              placeholder="Enter your username"
-            />
+            <div className="input-wrapper">
+              <span className="input-icon">👤</span>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required
+                className="form-input"
+                placeholder="Enter your username"
+              />
+            </div>
           </div>
 
           {isRegisterMode && (
@@ -104,75 +117,88 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode }) => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="first_name">First Name</label>
-                  <input
-                    type="text"
-                    id="first_name"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input"
-                    placeholder="First name"
-                  />
+                  <div className="input-wrapper">
+                    <input
+                      type="text"
+                      id="first_name"
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input"
+                      placeholder="First name"
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label htmlFor="last_name">Last Name</label>
-                  <input
-                    type="text"
-                    id="last_name"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input"
-                    placeholder="Last name"
-                  />
+                  <div className="input-wrapper">
+                    <input
+                      type="text"
+                      id="last_name"
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input"
+                      placeholder="Last name"
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="form-group">
                 <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Enter your email"
-                />
+                <div className="input-wrapper">
+                  <span className="input-icon">📧</span>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    className="form-input"
+                    placeholder="Enter your email"
+                  />
+                </div>
               </div>
             </>
           )}
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-              className="form-input"
-              placeholder="Enter your password"
-            />
+            <div className="input-wrapper">
+              <span className="input-icon">🔐</span>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+                className="form-input"
+                placeholder="Enter your password"
+              />
+            </div>
           </div>
 
           {isRegisterMode && (
             <div className="form-group">
               <label htmlFor="password_confirm">Confirm Password</label>
-              <input
-                type="password"
-                id="password_confirm"
-                name="password_confirm"
-                value={formData.password_confirm}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                placeholder="Confirm your password"
-              />
+              <div className="input-wrapper">
+                <span className="input-icon">🔒</span>
+                <input
+                  type="password"
+                  id="password_confirm"
+                  name="password_confirm"
+                  value={formData.password_confirm}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                  placeholder="Confirm your password"
+                />
+              </div>
             </div>
           )}
 
@@ -181,7 +207,14 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode }) => {
             className="submit-button"
             disabled={loading}
           >
-            {loading ? 'Please wait...' : (isRegisterMode ? 'Create Account' : 'Sign In')}
+            {loading ? (
+              <>
+                <span className="loading-spinner"></span>
+                Please wait...
+              </>
+            ) : (
+              isRegisterMode ? 'Create Account' : 'Sign In'
+            )}
           </button>
 
           <div className="form-footer">
@@ -191,16 +224,35 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode }) => {
               className="toggle-mode-button"
             >
               {isRegisterMode 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Create one"}
+                ? '← Back to Sign In' 
+                : "Need admin access? Create account"}
             </button>
           </div>
+
+          {!isRegisterMode && (
+            <div className="student-section">
+              <div className="divider">
+                <span>or</span>
+              </div>
+              <button
+                type="button"
+                onClick={onStudentRegister}
+                className="student-register-button"
+              >
+                🎓 TCU Student Registration
+              </button>
+            </div>
+          )}
         </form>
 
         {!isRegisterMode && (
           <div className="demo-credentials">
-            <h4>Demo Credentials:</h4>
-            <p><strong>Admin:</strong> username: admin, password: admin123</p>
+            <div className="demo-header">
+              <h4>🔑 Demo Credentials</h4>
+            </div>
+            <div className="demo-item">
+              <strong>Admin:</strong> username: admin | password: admin123
+            </div>
           </div>
         )}
       </div>

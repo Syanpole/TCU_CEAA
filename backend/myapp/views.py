@@ -5,8 +5,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
-from .models import Task, Student, CustomUser
-from .serializers import TaskSerializer, StudentSerializer, UserSerializer, LoginSerializer, RegisterSerializer
+from .models import Task, CustomUser
+from .serializers import TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -69,11 +69,6 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
-class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.all()
-    serializer_class = StudentSerializer
-    permission_classes = [IsAuthenticated]
-
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
@@ -86,3 +81,14 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             # Regular users can only see their own profile
             return CustomUser.objects.filter(id=self.request.user.id)
+
+# API endpoint to get students (users with student role)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def students_list(request):
+    if not request.user.is_admin():
+        return Response({'error': 'Only admins can view students list'}, status=status.HTTP_403_FORBIDDEN)
+    
+    students = CustomUser.objects.filter(role='student')
+    serializer = UserSerializer(students, many=True)
+    return Response(serializer.data)

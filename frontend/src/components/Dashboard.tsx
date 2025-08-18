@@ -21,13 +21,17 @@ interface Student {
 }
 
 const Dashboard: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!isAdmin) {
+      return; // Don't fetch data if not admin
+    }
+    
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -47,7 +51,22 @@ const Dashboard: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [isAdmin]);
+
+  // Redirect non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="dashboard-container">
+        <div className="error-container">
+          <div className="error-message">
+            <h3>🔒 Access Denied</h3>
+            <p>This dashboard is only available for administrators.</p>
+            <p>Students should use the student portal instead.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleTaskToggle = async (taskId: number) => {
     if (!isAdmin) return; // Only admins can modify tasks
