@@ -10,6 +10,7 @@ export interface User {
   first_name: string;
   last_name: string;
   student_id?: string;
+  profile_image_url?: string;
   created_at: string;
 }
 
@@ -28,6 +29,11 @@ export interface RegisterData {
   last_name: string;
   role?: 'admin' | 'user' | 'student';
   student_id?: string;
+}
+
+export interface ProfileImageResponse {
+  message: string;
+  profile_image?: string;
 }
 
 // Create axios instance with interceptor for authentication

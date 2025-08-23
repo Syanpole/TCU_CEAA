@@ -6,6 +6,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   register: (userData: any) => Promise<void>;
+  refreshUser: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
 }
@@ -72,6 +73,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const userData = await authService.getProfile();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+    }
+  };
+
   const isAdmin = user?.role === 'admin';
 
   const value = {
@@ -79,6 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     register,
+    refreshUser,
     loading,
     isAdmin,
   };

@@ -3,23 +3,19 @@ import { useAuth } from '../contexts/AuthContext';
 import './Login.css';
 
 interface LoginProps {
-  onToggleMode: () => void;
-  isRegisterMode: boolean;
   onStudentRegister: () => void;
+  onBackToLanding: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRegister }) => {
-  const { login, register } = useAuth();
+const Login: React.FC<LoginProps> = ({ onStudentRegister, onBackToLanding }) => {
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    password_confirm: '',
-    email: '',
-    first_name: '',
-    last_name: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,23 +31,7 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
     setLoading(true);
 
     try {
-      if (isRegisterMode) {
-        if (formData.password !== formData.password_confirm) {
-          setError('Passwords do not match');
-          return;
-        }
-        await register({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          password_confirm: formData.password_confirm,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          role: 'user'
-        });
-      } else {
-        await login(formData.username, formData.password);
-      }
+      await login(formData.username, formData.password);
     } catch (error: any) {
       console.error('Authentication error:', error);
       if (error.response?.data) {
@@ -68,7 +48,7 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
           setError(errorMessages.join(', '));
         }
       } else {
-        setError(isRegisterMode ? 'Registration failed' : 'Login failed');
+        setError('Login failed');
       }
     } finally {
       setLoading(false);
@@ -80,11 +60,13 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
       <div className="login-card">
         <div className="login-header">
           <div className="tcu-logo">
-            <div className="logo-circle">TCU</div>
+            <div className="logo-circle">
+              <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo-img" />
+            </div>
           </div>
           <h1>TCU CEAA</h1>
-          <h2>{isRegisterMode ? 'Create Admin Account' : 'Welcome Back'}</h2>
-          <p>{isRegisterMode ? 'Set up your administrator account' : 'Sign in to access your dashboard'}</p>
+          <h2>Welcome Back</h2>
+          <p>Sign in to access your dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -98,7 +80,6 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
           <div className="form-group">
             <label htmlFor="username">Username</label>
             <div className="input-wrapper">
-              <span className="input-icon">👤</span>
               <input
                 type="text"
                 id="username"
@@ -107,71 +88,16 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
                 onChange={handleInputChange}
                 required
                 className="form-input"
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
               />
             </div>
           </div>
 
-          {isRegisterMode && (
-            <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="first_name">First Name</label>
-                  <div className="input-wrapper">
-                    <input
-                      type="text"
-                      id="first_name"
-                      name="first_name"
-                      value={formData.first_name}
-                      onChange={handleInputChange}
-                      required
-                      className="form-input"
-                      placeholder="First name"
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="last_name">Last Name</label>
-                  <div className="input-wrapper">
-                    <input
-                      type="text"
-                      id="last_name"
-                      name="last_name"
-                      value={formData.last_name}
-                      onChange={handleInputChange}
-                      required
-                      className="form-input"
-                      placeholder="Last name"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email">Email</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">📧</span>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input"
-                    placeholder="Enter your email"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <div className="input-wrapper">
-              <span className="input-icon">🔐</span>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -179,28 +105,31 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
                 required
                 className="form-input"
                 placeholder="Enter your password"
+                data-has-toggle="true"
               />
+              <button
+                type="button"
+                className="password-toggle-button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  // Eye open icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                ) : (
+                  // Eye closed icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
-
-          {isRegisterMode && (
-            <div className="form-group">
-              <label htmlFor="password_confirm">Confirm Password</label>
-              <div className="input-wrapper">
-                <span className="input-icon">🔒</span>
-                <input
-                  type="password"
-                  id="password_confirm"
-                  name="password_confirm"
-                  value={formData.password_confirm}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Confirm your password"
-                />
-              </div>
-            </div>
-          )}
 
           <button 
             type="submit" 
@@ -213,48 +142,33 @@ const Login: React.FC<LoginProps> = ({ onToggleMode, isRegisterMode, onStudentRe
                 Please wait...
               </>
             ) : (
-              isRegisterMode ? 'Create Account' : 'Sign In'
+              'Sign In'
             )}
           </button>
+
+          <div className="student-section">
+            <div className="divider">
+              <span>or</span>
+            </div>
+            <button
+              type="button"
+              onClick={onStudentRegister}
+              className="student-register-button"
+            >
+              TCU Student Registration
+            </button>
+          </div>
 
           <div className="form-footer">
             <button
               type="button"
-              onClick={onToggleMode}
-              className="toggle-mode-button"
+              onClick={onBackToLanding}
+              className="back-button"
             >
-              {isRegisterMode 
-                ? '← Back to Sign In' 
-                : "Need admin access? Create account"}
+              ← Back to Home
             </button>
           </div>
-
-          {!isRegisterMode && (
-            <div className="student-section">
-              <div className="divider">
-                <span>or</span>
-              </div>
-              <button
-                type="button"
-                onClick={onStudentRegister}
-                className="student-register-button"
-              >
-                🎓 TCU Student Registration
-              </button>
-            </div>
-          )}
         </form>
-
-        {!isRegisterMode && (
-          <div className="demo-credentials">
-            <div className="demo-header">
-              <h4>🔑 Demo Credentials</h4>
-            </div>
-            <div className="demo-item">
-              <strong>Admin:</strong> username: admin | password: admin123
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
