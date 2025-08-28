@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -7,6 +7,27 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
+  useEffect(() => {
+    // Scroll animation observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animate');
+          // Stop observing this element once it's animated
+          observer.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    });
+
+    // Observe all sections
+    const sections = document.querySelectorAll('.animate-section');
+    sections.forEach(section => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -43,7 +64,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       <main className="landing-main">
         
 
-        <section className="hero">
+        <section className="hero animate-section">
           <div className="hero-content">
             <div className="hero-text">
               <h2>Excellence in Academic Affairs</h2>
@@ -77,19 +98,27 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             </div>
             <div className="hero-visual">
               <div className="floating-card card-1">
-                <div className="card-icon">🎯</div>
+                <div className="card-icon">
+                  <img src="/images/energy-management.png" alt="Smart Management" />
+                </div>
                 <div className="card-text">Smart Management</div>
               </div>
               <div className="floating-card card-2">
-                <div className="card-icon">⚡</div>
+                <div className="card-icon">
+                  <img src="/images/performance.png" alt="Fast Processing" />
+                </div>
                 <div className="card-text">Fast Processing</div>
               </div>
               <div className="floating-card card-3">
-                <div className="card-icon">🏆</div>
+                <div className="card-icon">
+                  <img src="/images/academic-achievement.png" alt="Academic Excellence" />
+                </div>
                 <div className="card-text">Academic Excellence</div>
               </div>
               <div className="floating-card card-4">
-                <div className="card-icon">📊</div>
+                <div className="card-icon">
+                  <img src="/images/data-analytics.png" alt="Data Analytics" />
+                </div>
                 <div className="card-text">Data Analytics</div>
               </div>
             </div>
@@ -97,7 +126,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         </section>
 
         {/* TCU CEAA Banner Section */}
-        <section className="banner-section">
+        <section className="banner-section animate-section">
           <div className="banner-container">
             {/* Full TCU CEAA Banner Image */}
             <img 
@@ -108,7 +137,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
         </section>
 
-        <section id="about" className="info-section">
+        <section id="about" className="info-section animate-section">
           <div className="section-header">
             <h3>About TCU CEAA</h3>
             <p>Transforming academic excellence through innovative solutions</p>
@@ -137,7 +166,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
         </section>
 
-        <section id="features" className="features-section">
+        <section id="features" className="features-section animate-section">
           <div className="section-header">
             <h3>Platform Features</h3>
             <p>Discover what makes our platform exceptional</p>
@@ -166,9 +195,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
         </section>
 
-        <section id="process" className="process-section">
+        <section id="process" className="process-section animate-section">
           <div className="section-header">
-            <h3>📋 How It Works</h3>
+            <h3>How It Works</h3>
             <p>Simple steps to access your academic portal</p>
           </div>
           <div className="process-steps">
@@ -206,9 +235,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
         </section>
 
-        <section className="cta-section">
+        <section className="cta-section animate-section">
           <div className="cta-content">
-            <h3>Ready to Get Started? 🚀</h3>
+            <h3>Ready to Get Started?</h3>
             <p>Join the TCU CEAA community and experience excellence in academic management</p>
             <div className="cta-buttons-large">
               <button className="cta-primary-large" onClick={onRegisterClick}>
