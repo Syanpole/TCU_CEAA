@@ -20,7 +20,7 @@ jobs:
           python-version: '3.12'
 
       - name: Cache pip dependencies
-  uses: actions/cache@v4
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
@@ -148,7 +148,7 @@ jobs:
           tar -czf tcu-ceaa-deployment.tar.gz deployment/
 
       - name: Upload deployment artifact
-  uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: tcu-ceaa-deployment
           path: tcu-ceaa-deployment.tar.gz
