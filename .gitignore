@@ -61,3 +61,13 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+
+# Temporary/Test files
+test_*.py
+*_test.py
+setup.py
+*.bat
+
+# Media uploads (keep directory structure but ignore files)
+media/*
+!media/.gitkeep
