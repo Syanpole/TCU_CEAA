@@ -11,6 +11,7 @@ from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, Regis
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
                          AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer)
+from .services.ai_analyzer import ScholarshipAIAnalyzer
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -340,4 +341,101 @@ def admin_dashboard_data(request):
             'total_grades': total_grades,
             'total_applications': total_applications,
         }
+    })
+
+# AI Analytics Endpoints (Ready for real sample data)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_ai_analysis(request, student_id=None):
+    """Get AI analysis for a specific student"""
+    if student_id:
+        # Admin can analyze any student
+        if not request.user.is_admin():
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            student = CustomUser.objects.get(student_id=student_id, role='student')
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        # Students can only analyze themselves
+        if not request.user.is_student():
+            return Response({'error': 'Only students can request their own analysis'}, status=status.HTTP_403_FORBIDDEN)
+        student = request.user
+    
+    analysis = ScholarshipAIAnalyzer.analyze_student_performance(student)
+    return Response(analysis)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def program_analytics(request):
+    """Get comprehensive program analytics (Admin only)"""
+    if not request.user.is_admin():
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    analytics = ScholarshipAIAnalyzer.generate_program_analytics()
+    return Response(analytics)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def predict_eligibility(request):
+    """Predict eligibility based on input parameters"""
+    try:
+        gwa = float(request.data.get('gwa', 0))
+        swa = float(request.data.get('swa', 0))
+        units = int(request.data.get('units', 0))
+        has_failing = request.data.get('has_failing', False)
+        has_incomplete = request.data.get('has_incomplete', False)
+        has_dropped = request.data.get('has_dropped', False)
+        
+        prediction = ScholarshipAIAnalyzer.predict_eligibility(
+            gwa, swa, units, has_failing, has_incomplete, has_dropped
+        )
+        return Response(prediction)
+        
+    except (ValueError, TypeError) as e:
+        return Response({
+            'error': 'Invalid input parameters',
+            'details': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def eligibility_summary(request):
+    """Get eligibility summary for current user"""
+    if not request.user.is_student():
+        return Response({'error': 'Only students can request eligibility summary'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Get latest grade submission
+    latest_submission = GradeSubmission.objects.filter(
+        student=request.user
+    ).order_by('-submitted_at').first()
+    
+    if not latest_submission:
+        return Response({
+            'status': 'no_submissions',
+            'message': 'No grade submissions found. Please submit your grades first.',
+            'note': 'Will be enhanced when real sample data is provided'
+        })
+    
+    # Get evaluation using AI analyzer
+    evaluation = ScholarshipAIAnalyzer.evaluate_scholarship_eligibility(latest_submission)
+    
+    # Get all allowance applications
+    applications = AllowanceApplication.objects.filter(student=request.user)
+    total_allowances = sum(app.amount for app in applications if app.status in ['approved', 'disbursed'])
+    
+    return Response({
+        'status': 'success',
+        'latest_submission': {
+            'academic_year': latest_submission.academic_year,
+            'semester': latest_submission.semester,
+            'gwa': latest_submission.general_weighted_average,
+            'swa': latest_submission.semestral_weighted_average,
+        },
+        'ai_evaluation': evaluation,
+        'total_allowances_received': total_allowances,
+        'applications_count': applications.count(),
+        'approved_applications': applications.filter(status__in=['approved', 'disbursed']).count(),
+        'note': 'Analysis will be enhanced when real sample data is provided'
     })

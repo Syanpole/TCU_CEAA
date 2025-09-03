@@ -1,0 +1,7 @@
+student_id,academic_year,semester,allowance_type,amount,status,date_applied
+25-00001,2024-2025,1st,both,10000,approved,2024-09-01
+25-00001,2023-2024,2nd,both,10000,disbursed,2024-03-01
+25-00002,2024-2025,1st,basic,5000,approved,2024-09-01
+25-00002,2023-2024,2nd,basic,5000,disbursed,2024-03-01
+25-00004,2024-2025,1st,both,10000,approved,2024-09-01
+25-00005,2024-2025,1st,basic,5000,pending,2024-09-01

@@ -1,0 +1,8 @@
+student_id,academic_year,semester,gwa,swa,units,failing_grades,incomplete_grades,dropped_subjects
+25-00001,2024-2025,1st,92.5,94.2,18,False,False,False
+25-00001,2023-2024,2nd,90.3,91.8,18,False,False,False
+25-00002,2024-2025,1st,85.3,87.1,15,False,False,False
+25-00002,2023-2024,2nd,83.7,85.9,15,False,False,False
+25-00003,2024-2025,1st,78.9,80.5,12,True,False,False
+25-00004,2024-2025,1st,95.2,96.8,21,False,False,False
+25-00005,2024-2025,1st,82.1,89.2,18,False,False,False
