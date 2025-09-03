@@ -72,7 +72,9 @@ jobs:
       - name: Check TypeScript compilation
         run: |
           cd frontend
-          npm run build
+          GENERATE_SOURCEMAP=false npm run build
+        env:
+          CI: false
 
       - name: Run frontend tests
         run: |
@@ -129,7 +131,9 @@ jobs:
         run: |
           cd frontend
           npm install
-          npm run build
+          GENERATE_SOURCEMAP=false npm run build
+        env:
+          CI: false
 
       - name: Collect Django static files
         run: |

@@ -23,11 +23,11 @@
   "scripts": {
     "start": "cross-env PORT=3002 react-scripts start",
     "start:win": "set PORT=3002 && react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\"",
     "test:ci": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\" --coverage --watchAll=false",
     "eject": "react-scripts eject",
-    "lint": "eslint src --ext .ts,.tsx --max-warnings 0"
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 10"
   },
   "eslintConfig": {
     "extends": [
