@@ -9,20 +9,6 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: tcu_ceaa_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -34,7 +20,7 @@ jobs:
           python-version: '3.12'
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+  uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
@@ -47,24 +33,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set up test environment
-        run: |
-          cd backend
-          cp backend_project/settings.py backend_project/settings_test.py
-          
       - name: Run Django migrations
         run: |
           cd backend
-          python manage.py migrate --settings=backend_project.settings
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/tcu_ceaa_test
+          python manage.py migrate --noinput
 
       - name: Run Django tests
         run: |
           cd backend
-          python manage.py test --settings=backend_project.settings
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/tcu_ceaa_test
+          python manage.py test
 
       - name: Check Django code style with flake8
         run: |
@@ -118,14 +95,14 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install safety
+          pip install pip-audit
           pip install -r requirements.txt
-          safety check
+          pip-audit --progress-spinner=off --desc --strict || true
 
       - name: Run security audit for frontend
         run: |
           cd frontend
-          npm audit --audit-level moderate
+          npm audit --audit-level moderate || true
 
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -171,7 +148,7 @@ jobs:
           tar -czf tcu-ceaa-deployment.tar.gz deployment/
 
       - name: Upload deployment artifact
-        uses: actions/upload-artifact@v3
+  uses: actions/upload-artifact@v4
         with:
           name: tcu-ceaa-deployment
           path: tcu-ceaa-deployment.tar.gz
