@@ -67,7 +67,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci
+          npm install
 
       - name: Check TypeScript compilation
         run: |
@@ -128,7 +128,7 @@ jobs:
       - name: Build frontend for production
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
 
       - name: Collect Django static files
