@@ -10,7 +10,7 @@
   --text-primary: #f8fafc;
   --text-secondary: #e2e8f0;
   --text-muted: #cbd5e1;
-  --accent-blue: #3b82f6;
+  --accent-blue: #dc2626;
   --accent-green: #10b981;
   --accent-orange: #f59e0b;
   --accent-red: #ef4444;
@@ -629,7 +629,7 @@
 }
 
 .retry-btn:hover {
-  background: #2563eb;
+  background: #b91c1c;
   transform: translateY(-1px);
 }
 
@@ -694,5 +694,205 @@
 
 .operations-list::-webkit-scrollbar-thumb:hover,
 .authorization-grid::-webkit-scrollbar-thumb:hover {
-  background: #2563eb;
+  background: #b91c1c;
+}
+
+/* Enhanced Admin Dashboard Features */
+
+/* Priority Indicators */
+.priority-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.priority-indicator.high {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.priority-indicator.medium {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.priority-indicator.low {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+/* Operation Items Improvements */
+.operation-item {
+  position: relative;
+  border-left: 4px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.operation-item.priority-high {
+  border-left-color: #dc2626;
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05), transparent);
+}
+
+.operation-item.priority-medium {
+  border-left-color: #d97706;
+  background: linear-gradient(90deg, rgba(217, 119, 6, 0.05), transparent);
+}
+
+.operation-item.priority-low {
+  border-left-color: #3b82f6;
+}
+
+.urgent-badge {
+  background: #dc2626;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Operation Actions */
+.operation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-btn.approve {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.action-btn.approve:hover {
+  background: #bbf7d0;
+  transform: translateY(-1px);
+}
+
+.action-btn.reject {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.action-btn.reject:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+.action-btn.review {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.action-btn.review:hover {
+  background: #bae6fd;
+  transform: translateY(-1px);
+}
+
+/* Empty State Admin */
+.empty-state-admin {
+  background: white;
+  padding: 30px 20px;
+  border-radius: 12px;
+  text-align: center;
+  color: #64748b;
+  border: 2px dashed #e2e8f0;
+}
+
+.empty-state-admin .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-admin h4 {
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-state-admin p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Command Grid Improvements */
+.command-btn {
+  position: relative;
+  overflow: visible;
+}
+
+.command-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Analytics Command Button */
+.command-btn.analytics {
+  background: linear-gradient(135deg, #334155, #334155);
+}
+
+.command-btn.analytics:hover {
+  background: linear-gradient(135deg, #334155, #334155);
+}
+
+/* Enhanced Responsive Design */
+@media (max-width: 768px) {
+  .operation-actions {
+    justify-content: center;
+  }
+  
+  .action-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 80px;
+  }
+  
+  .priority-indicator {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-top: 8px;
+    align-self: flex-start;
+  }
+  
+  .operation-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }

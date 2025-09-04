@@ -32,7 +32,8 @@
     0 0 0 1px rgba(255, 255, 255, 0.1);
   padding: 48px;
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
+  min-width: 320px;
   animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 1;
@@ -184,6 +185,7 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  width: 100%;
 }
 
 .form-row {
@@ -195,6 +197,8 @@
 .form-group {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .form-group label {
@@ -204,12 +208,27 @@
   font-size: 16px;
   letter-spacing: 0.025em;
   text-shadow: 0 0 1px rgba(0,0,0,0.5);
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+
+.form-group label::before {
+  display: none !important;
+  content: none !important;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .form-input {
   width: 100%;
+  min-width: 0;
   padding: 16px 20px;
-  padding-left: 52px;
   border: 2px solid #d1d5db;
   border-radius: 12px;
   font-size: 16px;
@@ -218,6 +237,7 @@
   box-sizing: border-box;
   font-weight: 500;
   color: #1f2937;
+  flex: 1;
 }
 
 .form-input[type="password"],
@@ -236,15 +256,6 @@
 .form-input::placeholder {
   color: #6b7280;
   font-weight: 400;
-}
-
-.input-icon {
-  position: absolute;
-  left: 16px;
-  z-index: 1;
-  font-size: 18px;
-  color: #374151;
-  pointer-events: none;
 }
 
 .password-toggle-button {
@@ -520,7 +531,6 @@
   
   .form-input {
     padding: 12px 14px;
-    padding-left: 40px;
     font-size: 16px; /* Prevents zoom on iOS */
   }
   
@@ -531,12 +541,6 @@
   
   .password-toggle-button {
     right: 10px;
-    font-size: 14px;
-    color: #374151;
-  }
-  
-  .input-icon {
-    left: 10px;
     font-size: 14px;
     color: #374151;
   }

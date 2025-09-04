@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({ currentView = 'dashboard', onViewChange
             className="header-title clickable"
             onClick={() => onViewChange && onViewChange('dashboard')}
           >
-            TCU CEAA {isAdmin ? 'Dashboard' : 'Student Portal'}
+            TCU-CEAA {isAdmin ? 'Dashboard' : 'Student Portal'}
           </h1>
         </div>
         

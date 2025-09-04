@@ -116,7 +116,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
     <div className="document-submission-form">
       <div className="form-header">
         <h3>Submit Document</h3>
-        <p>Upload required documents for your TCU CEAA application</p>
+        <p>Upload required documents for your TCU-CEAA application</p>
       </div>
 
       {error && (

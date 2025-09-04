@@ -117,7 +117,7 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
         <div className="management-header">
           <div className="header-content">
             <h1>Applications Management</h1>
-            <p>Review and manage all allowance applications in the TCU CEAA system</p>
+            <p>Review and manage all allowance applications in the TCU-CEAA system</p>
           </div>
           
           <div className="header-stats">

@@ -12,13 +12,7 @@ interface GradeSubmissionFormProps {
 interface FormData {
   semester: string;
   academic_year: string;
-  total_units: string;
-  general_weighted_average: string;
-  semestral_weighted_average: string;
-  has_incomplete_grades: boolean;
-  has_failing_grades: boolean;
   grade_sheet: File | null;
-  notes: string;
 }
 
 const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
@@ -28,13 +22,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [formData, setFormData] = useState<FormData>({
     semester: '',
     academic_year: '',
-    total_units: '',
-    general_weighted_average: '',
-    semestral_weighted_average: '',
-    has_incomplete_grades: false,
-    has_failing_grades: false,
-    grade_sheet: null,
-    notes: ''
+    grade_sheet: null
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -74,21 +62,12 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     checkEligibility();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({
-        ...prev,
-        [name]: checked
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,28 +95,8 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       return;
     }
     
-    if (!formData.semester || !formData.academic_year || !formData.total_units || !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet) {
+    if (!formData.semester || !formData.academic_year || !formData.grade_sheet) {
       setError('Please fill in all required fields');
-      return;
-    }
-
-    // Validate GWA and SWA ranges
-    const gwa = parseFloat(formData.general_weighted_average);
-    const swa = parseFloat(formData.semestral_weighted_average);
-    const units = parseInt(formData.total_units);
-    
-    if (isNaN(gwa) || gwa < 65 || gwa > 100) {
-      setError('General Weighted Average must be between 65 and 100');
-      return;
-    }
-    
-    if (isNaN(swa) || swa < 65 || swa > 100) {
-      setError('Semestral Weighted Average must be between 65 and 100');
-      return;
-    }
-
-    if (isNaN(units) || units < 1 || units > 30) {
-      setError('Total units must be between 1 and 30');
       return;
     }
 
@@ -148,11 +107,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       const submitFormData = new FormData();
       submitFormData.append('semester', formData.semester);
       submitFormData.append('academic_year', formData.academic_year);
-      submitFormData.append('total_units', formData.total_units);
-      submitFormData.append('general_weighted_average', formData.general_weighted_average);
-      submitFormData.append('semestral_weighted_average', formData.semestral_weighted_average);
-      submitFormData.append('has_incomplete_grades', formData.has_incomplete_grades.toString());
-      submitFormData.append('has_failing_grades', formData.has_failing_grades.toString());
       submitFormData.append('grade_sheet', formData.grade_sheet);
 
       await apiClient.post('/grades/', submitFormData, {
@@ -165,13 +119,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       setFormData({
         semester: '',
         academic_year: '',
-        total_units: '',
-        general_weighted_average: '',
-        semestral_weighted_average: '',
-        has_incomplete_grades: false,
-        has_failing_grades: false,
-        grade_sheet: null,
-        notes: ''
+        grade_sheet: null
       });
 
       // Show success notification
@@ -198,7 +146,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     <div className="grade-submission-form">
       <div className="form-header">
         <h3>Submit Grades</h3>
-        <p>Upload your grade sheet for TCU CEAA allowance evaluation</p>
+        <p>Upload your grade sheet for TCU-CEAA allowance evaluation</p>
       </div>
 
       {/* Document Status Check */}
@@ -301,92 +249,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="total_units">Total Units *</label>
-            <input
-              type="number"
-              id="total_units"
-              name="total_units"
-              value={formData.total_units}
-              onChange={handleInputChange}
-              min="1"
-              max="30"
-              placeholder="e.g., 18"
-              required
-              className="form-input"
-            />
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="general_weighted_average">
-              General Weighted Average *
-              <span className="grade-hint">65 - 100</span>
-            </label>
-            <input
-              type="number"
-              id="general_weighted_average"
-              name="general_weighted_average"
-              value={formData.general_weighted_average}
-              onChange={handleInputChange}
-              step="0.01"
-              min="65"
-              max="100"
-              placeholder="e.g., 89.25"
-              required
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="semestral_weighted_average">
-              Semestral Weighted Average *
-              <span className="grade-hint">65 - 100</span>
-            </label>
-            <input
-              type="number"
-              id="semestral_weighted_average"
-              name="semestral_weighted_average"
-              value={formData.semestral_weighted_average}
-              onChange={handleInputChange}
-              step="0.01"
-              min="65"
-              max="100"
-              placeholder="e.g., 89.25"
-              required
-              className="form-input"
-            />
-          </div>
-        </div>
-
-        <div className="form-group checkbox-group">
-          <div className="checkbox-item">
-            <input
-              type="checkbox"
-              id="has_incomplete_grades"
-              name="has_incomplete_grades"
-              checked={formData.has_incomplete_grades}
-              onChange={handleInputChange}
-              className="form-checkbox"
-            />
-            <label htmlFor="has_incomplete_grades">I have incomplete grades (INC)</label>
-          </div>
-
-          <div className="checkbox-item">
-            <input
-              type="checkbox"
-              id="has_failing_grades"
-              name="has_failing_grades"
-              checked={formData.has_failing_grades}
-              onChange={handleInputChange}
-              className="form-checkbox"
-            />
-            <label htmlFor="has_failing_grades">I have failing grades</label>
-          </div>
-        </div>
-
         <div className="form-group">
           <label htmlFor="grade_sheet">Upload Grade Sheet *</label>
           <input
@@ -400,7 +262,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           />
           <div className="file-info">
             <small>
-              Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
+              📊 Upload your official grade sheet. AI will automatically evaluate your grades for allowance qualification.
             </small>
             {formData.grade_sheet && (
               <div className="selected-file">
@@ -410,32 +272,20 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="notes">Additional Notes</label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes}
-            onChange={handleInputChange}
-            placeholder="Any additional information about your grades..."
-            className="form-textarea"
-            rows={3}
-          />
-        </div>
-
-        <div className="allowance-info">
-          <h4>📊 TCU CEAA Allowance Information</h4>
-          <div className="allowance-details">
-            <div className="allowance-item">
-              <span className="allowance-label">Base Allowance:</span>
-              <span className="allowance-value">₱5,000 (if GWA ≥ 80% equivalent)</span>
+        <div className="ai-processing-info">
+          <h4>🤖 AI-Powered Grade Analysis</h4>
+          <div className="ai-features">
+            <div className="ai-feature-item">
+              <span className="ai-icon">✨</span>
+              <span>Automatic grade extraction and analysis</span>
             </div>
-            <div className="allowance-item">
-              <span className="allowance-label">Merit Incentive:</span>
-              <span className="allowance-value">₱5,000 (if SWA ≥ 88.75%)</span>
+            <div className="ai-feature-item">
+              <span className="ai-icon">📊</span>
+              <span>Intelligent allowance qualification assessment</span>
             </div>
-            <div className="allowance-note">
-              <strong>Note:</strong> No allowance if you have incomplete or failed subjects
+            <div className="ai-feature-item">
+              <span className="ai-icon">⚡</span>
+              <span>Instant base and merit allowance evaluation</span>
             </div>
           </div>
         </div>
@@ -452,17 +302,17 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           <button
             type="submit"
             className="btn-primary"
-            disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || !formData.total_units || !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet}
+            disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || !formData.grade_sheet}
           >
             {loading ? (
               <>
                 <span className="loading-spinner"></span>
-                Submitting...
+                Processing...
               </>
             ) : !eligibility?.canSubmit ? (
               'Documents Required'
             ) : (
-              'Submit Grades'
+              'Submit for AI Analysis'
             )}
           </button>
         </div>

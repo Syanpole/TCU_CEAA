@@ -64,7 +64,7 @@ const Login: React.FC<LoginProps> = ({ onStudentRegister, onBackToLanding }) => 
               <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo-img" />
             </div>
           </div>
-          <h1>TCU CEAA</h1>
+          <h1>TCU-CEAA</h1>
           <h2>Welcome Back</h2>
           <p>Sign in to access your dashboard</p>
         </div>

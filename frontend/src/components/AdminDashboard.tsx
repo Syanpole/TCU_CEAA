@@ -68,17 +68,72 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
       try {
         setLoading(true);
         setError(null);
-        const response = await apiClient.get<AdminDashboardData>('/dashboard/admin/');
-        setDashboardData(response.data);
+        
+        try {
+          const response = await apiClient.get<AdminDashboardData>('/dashboard/admin/');
+          setDashboardData(response.data);
+        } catch (apiError) {
+          // If API fails, try to get individual data
+          console.log('Main dashboard API failed, trying individual endpoints...');
+          
+          try {
+            const [documentsRes, gradesRes, applicationsRes, usersRes] = await Promise.all([
+              apiClient.get('/documents/').catch(() => ({ data: [] })),
+              apiClient.get('/grades/').catch(() => ({ data: [] })),
+              apiClient.get('/applications/').catch(() => ({ data: [] })),
+              apiClient.get('/students/').catch(() => ({ data: [] }))
+            ]);
+
+            // Process the data if available
+            const documents = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+            const grades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
+            const applications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
+            const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+
+            setDashboardData({
+              pending_documents: documents.filter((doc: any) => doc.status === 'pending') || [],
+              pending_grades: grades.filter((grade: any) => grade.status === 'pending') || [],
+              pending_applications: applications.filter((app: any) => app.status === 'pending') || [],
+              stats: {
+                total_students: users.length,
+                total_documents: documents.length,
+                total_grades: grades.length,
+                total_applications: applications.length
+              }
+            });
+          } catch (individualError) {
+            console.log('Individual APIs also failed, using demo data for development');
+            // Use demo data structure
+            setDashboardData({
+              pending_documents: [],
+              pending_grades: [],
+              pending_applications: [],
+              stats: {
+                total_students: 0,
+                total_documents: 0,
+                total_grades: 0,
+                total_applications: 0
+              }
+            });
+          }
+        }
+        
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
+        setError('Failed to load dashboard data. Please check your connection and try again.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -89,6 +144,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleQuickAction = async (actionType: string, itemId: number, newStatus: string) => {
+    try {
+      const endpoint = actionType === 'document' ? '/documents' : 
+                     actionType === 'grade' ? '/grades' : '/applications';
+      
+      await apiClient.patch(`${endpoint}/${itemId}/`, { status: newStatus });
+      
+      // Refresh dashboard data
+      if (dashboardData) {
+        const updated = { ...dashboardData };
+        
+        if (actionType === 'document') {
+          updated.pending_documents = updated.pending_documents.filter(doc => doc.id !== itemId);
+        } else if (actionType === 'grade') {
+          updated.pending_grades = updated.pending_grades.filter(grade => grade.id !== itemId);
+        } else if (actionType === 'application') {
+          updated.pending_applications = updated.pending_applications.filter(app => app.id !== itemId);
+        }
+        
+        setDashboardData(updated);
+      }
+    } catch (error) {
+      console.error(`Error updating ${actionType}:`, error);
+      // Could show a toast notification here
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return '#10b981';
+      case 'rejected': return '#ef4444';
+      case 'pending': return '#f59e0b';
+      case 'under_review': return '#3b82f6';
+      default: return '#6b7280';
+    }
+  };
+
+  const getPriorityLevel = (item: any) => {
+    const submitDate = new Date(item.submitted_at || item.applied_at);
+    const now = new Date();
+    const daysOld = Math.floor((now.getTime() - submitDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysOld >= 7) return 'high';
+    if (daysOld >= 3) return 'medium';
+    return 'low';
   };
 
   if (loading) {
@@ -133,7 +235,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                 <span>Online</span>
               </div>
               <h1>Admin Dashboard</h1>
-              <p>TCU CEAA Management System</p>
+              <p>TCU-CEAA Management System</p>
             </div>
             <div className="admin-profile" onClick={() => onViewChange && onViewChange('profile')}>
               <div className="profile-avatar">
@@ -206,7 +308,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
 
         {/* Action Commands */}
         <div className="command-grid">
-          <button className="command-btn documents" onClick={() => console.log('Navigate to documents')}>
+          <button className="command-btn documents" onClick={() => onViewChange && onViewChange('documents')}>
             <div className="command-header">
               <div className="command-icon">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -217,9 +319,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             </div>
             <div className="command-label">Document Review</div>
             <div className="command-status">Pending Review</div>
+            {dashboardData?.pending_documents && dashboardData.pending_documents.filter(doc => getPriorityLevel(doc) === 'high').length > 0 && (
+              <div className="priority-indicator high">
+                {dashboardData.pending_documents.filter(doc => getPriorityLevel(doc) === 'high').length} urgent
+              </div>
+            )}
           </button>
 
-          <button className="command-btn grades" onClick={() => console.log('Navigate to grades')}>
+          <button className="command-btn grades" onClick={() => onViewChange && onViewChange('grades')}>
             <div className="command-header">
               <div className="command-icon">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -230,9 +337,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             </div>
             <div className="command-label">Grade Analysis</div>
             <div className="command-status">Awaiting Review</div>
+            {dashboardData?.pending_grades && dashboardData.pending_grades.filter(grade => grade.general_weighted_average >= 85).length > 0 && (
+              <div className="priority-indicator medium">
+                {dashboardData.pending_grades.filter(grade => grade.general_weighted_average >= 85).length} high GPA
+              </div>
+            )}
           </button>
 
-          <button className="command-btn applications" onClick={() => console.log('Navigate to applications')}>
+          <button className="command-btn applications" onClick={() => onViewChange && onViewChange('applications')}>
             <div className="command-header">
               <div className="command-icon">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -243,6 +355,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             </div>
             <div className="command-label">Fund Applications</div>
             <div className="command-status">Requires Approval</div>
+            {dashboardData?.pending_applications && dashboardData.pending_applications.length > 0 && (
+              <div className="priority-indicator low">
+                ₱{dashboardData.pending_applications.reduce((sum, app) => sum + app.amount, 0).toLocaleString()} pending
+              </div>
+            )}
+          </button>
+
+          <button className="command-btn analytics" onClick={() => console.log('Navigate to analytics')}>
+            <div className="command-header">
+              <div className="command-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="command-label">Analytics</div>
+            <div className="command-status">View Reports</div>
           </button>
         </div>
 
@@ -255,29 +384,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             </div>
             <div className="operations-list">
               {dashboardData?.pending_documents && dashboardData.pending_documents.length > 0 ? (
-                dashboardData.pending_documents.map((doc) => (
-                  <div key={doc.id} className="operation-item">
-                    <div className="operation-header">
-                      <div className="operation-id">ID-{doc.student_id}</div>
-                      <div className="operation-status pending">Pending</div>
+                dashboardData.pending_documents.map((doc) => {
+                  const priority = getPriorityLevel(doc);
+                  return (
+                    <div key={doc.id} className={`operation-item priority-${priority}`}>
+                      <div className="operation-header">
+                        <div className="operation-id">ID-{doc.student_id}</div>
+                        <div className="operation-status pending">Pending</div>
+                        {priority === 'high' && <div className="urgent-badge">URGENT</div>}
+                      </div>
+                      <div className="operation-title">{doc.student_name}</div>
+                      <div className="operation-detail">{doc.document_type_display}</div>
+                      <div className="operation-timestamp">
+                        SUBMITTED: {new Date(doc.submitted_at).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        }).toUpperCase()}
+                      </div>
+                      <div className="operation-actions">
+                        <button 
+                          className="action-btn approve"
+                          onClick={() => handleQuickAction('document', doc.id, 'approved')}
+                        >
+                          ✅ Approve
+                        </button>
+                        <button 
+                          className="action-btn reject"
+                          onClick={() => handleQuickAction('document', doc.id, 'rejected')}
+                        >
+                          ❌ Reject
+                        </button>
+                        <button 
+                          className="action-btn review"
+                          onClick={() => onViewChange && onViewChange('documents')}
+                        >
+                          👁️ Review
+                        </button>
+                      </div>
                     </div>
-                    <div className="operation-title">{doc.student_name}</div>
-                    <div className="operation-detail">{doc.document_type_display}</div>
-                    <div className="operation-timestamp">
-                      SUBMITTED: {new Date(doc.submitted_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).toUpperCase()}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div style={{
-                  background: 'white',
-                  padding: '20px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  color: '#64748b'
-                }}>
-                  <div style={{ fontSize: '32px', opacity: '0.5', marginBottom: '10px' }}>📄</div>
-                  <p style={{ margin: '0' }}>No pending documents</p>
+                <div className="empty-state-admin">
+                  <div className="empty-icon">📄</div>
+                  <h4>No pending documents</h4>
+                  <p>All documents have been reviewed</p>
                 </div>
               )}
             </div>
@@ -296,7 +449,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               fontWeight: '600',
               margin: '0 0 15px 0'
             }}>
-              � Pending Grades ({dashboardData?.pending_grades.length || 0})
+              Pending Grades ({dashboardData?.pending_grades.length || 0})
             </h3>
             <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               {dashboardData?.pending_grades && dashboardData.pending_grades.length > 0 ? (
@@ -339,7 +492,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   textAlign: 'center',
                   color: '#64748b'
                 }}>
-                  <div style={{ fontSize: '32px', opacity: '0.5', marginBottom: '10px' }}>�</div>
+                  <div style={{ fontSize: '32px', opacity: '0.5', marginBottom: '10px' }}>📄</div>
                   <p style={{ margin: '0' }}>No pending grades</p>
                 </div>
               )}

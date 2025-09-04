@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Django setup and management script for TCU CEAA project
+Django setup and management script for TCU-CEAA project
+Taguig City University City Educational Assistance Allowance
 """
 import os
 import sys

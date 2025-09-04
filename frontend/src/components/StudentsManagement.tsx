@@ -360,7 +360,7 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
         <div className="management-header">
           <div className="header-content">
             <h1>Students Management</h1>
-            <p>View and manage all registered students in the TCU CEAA system</p>
+            <p>View and manage all registered students in the TCU-CEAA system</p>
           </div>
           
           <div className="header-stats">

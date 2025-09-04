@@ -115,7 +115,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
         <div className="management-header">
           <div className="header-content">
             <h1>Grades Management</h1>
-            <p>Review and analyze all grade submissions in the TCU CEAA system</p>
+            <p>Review and analyze all grade submissions in the TCU-CEAA system</p>
           </div>
           
           <div className="header-stats">

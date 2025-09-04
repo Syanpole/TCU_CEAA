@@ -41,7 +41,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               onClick={() => window.location.reload()}
               style={{ cursor: 'pointer', userSelect: 'none' }}
             >
-              TCU CEAA Portal
+              TCU-CEAA Portal
             </h1>
           </div>
           <nav className="nav-menu">
@@ -67,9 +67,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         <section className="hero animate-section">
           <div className="hero-content">
             <div className="hero-text">
-              <h2>Excellence in Academic Affairs</h2>
+              <h2>City Educational Assistance Allowance</h2>
               <p>
-                Welcome to the official portal of TCU Center for Excellence in Academic Affairs. 
+                Welcome to the official portal of TCU City Educational Assistance Allowance. 
                 Experience seamless academic management, student services, and administrative 
                 excellence powered by modern technology and AI-driven insights.
               </p>
@@ -99,36 +99,36 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             <div className="hero-visual">
               <div className="floating-card card-1">
                 <div className="card-icon">
-                  <img src="/images/energy-management.png" alt="Smart Management" />
+                  <img src="/images/financial-support.png" alt="Financial Support" />
                 </div>
-                <div className="card-text">Smart Management</div>
+                <div className="card-text">Financial Support</div>
               </div>
               <div className="floating-card card-2">
                 <div className="card-icon">
-                  <img src="/images/performance.png" alt="Fast Processing" />
+                  <img src="/images/study-assistance.png" alt="Study Assistance" />
                 </div>
-                <div className="card-text">Fast Processing</div>
+                <div className="card-text">Study Assistance</div>
               </div>
               <div className="floating-card card-3">
                 <div className="card-icon">
-                  <img src="/images/academic-achievement.png" alt="Academic Excellence" />
+                  <img src="/images/academic-success.png" alt="Academic Success" />
                 </div>
-                <div className="card-text">Academic Excellence</div>
+                <div className="card-text">Academic Success</div>
               </div>
               <div className="floating-card card-4">
                 <div className="card-icon">
-                  <img src="/images/data-analytics.png" alt="Data Analytics" />
+                  <img src="/images/student-support.png" alt="Student Support" />
                 </div>
-                <div className="card-text">Data Analytics</div>
+                <div className="card-text">Student Support</div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* TCU CEAA Banner Section */}
+        {/* TCU-CEAA Banner Section */}
         <section className="banner-section animate-section">
           <div className="banner-container">
-            {/* Full TCU CEAA Banner Image */}
+            {/* Full TCU-CEAA Banner Image */}
             <img 
               src="/images/TCU-CEAA-IMAGE.jpg" 
               alt="Taguig City University - City Educational Assistance Allowance Program" 
@@ -139,37 +139,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="about" className="info-section animate-section">
           <div className="section-header">
-            <h3>About TCU CEAA</h3>
-            <p>Transforming academic excellence through innovative solutions</p>
+            <h3>About TCU-CEAA</h3>
+            <p>Supporting TCU students with educational financial assistance</p>
           </div>
           <div className="info-grid">
             <div className="info-card">
-              <div className="info-icon">🎓</div>
-              <h4>Academic Excellence</h4>
-              <p>Supporting outstanding academic programs with comprehensive management tools and data-driven insights.</p>
+              <div className="info-icon">
+                <img src="/images/financial-assistance.png" alt="Financial Assistance" />
+              </div>
+              <h4>Financial Assistance</h4>
+              <p>Get the financial support you need to continue your education and achieve your academic goals.</p>
             </div>
             <div className="info-card">
-              <div className="info-icon">🤝</div>
-              <h4>Student Services</h4>
-              <p>Providing seamless student experience through integrated services and support systems.</p>
+              <div className="info-icon">
+                <img src="/images/easy-application.png" alt="Easy Application" />
+              </div>
+              <h4>Easy Application</h4>
+              <p>Simple online application process - upload your documents and submit your grades easily.</p>
             </div>
             <div className="info-card">
-              <div className="info-icon">🌍</div>
-              <h4>Innovation Hub</h4>
-              <p>Leading educational innovation with cutting-edge technology and modern pedagogical approaches.</p>
+              <div className="info-icon">
+                <img src="/images/quick-processing.png" alt="Quick Processing" />
+              </div>
+              <h4>Quick Processing</h4>
+              <p>Fast evaluation of your application so you can get your allowance as soon as possible.</p>
             </div>
             <div className="info-card">
-              <div className="info-icon">📈</div>
-              <h4>Performance Analytics</h4>
-              <p>Leveraging data analytics to enhance academic performance and institutional effectiveness.</p>
+              <div className="info-icon">
+                <img src="/images/track-status.png" alt="Track Status" />
+              </div>
+              <h4>Track Status</h4>
+              <p>Check your application status anytime, anywhere through your student dashboard.</p>
             </div>
           </div>
         </section>
 
         <section id="features" className="features-section animate-section">
           <div className="section-header">
-            <h3>Platform Features</h3>
-            <p>Discover what makes our platform exceptional</p>
+            <h3>What You Can Do</h3>
+            <p>Everything you need to apply for and manage your educational allowance</p>
           </div>
           <div className="features-grid">
             <div className="feature-category">
@@ -197,23 +205,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="process" className="process-section animate-section">
           <div className="section-header">
-            <h3>How It Works</h3>
-            <p>Simple steps to access your academic portal</p>
+            <h3>How to Apply</h3>
+            <p>Simple steps to get your educational allowance</p>
           </div>
           <div className="process-steps">
             <div className="step">
               <div className="step-number">1</div>
               <div className="step-content">
-                <h4>Create Account</h4>
-                <p>Register with your student credentials</p>
+                <h4>Register Account</h4>
+                <p>Sign up with your student information</p>
               </div>
             </div>
             <div className="step-arrow">→</div>
             <div className="step">
               <div className="step-number">2</div>
               <div className="step-content">
-                <h4>Verify Identity</h4>
-                <p>Complete account verification process</p>
+                <h4>Submit Documents</h4>
+                <p>Upload required documents and grades</p>
               </div>
             </div>
             <div className="step-arrow">→</div>
@@ -228,8 +236,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             <div className="step">
               <div className="step-number">4</div>
               <div className="step-content">
-                <h4>Manage Academics</h4>
-                <p>Handle all academic requirements</p>
+                <h4>Get Allowance</h4>
+                <p>Receive your educational assistance</p>
               </div>
             </div>
           </div>
@@ -237,14 +245,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section className="cta-section animate-section">
           <div className="cta-content">
-            <h3>Ready to Get Started?</h3>
-            <p>Join the TCU CEAA community and experience excellence in academic management</p>
+            <h3>Need Financial Support for Your Studies?</h3>
+            <p>Join thousands of TCU students who are getting educational assistance through our program</p>
             <div className="cta-buttons-large">
               <button className="cta-primary-large" onClick={onRegisterClick}>
-                Student Registration
+                Apply for Allowance
               </button>
               <button className="cta-secondary-large" onClick={onLoginClick}>
-                Already Have Account? Sign In
+                Already Registered? Sign In
               </button>
             </div>
           </div>
@@ -254,8 +262,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       <footer id="contact" className="landing-footer">
         <div className="footer-content">
           <div className="footer-section">
-            <h4>TCU CEAA Portal</h4>
-            <p>Center for Excellence in Academic Affairs - Leading innovation in education.</p>
+            <h4>TCU-CEAA Portal</h4>
+            <p>Taguig City University - City Educational Assistance Allowance - Supporting students through financial assistance and academic excellence.</p>
             <div className="social-links">
               <a 
                 href="https://www.facebook.com/TaguigCityUniversity" 

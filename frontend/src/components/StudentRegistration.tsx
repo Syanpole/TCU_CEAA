@@ -110,32 +110,88 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
   if (success) {
     return (
       <div className="student-registration-container">
-        <div className="registration-card">
-          <div className="success-message">
-            <div className="success-icon">✅</div>
-            <h2>Registration Successful!</h2>
-            <p>Your TCU student account has been created successfully.</p>
-            <p>You can now sign in with your credentials.</p>
-            <button
-              onClick={onGoToLogin}
-              className="signin-button"
-              style={{
-                marginTop: '20px',
-                padding: '12px 24px',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'background-color 0.3s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
-            >
-              Back to Sign In
-            </button>
+        <div className="registration-card success-card">
+          <div className="success-celebration">
+            <div className="celebration-particles">
+              <div className="particle particle-1"></div>
+              <div className="particle particle-2"></div>
+              <div className="particle particle-3"></div>
+              <div className="particle particle-4"></div>
+              <div className="particle particle-5"></div>
+              <div className="particle particle-6"></div>
+            </div>
+            
+            <div className="success-header">
+              <div className="tcu-logo-success">
+                <div className="logo-circle-success">
+                  <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo-img-success" />
+                </div>
+              </div>
+              <h1 className="university-name-success">Taguig City University</h1>
+            </div>
+            
+            <div className="success-content-wrapper">
+              <div className="success-icon-wrapper">
+                <div className="success-checkmark">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="11" fill="url(#successGradient)" stroke="#fff" strokeWidth="2"/>
+                    <path d="M8 12.5L11 15.5L16 9.5" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                    <defs>
+                      <linearGradient id="successGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#4CAF50" />
+                        <stop offset="100%" stopColor="#45a049" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+              </div>
+              
+              <div className="success-message-content">
+                <h2 className="success-title">Registration Successful!</h2>
+                <p className="success-subtitle">Welcome to TCU-CEAA</p>
+                
+                <div className="success-details">
+                  <div className="success-detail-item">
+                    <div className="detail-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <span>Your TCU student account has been created</span>
+                  </div>
+                  <div className="success-detail-item">
+                    <div className="detail-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <span>You can now access TCU-CEAA services</span>
+                  </div>
+                  <div className="success-detail-item">
+                    <div className="detail-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <span>Start managing your academic documents</span>
+                  </div>
+                </div>
+                
+                <div className="success-actions">
+                  <button
+                    onClick={onGoToLogin}
+                    className="success-primary-button"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 17L15 12L10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Continue to Sign In
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -153,7 +209,7 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
           </div>
           <h1>Taguig City University</h1>
           <h2>Student Registration</h2>
-          <p>Create your student account to access TCU CEAA</p>
+          <p>Create your student account to access TCU-CEAA</p>
         </div>
 
         <form onSubmit={handleSubmit} className="registration-form">

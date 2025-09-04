@@ -109,7 +109,7 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
         <div className="management-header">
           <div className="header-content">
             <h1>Documents Management</h1>
-            <p>Review and manage all document submissions in the TCU CEAA system</p>
+            <p>Review and manage all document submissions in the TCU-CEAA system</p>
           </div>
           
           <div className="header-stats">
