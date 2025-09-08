@@ -16,6 +16,6 @@ jest.mock('./contexts/AuthContext', () => ({
 
 test('renders landing page', () => {
   render(<App />);
-  const linkElement = screen.getAllByText(/TCU CEAA Portal/i)[0];
+  const linkElement = screen.getAllByText(/TCU-CEAA Portal/i)[0];
   expect(linkElement).toBeInTheDocument();
 });
