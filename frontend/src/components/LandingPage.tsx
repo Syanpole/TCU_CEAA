@@ -97,29 +97,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               </div>
             </div>
             <div className="hero-visual">
-              <div className="floating-card card-1">
-                <div className="card-icon">
-                  <img src="/images/financial-support.png" alt="Financial Support" />
+              <div className="hero-stats-visual">
+                <div className="visual-stat">
+                  <div className="stat-icon">📚</div>
+                  <div className="stat-info">
+                    <span className="big-number">15K+</span>
+                    <span className="stat-desc">Students Helped</span>
+                  </div>
                 </div>
-                <div className="card-text">Financial Support</div>
-              </div>
-              <div className="floating-card card-2">
-                <div className="card-icon">
-                  <img src="/images/study-assistance.png" alt="Study Assistance" />
+                <div className="visual-stat">
+                  <div className="stat-icon">💎</div>
+                  <div className="stat-info">
+                    <span className="big-number">₱50M</span>
+                    <span className="stat-desc">Total Assistance</span>
+                  </div>
                 </div>
-                <div className="card-text">Study Assistance</div>
-              </div>
-              <div className="floating-card card-3">
-                <div className="card-icon">
-                  <img src="/images/academic-success.png" alt="Academic Success" />
+                <div className="visual-stat">
+                  <div className="stat-icon">⭐</div>
+                  <div className="stat-info">
+                    <span className="big-number">4.9/5</span>
+                    <span className="stat-desc">Student Rating</span>
+                  </div>
                 </div>
-                <div className="card-text">Academic Success</div>
-              </div>
-              <div className="floating-card card-4">
-                <div className="card-icon">
-                  <img src="/images/student-support.png" alt="Student Support" />
-                </div>
-                <div className="card-text">Student Support</div>
               </div>
             </div>
           </div>
@@ -314,7 +313,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
           <div className="footer-section">
             <h4>Contact Info</h4>
-            <p>📍 Taguig City University<br />Taguig City, Philippines</p>
+            <p>📍 Gen. Santos Ave. Central Bicutan<br />Taguig City, Philippines</p>
             <p>📞 (817) 257-TCU1 (8281)</p>
             <p>✉️ ceaa@tcu.edu</p>
           </div>

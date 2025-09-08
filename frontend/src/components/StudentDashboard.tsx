@@ -448,7 +448,7 @@ const StudentDashboard: React.FC = () => {
                               className="quick-action-btn"
                               onClick={() => setShowDocumentForm(true)}
                             >
-                              📤 Upload Now
+                              Upload Now
                             </button>
                           )}
                           {index === 1 && (
@@ -456,12 +456,12 @@ const StudentDashboard: React.FC = () => {
                               className="quick-action-btn"
                               onClick={() => setShowGradeForm(true)}
                             >
-                              📊 Submit Grades
+                              Submit Grades
                             </button>
                           )}
                           {index === 2 && (
                             <button className="quick-action-btn">
-                              💰 Apply Now
+                              Apply Now
                             </button>
                           )}
                         </div>

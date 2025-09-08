@@ -486,7 +486,7 @@
 
 .loading-text,
 .error-message {
-  color: var(--text-muted);
+  color: rgb(55, 55, 55);
   margin-bottom: 1.5rem;
 }
 
