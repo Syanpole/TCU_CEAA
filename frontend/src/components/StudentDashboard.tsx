@@ -148,7 +148,6 @@ const StudentDashboard: React.FC = () => {
             });
           }
         } catch (apiError) {
-          console.log('API not available, using demo data');
           // Use demo/sample data for development
         }
 

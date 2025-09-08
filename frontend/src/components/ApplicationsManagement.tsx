@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import './ApplicationsManagement.css';
 
@@ -21,7 +20,6 @@ interface ApplicationsManagementProps {
 }
 
 const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

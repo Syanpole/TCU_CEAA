@@ -74,7 +74,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           setDashboardData(response.data);
         } catch (apiError) {
           // If API fails, try to get individual data
-          console.log('Main dashboard API failed, trying individual endpoints...');
           
           try {
             const [documentsRes, gradesRes, applicationsRes, usersRes] = await Promise.all([
@@ -102,7 +101,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               }
             });
           } catch (individualError) {
-            console.log('Individual APIs also failed, using demo data for development');
             // Use demo data structure
             setDashboardData({
               pending_documents: [],
@@ -362,7 +360,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             )}
           </button>
 
-          <button className="command-btn analytics" onClick={() => console.log('Navigate to analytics')}>
+          <button className="command-btn analytics" onClick={() => {}}>
             <div className="command-header">
               <div className="command-icon">
                 <svg viewBox="0 0 24 24" fill="currentColor">

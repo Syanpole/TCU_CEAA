@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
-import documentService, { DocumentStatus, GradeSubmissionEligibility } from '../services/documentService';
+import documentService, { GradeSubmissionEligibility } from '../services/documentService';
 import NotificationModal from './NotificationModal';
 import './GradeSubmissionForm.css';
 
