@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safeToFixed } from '../utils/numberUtils';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -475,7 +476,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                       ID: {grade.student_id} • {grade.academic_year} {grade.semester_display}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '5px' }}>
-                      GWA: {grade.general_weighted_average.toFixed(2)} | SWA: {grade.semestral_weighted_average.toFixed(2)}
+                      GWA: {safeToFixed(grade.general_weighted_average)} | SWA: {safeToFixed(grade.semestral_weighted_average)}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Submitted: {formatDate(grade.submitted_at)}

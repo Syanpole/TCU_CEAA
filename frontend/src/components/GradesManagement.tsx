@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
+import { safePercentage } from '../utils/numberUtils';
 import './GradesManagement.css';
 
 interface Grade {
@@ -218,11 +219,11 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                 <div className="grade-metrics">
                   <div className="metric-item">
                     <div className="metric-label">General Weighted Average</div>
-                    <div className="metric-value">{grade.general_weighted_average.toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.general_weighted_average)}</div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Semestral Weighted Average</div>
-                    <div className="metric-value">{grade.semestral_weighted_average.toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.semestral_weighted_average)}</div>
                   </div>
                 </div>
 
