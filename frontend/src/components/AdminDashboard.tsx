@@ -422,7 +422,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </div>
             )}
           </button>
-
         </div>
 
         {/* Operations Dashboard */}
