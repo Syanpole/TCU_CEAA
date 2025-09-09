@@ -19,8 +19,8 @@ interface GradeSubmission {
   student_id: string;
   academic_year: string;
   semester_display: string;
-  general_weighted_average: number;
-  semestral_weighted_average: number;
+  general_weighted_average: number | string;
+  semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;
   qualifies_for_merit_incentive: boolean;
   status: string;
@@ -62,6 +62,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -136,6 +138,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Function to manually refresh data
+  const refreshDashboardData = async () => {
+    try {
+      const response = await apiClient.get<AdminDashboardData>('/dashboard/admin/');
+      setDashboardData(response.data);
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -147,39 +159,70 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   };
 
   const handleQuickAction = async (actionType: string, itemId: number, newStatus: string) => {
+    const actionKey = `${actionType}_${itemId}`;
+    
     try {
-      const endpoint = actionType === 'document' ? '/documents' : 
-                     actionType === 'grade' ? '/grades' : '/applications';
+      // Set loading state for this specific action
+      setActionLoading(prev => ({ ...prev, [actionKey]: true }));
       
-      await apiClient.patch(`${endpoint}/${itemId}/`, { status: newStatus });
+      let endpoint = '';
+      let payload = {};
       
-      // Refresh dashboard data
-      if (dashboardData) {
-        const updated = { ...dashboardData };
-        
-        if (actionType === 'document') {
-          updated.pending_documents = updated.pending_documents.filter(doc => doc.id !== itemId);
-        } else if (actionType === 'grade') {
-          updated.pending_grades = updated.pending_grades.filter(grade => grade.id !== itemId);
-        } else if (actionType === 'application') {
-          updated.pending_applications = updated.pending_applications.filter(app => app.id !== itemId);
-        }
-        
-        setDashboardData(updated);
+      if (actionType === 'document') {
+        endpoint = `/documents/${itemId}/review/`;
+        payload = { status: newStatus, admin_notes: `Quick action: ${newStatus} by admin` };
+      } else if (actionType === 'grade') {
+        endpoint = `/grades/${itemId}/review/`;
+        payload = { status: newStatus, admin_notes: `Quick action: ${newStatus} by admin` };
+      } else if (actionType === 'application') {
+        endpoint = `/applications/${itemId}/process/`;
+        payload = { status: newStatus, admin_notes: `Quick action: ${newStatus} by admin` };
       }
+      
+      await apiClient.post(endpoint, payload);
+      
+      // Refresh dashboard data immediately
+      await refreshDashboardData();
+      
+      // Show success message
+      const actionNames = {
+        'document': 'Document',
+        'grade': 'Grade submission',
+        'application': 'Application'
+      };
+      setSuccessMessage(`${actionNames[actionType as keyof typeof actionNames]} ${newStatus} successfully!`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+      
     } catch (error) {
       console.error(`Error updating ${actionType}:`, error);
-      // Could show a toast notification here
+      // Show error message to user
+      alert(`Failed to ${newStatus} ${actionType}. Please try again.`);
+    } finally {
+      // Clear loading state
+      setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return '#10b981';
-      case 'rejected': return '#ef4444';
-      case 'pending': return '#f59e0b';
-      case 'under_review': return '#3b82f6';
-      default: return '#6b7280';
+  const handleReviewAction = (actionType: string, itemId: number) => {
+    // Navigate to detailed review page
+    if (onViewChange) {
+      switch (actionType) {
+        case 'document':
+          onViewChange('documents');
+          break;
+        case 'grade':
+          onViewChange('grades');
+          break;
+        case 'application':
+          onViewChange('applications');
+          break;
+        default:
+          console.log(`Review ${actionType} with ID: ${itemId}`);
+      }
+    } else {
+      console.log(`Review ${actionType} with ID: ${itemId}`);
     }
   };
 
@@ -226,6 +269,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   return (
     <div className="admin-dashboard-container">
       <div className="admin-dashboard-content">
+        {/* Success Message */}
+        {successMessage && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: '#10b981',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 1000,
+            animation: 'slideIn 0.3s ease-out'
+          }}>
+            ✅ {successMessage}
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="command-center-header">
           <div className="header-grid">
@@ -337,12 +398,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             </div>
             <div className="command-label">Grade Analysis</div>
             <div className="command-status">Awaiting Review</div>
-            {dashboardData?.pending_grades && dashboardData.pending_grades.filter(grade => grade.general_weighted_average >= 85).length > 0 && (
+            {dashboardData?.pending_grades && dashboardData.pending_grades.filter(grade => Number(grade.general_weighted_average) >= 85).length > 0 && (
               <div className="priority-indicator medium">
-                {dashboardData.pending_grades.filter(grade => grade.general_weighted_average >= 85).length} high GPA
+                {dashboardData.pending_grades.filter(grade => Number(grade.general_weighted_average) >= 85).length} high GPA
               </div>
             )}
-          </button>
+          </button> 
 
           <button className="command-btn applications" onClick={() => onViewChange && onViewChange('applications')}>
             <div className="command-header">
@@ -362,17 +423,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             )}
           </button>
 
-          <button className="command-btn analytics" onClick={() => console.log('Navigate to analytics')}>
-            <div className="command-header">
-              <div className="command-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="command-label">Analytics</div>
-            <div className="command-status">View Reports</div>
-          </button>
+
         </div>
 
         {/* Operations Dashboard */}
@@ -407,18 +458,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                         <button 
                           className="action-btn approve"
                           onClick={() => handleQuickAction('document', doc.id, 'approved')}
+                          disabled={actionLoading[`document_${doc.id}`]}
                         >
-                          ✅ Approve
+                          {actionLoading[`document_${doc.id}`] ? '⏳' : '✅'} Approve
                         </button>
                         <button 
                           className="action-btn reject"
                           onClick={() => handleQuickAction('document', doc.id, 'rejected')}
+                          disabled={actionLoading[`document_${doc.id}`]}
                         >
-                          ❌ Reject
+                          {actionLoading[`document_${doc.id}`] ? '⏳' : '❌'} Reject
                         </button>
                         <button 
                           className="action-btn review"
-                          onClick={() => onViewChange && onViewChange('documents')}
+                          onClick={() => handleReviewAction('document', doc.id)}
                         >
                           👁️ Review
                         </button>
@@ -477,10 +530,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                       ID: {grade.student_id} • {grade.academic_year} {grade.semester_display}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '5px' }}>
-                      GWA: {grade.general_weighted_average.toFixed(2)} | SWA: {grade.semestral_weighted_average.toFixed(2)}
+                      GWA: {Number(grade.general_weighted_average).toFixed(2)} | SWA: {Number(grade.semestral_weighted_average).toFixed(2)}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Submitted: {formatDate(grade.submitted_at)}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <button 
+                        style={{
+                          background: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handleQuickAction('grade', grade.id, 'approved')}
+                        disabled={actionLoading[`grade_${grade.id}`]}
+                      >
+                        {actionLoading[`grade_${grade.id}`] ? '⏳' : '✅'} Approve
+                      </button>
+                      <button 
+                        style={{
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handleQuickAction('grade', grade.id, 'rejected')}
+                        disabled={actionLoading[`grade_${grade.id}`]}
+                      >
+                        {actionLoading[`grade_${grade.id}`] ? '⏳' : '❌'} Reject
+                      </button>
                     </div>
                   </div>
                 ))
@@ -549,6 +634,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Applied: {formatDate(app.applied_at)}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <button 
+                        style={{
+                          background: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handleQuickAction('application', app.id, 'approved')}
+                        disabled={actionLoading[`application_${app.id}`]}
+                      >
+                        {actionLoading[`application_${app.id}`] ? '⏳' : '✅'} Approve
+                      </button>
+                      <button 
+                        style={{
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handleQuickAction('application', app.id, 'rejected')}
+                        disabled={actionLoading[`application_${app.id}`]}
+                      >
+                        {actionLoading[`application_${app.id}`] ? '⏳' : '❌'} Reject
+                      </button>
+                      <button 
+                        style={{
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => handleQuickAction('application', app.id, 'disbursed')}
+                        disabled={actionLoading[`application_${app.id}`]}
+                      >
+                        {actionLoading[`application_${app.id}`] ? '⏳' : '💰'} Disburse
+                      </button>
                     </div>
                   </div>
                 ))}

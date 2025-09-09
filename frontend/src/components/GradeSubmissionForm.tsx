@@ -12,6 +12,12 @@ interface GradeSubmissionFormProps {
 interface FormData {
   semester: string;
   academic_year: string;
+  total_units: string;
+  general_weighted_average: string;
+  semestral_weighted_average: string;
+  has_failing_grades: boolean;
+  has_incomplete_grades: boolean;
+  has_dropped_subjects: boolean;
   grade_sheet: File | null;
 }
 
@@ -22,6 +28,12 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [formData, setFormData] = useState<FormData>({
     semester: '',
     academic_year: '',
+    total_units: '',
+    general_weighted_average: '',
+    semestral_weighted_average: '',
+    has_failing_grades: false,
+    has_incomplete_grades: false,
+    has_dropped_subjects: false,
     grade_sheet: null
   });
   const [loading, setLoading] = useState(false);
@@ -63,11 +75,20 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,8 +116,29 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       return;
     }
     
-    if (!formData.semester || !formData.academic_year || !formData.grade_sheet) {
+    if (!formData.semester || !formData.academic_year || !formData.total_units || 
+        !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate numeric fields
+    const totalUnits = parseInt(formData.total_units);
+    const gwa = parseFloat(formData.general_weighted_average);
+    const swa = parseFloat(formData.semestral_weighted_average);
+
+    if (isNaN(totalUnits) || totalUnits < 1 || totalUnits > 30) {
+      setError('Total units must be between 1 and 30');
+      return;
+    }
+
+    if (isNaN(gwa) || gwa < 65 || gwa > 100) {
+      setError('General Weighted Average must be between 65% and 100%');
+      return;
+    }
+
+    if (isNaN(swa) || swa < 65 || swa > 100) {
+      setError('Semestral Weighted Average must be between 65% and 100%');
       return;
     }
 
@@ -107,6 +149,12 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       const submitFormData = new FormData();
       submitFormData.append('semester', formData.semester);
       submitFormData.append('academic_year', formData.academic_year);
+      submitFormData.append('total_units', formData.total_units);
+      submitFormData.append('general_weighted_average', formData.general_weighted_average);
+      submitFormData.append('semestral_weighted_average', formData.semestral_weighted_average);
+      submitFormData.append('has_failing_grades', formData.has_failing_grades.toString());
+      submitFormData.append('has_incomplete_grades', formData.has_incomplete_grades.toString());
+      submitFormData.append('has_dropped_subjects', formData.has_dropped_subjects.toString());
       submitFormData.append('grade_sheet', formData.grade_sheet);
 
       await apiClient.post('/grades/', submitFormData, {
@@ -119,6 +167,12 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       setFormData({
         semester: '',
         academic_year: '',
+        total_units: '',
+        general_weighted_average: '',
+        semestral_weighted_average: '',
+        has_failing_grades: false,
+        has_incomplete_grades: false,
+        has_dropped_subjects: false,
         grade_sheet: null
       });
 
@@ -249,6 +303,99 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           </div>
         </div>
 
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="total_units">Total Units *</label>
+            <input
+              type="number"
+              id="total_units"
+              name="total_units"
+              value={formData.total_units}
+              onChange={handleInputChange}
+              min="1"
+              max="30"
+              placeholder="e.g., 21"
+              required
+              className="form-input"
+            />
+            <small>Number of units enrolled this semester (1-30)</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="general_weighted_average">General Weighted Average (%) *</label>
+            <input
+              type="number"
+              id="general_weighted_average"
+              name="general_weighted_average"
+              value={formData.general_weighted_average}
+              onChange={handleInputChange}
+              min="65"
+              max="100"
+              step="0.01"
+              placeholder="e.g., 85.50"
+              required
+              className="form-input"
+            />
+            <small>Your overall GWA for the academic year (65-100%)</small>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="semestral_weighted_average">Semestral Weighted Average (%) *</label>
+            <input
+              type="number"
+              id="semestral_weighted_average"
+              name="semestral_weighted_average"
+              value={formData.semestral_weighted_average}
+              onChange={handleInputChange}
+              min="65"
+              max="100"
+              step="0.01"
+              placeholder="e.g., 87.25"
+              required
+              className="form-input"
+            />
+            <small>Your SWA for this specific semester (65-100%)</small>
+          </div>
+
+          <div className="form-group">
+            <label>Grade Status Indicators</label>
+            <div className="checkbox-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="has_failing_grades"
+                  checked={formData.has_failing_grades}
+                  onChange={handleInputChange}
+                  className="form-checkbox"
+                />
+                <span>Has failing grades (below 75%)</span>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="has_incomplete_grades"
+                  checked={formData.has_incomplete_grades}
+                  onChange={handleInputChange}
+                  className="form-checkbox"
+                />
+                <span>Has incomplete grades (INC)</span>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="has_dropped_subjects"
+                  checked={formData.has_dropped_subjects}
+                  onChange={handleInputChange}
+                  className="form-checkbox"
+                />
+                <span>Has dropped subjects (DROP)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div className="form-group">
           <label htmlFor="grade_sheet">Upload Grade Sheet *</label>
           <input
@@ -302,7 +449,8 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           <button
             type="submit"
             className="btn-primary"
-            disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || !formData.grade_sheet}
+            disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || 
+                     !formData.total_units || !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet}
           >
             {loading ? (
               <>

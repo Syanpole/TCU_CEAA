@@ -500,7 +500,7 @@
   margin-right: auto;
 }
 
-.section-header h3 {
+.LandingPage-section-header h3 {
   font-size: 1.8rem;
   color: #1e1e1e;
   margin-bottom: 1rem;
@@ -509,7 +509,7 @@
   display: inline-block;
 }
 
-.section-header h3::after {
+.LandingPage-section-header h3::after {
   content: '';
   position: absolute;
   bottom: -10px;
@@ -521,7 +521,7 @@
   border-radius: 2px;
 }
 
-.section-header p {
+.LandingPage-section-header p {
   font-size: 1.0rem;
   color: #1c232d;
   margin-bottom: 0;
@@ -640,13 +640,13 @@
 }
 
 /* Process Section */
-.process-section {
+.landing-process-section {
   padding: 80px 2rem;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   position: relative;
 }
 
-.process-section::before {
+.landing-process-section::before {
   content: '';
   position: absolute;
   top: 0;
@@ -656,7 +656,7 @@
   background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23dc2626' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
 }
 
-.process-steps {
+.landing-process-steps {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
@@ -668,7 +668,7 @@
   z-index: 1;
 }
 
-.step {
+.landing-step {
   background: rgb(234, 234, 234);
   padding: 2rem 1.5rem;
   border-radius: 16px;
@@ -687,13 +687,13 @@
   justify-content: space-between;
 }
 
-.step:hover {
+.landing-step:hover {
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(220, 38, 38, 0.1);
   border-color: #dc2626;
 }
 
-.step-number {
+.landing-step-number {
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
@@ -709,7 +709,7 @@
   position: relative;
 }
 
-.step-number::after {
+.landing-step-number::after {
   content: '';
   position: absolute;
   top: -3px;
@@ -723,11 +723,11 @@
   transition: opacity 0.3s ease;
 }
 
-.step:hover .step-number::after {
+.landing-step:hover .landing-step-number::after {
   opacity: 0.3;
 }
 
-.LandingPage-step-content {
+.landing-step-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -735,7 +735,7 @@
   align-items: center;
 }
 
-.LandingPage-step-content h4 {
+.landing-step-content h4 {
   color: #000000;
   margin-bottom: 0.8rem;
   font-weight: 700;
@@ -748,7 +748,7 @@
   text-align: center;
 }
 
-.LandingPage-step-content p {
+.landing-step-content p {
   color: #222a36;
   font-size: 0.95rem;
   margin: 0;
@@ -761,7 +761,7 @@
   justify-content: center;
 }
 
-.LandingPage-step-content .step-arrow {
+.landing-step-content .landing-step-arrow {
   font-size: 1.5rem;
   color: #dc2626;
   font-weight: bold;
@@ -1068,12 +1068,12 @@
     justify-content: center;
   }
   
-  .process-steps {
+  .landing-process-steps {
     flex-direction: column;
     align-items: center;
   }
   
-  .step {
+  .landing-step {
     width: 100%;
     max-width: 320px;
     min-width: 300px;
@@ -1081,7 +1081,7 @@
     min-height: 280px;
   }
   
-  .step-arrow {
+  .landing-step-arrow {
     color: #b91c1c;
     transform: rotate(90deg);
     margin: 1rem 0;

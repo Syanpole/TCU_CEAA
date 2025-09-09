@@ -31,7 +31,7 @@
   --gradient-tertiary: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
   --gradient-accent: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
   --gradient-light: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  --gradient-rainbow: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  --gradient-rainbow: linear-gradient(135deg, #3970e6 0%, #3e61bf 100%);
   --gradient-light-blue: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   --shadow-light: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-medium: 0 4px 16px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06);
@@ -136,6 +136,40 @@
   border-color: rgba(30, 64, 175, 0.3);
 }
 
+/* Dark Theme Section Header - Enhanced Visibility */
+.student-dashboard-container.dark-theme .student-dashboard-section-header h3 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%, #ffffff 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+}
+
+.student-dashboard-container.dark-theme .student-dashboard-section-header h3::after {
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #93c5fd 100%) !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4) !important;
+  height: 3px !important;
+  width: 80px !important;
+}
+
+.student-dashboard-container.dark-theme .student-dashboard-section-header p {
+  color: #e2e8f0 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  opacity: 0.95 !important;
+  background: rgba(59, 130, 246, 0.05) !important;
+  padding: 8px 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  backdrop-filter: blur(8px) !important;
+  display: inline-block !important;
+  margin-top: 8px !important;
+}
+
 /* Light Theme Specific Overrides - Crisp and Modern */
 .student-dashboard-container.light-theme {
   --text-primary: #0f172a;
@@ -143,23 +177,58 @@
   --text-muted: #131820;
 }
 
-.student-dashboard-container.light-theme .step-content h4,
+.student-dashboard-container.light-theme .student-dashboard-section-header h3,
 .student-dashboard-container.light-theme .submission-header h4,
 .student-dashboard-container.light-theme .card-header h3,
-.student-dashboard-container.light-theme .section-header h3,
+.student-dashboard-container.light-theme .student-dashboard-section-header h3,
 .student-dashboard-container.light-theme .stat-number,
 .student-dashboard-container.light-theme .stat-label {
   color: #0f172a !important;
 }
 
-.student-dashboard-container.light-theme .step-content p,
-.student-dashboard-container.light-theme .section-header p,
+.student-dashboard-container.light-theme .student-dashboard-step-content p,
+.student-dashboard-container.light-theme .student-dashboard-section-header p,
 .student-dashboard-container.light-theme .stat-sub,
 .student-dashboard-container.light-theme .grade-row,
 .student-dashboard-container.light-theme .application-amount,
 .student-dashboard-container.light-theme .loading-text,
 .student-dashboard-container.light-theme .real-time-indicator span {
   color: #131820 !important;
+}
+
+/* Light Theme Section Header - Enhanced Styling to Match Dark Mode */
+.student-dashboard-container.light-theme .student-dashboard-section-header h3 {
+  color: #0f172a !important;
+  text-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) !important;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 25%, #475569 50%, #334155 75%, #1e293b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+  font-size: 28px !important;
+}
+
+.student-dashboard-container.light-theme .student-dashboard-section-header h3::after {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%) !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+  height: 3px !important;
+  width: 80px !important;
+}
+
+.student-dashboard-container.light-theme .student-dashboard-section-header p {
+  color: #334155 !important;
+  text-shadow: 0 1px 2px rgba(51, 65, 85, 0.1) !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  opacity: 0.95 !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+  padding: 8px 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(37, 99, 235, 0.15) !important;
+  backdrop-filter: blur(8px) !important;
+  display: inline-block !important;
+  margin-top: 8px !important;
 }
 
 .student-dashboard-container.light-theme .submission-date,
@@ -174,7 +243,7 @@
 }
 
 .student-dashboard-container.light-theme .tab-button.active {
-  background: rgba(102, 126, 234, 0.85) !important;
+  background: rgba(37, 99, 235, 0.8) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   color: white !important;
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
@@ -1690,7 +1759,7 @@
   margin-bottom: 32px;
 }
 
-.section-header {
+.student-dashboard-section-header {
   margin-bottom: 20px;
   text-align: center;
 }
@@ -1705,6 +1774,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   position: relative;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .student-dashboard-section-header h3::after {
@@ -1720,7 +1790,7 @@
 }
 
 .student-dashboard-section-header p {
-  color: rgb(98, 98, 98);
+  color: var(--text-secondary);
   font-size: 16px;
   margin: 0;
   font-weight: 500;
@@ -2161,7 +2231,7 @@
     display: none;
   }
   
-  .student-dashboard .step-meta {
+  .student-dashboard-step-meta {
     justify-content: center;
     gap: 12px;
   }
@@ -2198,11 +2268,11 @@
     padding: 24px;
   }
   
-  .section-header h3 {
+  .student-dashboard-section-header h3 {
     font-size: 28px;
   }
   
-  .section-header p {
+  .student-dashboard-section-header p {
     font-size: 18px;
   }
 }
@@ -2273,11 +2343,11 @@
     font-size: 14px;
   }
   
-  .section-header h3 {
+  .student-dashboard-section-header h3 {
     font-size: 24px;
   }
   
-  .section-header p {
+  .student-dashboard-section-header p {
     font-size: 16px;
   }
   
@@ -2417,5 +2487,167 @@
     padding: 12px;
     padding-top: 12px;
     align-items: flex-start;
+  }
+}
+
+/* Requirement Notices and Disabled States */
+.requirement-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--lighter-blue);
+  border: 2px solid var(--light-blue);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  animation: slideIn 0.5s ease-out;
+}
+
+.student-dashboard-container.dark-theme .requirement-notice {
+  background: rgba(30, 64, 175, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.notice-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.notice-content h4 {
+  color: var(--accent-blue-dark);
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 8px 0;
+}
+
+.student-dashboard-container.dark-theme .notice-content h4 {
+  color: var(--accent-blue-light);
+}
+
+.notice-content p {
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.requirement-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.student-dashboard-container.dark-theme .status-item {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.help-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 8px 0 0 0;
+}
+
+.requirement-warning {
+  text-align: center;
+}
+
+.requirement-text {
+  font-size: 13px;
+  color: var(--warning);
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.quick-action-btn.disabled,
+.add-button.disabled,
+.action-button.disabled {
+  background: var(--surface-bg) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.quick-action-btn.disabled:hover,
+.add-button.disabled:hover,
+.action-button.disabled:hover {
+  background: var(--surface-bg) !important;
+  color: var(--text-muted) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.student-dashboard-container.dark-theme .quick-action-btn.disabled,
+.student-dashboard-container.dark-theme .add-button.disabled,
+.student-dashboard-container.dark-theme .action-button.disabled {
+  background: var(--surface-bg) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Enhanced Progress Step Styling */
+.progress-step.locked {
+  opacity: 0.7;
+}
+
+.progress-step.locked .step-number {
+  background: var(--surface-bg);
+  color: var(--text-muted);
+}
+
+.progress-step.locked .student-dashboard-step-content h4 {
+  color: var(--text-muted);
+}
+
+.progress-step.locked .student-dashboard-step-content p {
+  color: var(--text-muted);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile responsiveness for requirement notices */
+@media (max-width: 768px) {
+  .requirement-notice {
+    flex-direction: column;
+    text-align: center;
+    padding: 16px;
+  }
+  
+  .notice-icon {
+    align-self: center;
+    margin-top: 0;
+  }
+  
+  .requirement-status {
+    align-items: center;
+  }
+  
+  .status-item {
+    justify-content: center;
+    text-align: center;
   }
 }

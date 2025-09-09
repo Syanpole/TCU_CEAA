@@ -29,8 +29,8 @@ interface GradeSubmission {
   academic_year: string;
   semester: string;
   semester_display: string;
-  general_weighted_average: number;
-  semestral_weighted_average: number;
+  general_weighted_average: number | string;
+  semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;
   qualifies_for_merit_incentive: boolean;
   status: string;
@@ -119,6 +119,11 @@ const StudentDashboard: React.FC = () => {
       try {
         setLoading(true);
         
+        // Initialize default empty arrays
+        let fetchedDocuments: DocumentSubmission[] = [];
+        let fetchedGrades: GradeSubmission[] = [];
+        let fetchedApplications: AllowanceApplication[] = [];
+        
         // Try to fetch real data first
         try {
           const [documentsRes, gradesRes, applicationsRes, dashboardRes] = await Promise.all([
@@ -128,9 +133,9 @@ const StudentDashboard: React.FC = () => {
             apiClient.get<StudentDashboardData>('/dashboard/student/').catch(() => ({ data: {} as StudentDashboardData }))
           ]);
 
-          const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
-          const fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
-          const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
+          fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+          fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
+          fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
 
           setDocuments(fetchedDocuments);
           setGrades(fetchedGrades);
@@ -152,6 +157,9 @@ const StudentDashboard: React.FC = () => {
           // Use demo/sample data for development
         }
 
+        // Calculate approved documents count for assignments
+        const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
+
         // Always show these sample assignments for students to know what to do
         setAssignments([
           {
@@ -159,21 +167,21 @@ const StudentDashboard: React.FC = () => {
             title: 'Submit Required Documents',
             description: 'Upload all required documents for TCU-CEAA verification (Birth Certificate, Report Card, etc.)',
             due_date: '',
-            submitted: documents.length > 0
+            submitted: fetchedDocuments.length > 0
           },
           {
             id: 2,
             title: 'Submit Grade Records',
-            description: 'Upload your latest semester grades for allowance evaluation and eligibility check',
+            description: `Upload your latest semester grades for allowance evaluation and eligibility check. Requires 2+ approved documents (Currently: ${currentApprovedDocuments}/2 approved)`,
             due_date: '',
-            submitted: grades.length > 0
+            submitted: fetchedGrades.length > 0
           },
           {
             id: 3,
             title: 'Complete Allowance Application',
             description: 'Apply for your educational assistance allowance once requirements are met',
             due_date: '',
-            submitted: applications.length > 0
+            submitted: fetchedApplications.length > 0
           }
         ]);
         
@@ -223,14 +231,42 @@ const StudentDashboard: React.FC = () => {
     // Show dashboard notification
     setNotificationType('success');
     setNotificationTitle('Document Uploaded Successfully!');
-    setNotificationMessage('Your document has been submitted and is under review. You will be notified once it is approved by the admin.');
+    setNotificationMessage('Your document has been submitted and is being analyzed by our AI system. You will be notified once it is reviewed and approved by the admin.');
     setShowNotification(true);
     
-    // Optionally refresh data without loading state
-    setTimeout(() => {
-      // In real app, refetch documents data here silently
-      // No loading state to avoid visual disruption
-    }, 2000);
+    // Refresh documents data to update the count
+    setTimeout(async () => {
+      try {
+        const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/');
+        const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+        setDocuments(fetchedDocuments);
+        
+        // Update stats
+        setStats(prevStats => ({
+          ...prevStats,
+          total_documents: fetchedDocuments.length,
+          approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length
+        }));
+
+        // Update assignments with new document count
+        const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
+        setAssignments(prevAssignments => 
+          prevAssignments.map((assignment, index) => {
+            if (index === 0) {
+              return { ...assignment, submitted: fetchedDocuments.length > 0 };
+            } else if (index === 1) {
+              return { 
+                ...assignment, 
+                description: `Upload your latest semester grades for allowance evaluation and eligibility check. Requires 2+ approved documents (Currently: ${currentApprovedDocuments}/2 approved)`
+              };
+            }
+            return assignment;
+          })
+        );
+      } catch (error) {
+        console.log('Could not refresh documents:', error);
+      }
+    }, 1000);
   };
 
   const handleGradeSubmissionSuccess = () => {
@@ -277,6 +313,10 @@ const StudentDashboard: React.FC = () => {
       </div>
     );
   }
+
+  // Check if grade submission is available
+  const approvedDocuments = documents.filter(d => d.status === 'approved').length;
+  const canSubmitGrades = approvedDocuments >= 2;
 
   const pendingAssignments = assignments.filter(a => !a.submitted);
   const completedAssignments = assignments.filter(a => a.submitted);
@@ -419,7 +459,7 @@ const StudentDashboard: React.FC = () => {
           <>
             {/* Enhanced Progress Section */}
             <div className="progress-section">
-              <div className="section-header">
+              <div className="student-dashboard-section-header">
                 <h3>Your Educational Journey</h3>
                 <p>Complete these steps to unlock your full TCU-CEAA benefits!</p>
               </div>
@@ -427,13 +467,13 @@ const StudentDashboard: React.FC = () => {
                 {assignments.map((assignment, index) => {
                   return (
                     <div key={assignment.id} className={`progress-step ${assignment.submitted ? 'completed' : ''}`}>
-                      <div className="step-number">
+                      <div className="student-dashboard step-number">
                         {assignment.submitted ? '✅' : index + 1}
                       </div>
-                      <div className="step-content">
+                      <div className="student-dashboard-step-content">
                         <h4>{assignment.title}</h4>
                         <p>{assignment.description}</p>
-                        <div className="step-meta">
+                        <div className="student-dashboard-step-meta">
                           {assignment.submitted ? (
                             <span className="status-completed">🎉 Completed! Great job!</span>
                           ) : (
@@ -442,7 +482,7 @@ const StudentDashboard: React.FC = () => {
                         </div>
                       </div>
                       {!assignment.submitted && (
-                        <div className="step-action">
+                        <div className="student-dashboard-step-action">
                           {index === 0 && (
                             <button 
                               className="quick-action-btn"
@@ -452,12 +492,29 @@ const StudentDashboard: React.FC = () => {
                             </button>
                           )}
                           {index === 1 && (
-                            <button 
-                              className="quick-action-btn"
-                              onClick={() => setShowGradeForm(true)}
-                            >
-                              Submit Grades
-                            </button>
+                            <div>
+                              {canSubmitGrades ? (
+                                <button 
+                                  className="quick-action-btn"
+                                  onClick={() => setShowGradeForm(true)}
+                                >
+                                  Submit Grades
+                                </button>
+                              ) : (
+                                <div className="requirement-warning">
+                                  <p className="requirement-text">
+                                    📋 Need {2 - approvedDocuments} more approved document{2 - approvedDocuments > 1 ? 's' : ''}
+                                  </p>
+                                  <button 
+                                    className="quick-action-btn disabled"
+                                    disabled
+                                    title={`You need ${2 - approvedDocuments} more approved documents to submit grades`}
+                                  >
+                                    Submit Grades (Locked)
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
                           {index === 2 && (
                             <button className="quick-action-btn">
@@ -527,14 +584,46 @@ const StudentDashboard: React.FC = () => {
           <div className="content-card">
             <div className="card-header">
               <h3>📈 Grade Submissions</h3>
-              <button 
-                className="add-button"
-                onClick={() => setShowGradeForm(true)}
-              >
-                📊 Submit Grades
-              </button>
+              {canSubmitGrades ? (
+                <button 
+                  className="add-button"
+                  onClick={() => setShowGradeForm(true)}
+                >
+                  📊 Submit Grades
+                </button>
+              ) : (
+                <button 
+                  className="add-button disabled"
+                  disabled
+                  title={`You need ${2 - approvedDocuments} more approved documents to submit grades`}
+                >
+                  📊 Submit Grades (Requires {2 - approvedDocuments} more approved docs)
+                </button>
+              )}
             </div>
             <div className="card-content">
+              {!canSubmitGrades && (
+                <div className="requirement-notice">
+                  <div className="notice-icon">🔒</div>
+                  <div className="notice-content">
+                    <h4>Grade Submission Requirements</h4>
+                    <p>
+                      You need at least <strong>2 approved documents</strong> before you can submit your grades.
+                    </p>
+                    <div className="requirement-status">
+                      <span className="status-item">
+                        📄 Documents: {documents.length} submitted, {approvedDocuments} approved
+                      </span>
+                      <span className="status-item">
+                        {approvedDocuments >= 2 ? '✅' : '❌'} Requirements: {approvedDocuments}/2 approved documents
+                      </span>
+                    </div>
+                    <p className="help-text">
+                      Submit more documents or wait for admin approval to unlock grade submission.
+                    </p>
+                  </div>
+                </div>
+              )}
               {grades.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">
@@ -543,12 +632,22 @@ const StudentDashboard: React.FC = () => {
                     </svg>
                   </div>
                   <p>🎓 Time to show off your academic achievements! Submit your grades to unlock allowance opportunities.</p>
-                  <button 
-                    className="action-button"
-                    onClick={() => setShowGradeForm(true)}
-                  >
-                    📊 Submit First Grades
-                  </button>
+                  {canSubmitGrades ? (
+                    <button 
+                      className="action-button"
+                      onClick={() => setShowGradeForm(true)}
+                    >
+                      📊 Submit First Grades
+                    </button>
+                  ) : (
+                    <button 
+                      className="action-button disabled"
+                      disabled
+                      title="Complete document requirements first"
+                    >
+                      📊 Submit First Grades (Requirements not met)
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grades-scroll-container">
@@ -566,8 +665,8 @@ const StudentDashboard: React.FC = () => {
                         </div>
                         <div className="grade-details">
                           <div className="grade-row">
-                            <span>📈 GWA: {grade.general_weighted_average}%</span>
-                            <span>📊 SWA: {grade.semestral_weighted_average}%</span>
+                            <span>📈 GWA: {Number(grade.general_weighted_average).toFixed(2)}%</span>
+                            <span>📊 SWA: {Number(grade.semestral_weighted_average).toFixed(2)}%</span>
                           </div>
                           <div className="eligibility-indicators">
                             <span className={`eligibility ${grade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>

@@ -179,6 +179,44 @@
   }
 }
 
+.file-warning {
+  color: #f59e0b;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.file-tips {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+.file-tips strong {
+  color: #2563eb;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.file-tips ul {
+  margin: 0;
+  padding-left: 16px;
+  list-style: none;
+}
+
+.file-tips li {
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.file-tips li:last-child {
+  margin-bottom: 0;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;

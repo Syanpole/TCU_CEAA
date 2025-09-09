@@ -137,7 +137,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         </section>
 
         <section id="about" className="info-section animate-section">
-          <div className="section-header">
+          <div className="LandingPage-section-header">
             <h3>About TCU-CEAA</h3>
             <p>Supporting TCU students with educational financial assistance</p>
           </div>
@@ -174,7 +174,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         </section>
 
         <section id="features" className="features-section animate-section">
-          <div className="section-header">
+          <div className="LandingPage-section-header">
             <h3>What You Can Do</h3>
             <p>Everything you need to apply for and manage your educational allowance</p>
           </div>
@@ -202,39 +202,39 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
         </section>
 
-        <section id="process" className="process-section animate-section">
-          <div className="section-header">
+        <section id="process" className="landing-process-section animate-section">
+          <div className="LandingPage-section-header">
             <h3>How to Apply</h3>
             <p>Simple steps to get your educational allowance</p>
           </div>
-          <div className="process-steps">
-            <div className="step">
-              <div className="step-number">1</div>
-              <div className="step-content">
+          <div className="landing-process-steps">
+            <div className="landing-step">
+              <div className="landing-step-number">1</div>
+              <div className="landing-step-content">
                 <h4>Register Account</h4>
                 <p>Sign up with your student information</p>
               </div>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <div className="step-content">
+            <div className="landing-step-arrow">→</div>
+            <div className="landing-step">
+              <div className="landing-step-number">2</div>
+              <div className="landing-step-content">
                 <h4>Submit Documents</h4>
                 <p>Upload required documents and grades</p>
               </div>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <div className="step-content">
+            <div className="landing-step-arrow">→</div>
+            <div className="landing-step">
+              <div className="landing-step-number">3</div>
+              <div className="landing-step-content">
                 <h4>Access Dashboard</h4>
                 <p>Navigate your personalized portal</p>
               </div>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step">
-              <div className="step-number">4</div>
-              <div className="step-content">
+            <div className="landing-step-arrow">→</div>
+            <div className="landing-step">
+              <div className="landing-step-number">4</div>
+              <div className="landing-step-content">
                 <h4>Get Allowance</h4>
                 <p>Receive your educational assistance</p>
               </div>

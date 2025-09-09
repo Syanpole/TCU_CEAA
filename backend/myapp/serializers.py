@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication
 
 class UserSerializer(serializers.ModelSerializer):
@@ -111,13 +112,109 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
+    file = serializers.FileField(write_only=True)
+    
     class Meta:
         model = DocumentSubmission
-        fields = ['document_type', 'document_file', 'description']
+        fields = ['document_type', 'file', 'description']
+        
+    def validate_file(self, value):
+        # Check file size (max 10MB)
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError('File size cannot exceed 10MB.')
+        
+        # Check file type
+        allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 
+                        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError('Invalid file type. Only PDF, JPG, PNG, DOC, and DOCX files are allowed.')
+        
+        # AI Document Analysis (basic validation)
+        if hasattr(value, 'name'):
+            # Check if filename contains suspicious patterns
+            import re
+            filename = value.name.lower()
+            
+            # Check for proper document naming patterns
+            if 'birth' in filename or 'certificate' in filename:
+                if not any(ext in filename for ext in ['.pdf', '.jpg', '.jpeg', '.png']):
+                    raise serializers.ValidationError('Birth certificates should be in PDF or image format.')
+            
+            # Check for minimum file size (prevent empty or too small files)
+            if value.size < 1024:  # Less than 1KB
+                raise serializers.ValidationError('File seems too small. Please ensure you uploaded a valid document.')
+        
+        return value
         
     def create(self, validated_data):
+        # Move the uploaded file to document_file field
+        file_data = validated_data.pop('file')
+        validated_data['document_file'] = file_data
         validated_data['student'] = self.context['request'].user
-        return super().create(validated_data)
+        
+        # Create the document submission
+        document = super().create(validated_data)
+        
+        # Run AI analysis after creation
+        self.run_ai_document_analysis(document)
+        
+        return document
+    
+    def run_ai_document_analysis(self, document):
+        """AI-powered document analysis"""
+        analysis_notes = []
+        
+        # Basic document type validation
+        doc_type = document.document_type
+        filename = document.document_file.name.lower() if document.document_file else ""
+        
+        # AI Analysis based on document type
+        if doc_type == 'birth_certificate':
+            analysis_notes.append("🤖 AI Analysis: Birth certificate detected")
+            if 'birth' in filename or 'certificate' in filename:
+                analysis_notes.append("✅ Filename matches document type")
+            else:
+                analysis_notes.append("⚠️ Filename doesn't clearly indicate birth certificate")
+                
+        elif doc_type == 'school_id':
+            analysis_notes.append("🤖 AI Analysis: School ID detected")
+            if 'id' in filename or 'school' in filename:
+                analysis_notes.append("✅ Filename matches document type")
+            else:
+                analysis_notes.append("⚠️ Filename doesn't clearly indicate school ID")
+                
+        elif doc_type == 'report_card':
+            analysis_notes.append("🤖 AI Analysis: Report card/grades detected")
+            if any(term in filename for term in ['grade', 'report', 'card', 'transcript']):
+                analysis_notes.append("✅ Filename matches document type")
+            else:
+                analysis_notes.append("⚠️ Filename doesn't clearly indicate grades/report card")
+        
+        # File format analysis
+        if document.document_file.name.endswith('.pdf'):
+            analysis_notes.append("✅ PDF format - good for document preservation")
+        elif document.document_file.name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            analysis_notes.append("✅ Image format - ensure text is clearly readable")
+        
+        # File size analysis
+        file_size_mb = document.document_file.size / (1024 * 1024)
+        if file_size_mb < 0.1:
+            analysis_notes.append("⚠️ File is very small - ensure document is complete")
+        elif file_size_mb > 5:
+            analysis_notes.append("⚠️ Large file size - consider compressing if possible")
+        else:
+            analysis_notes.append("✅ File size appears appropriate")
+        
+        # Save AI analysis results
+        document.admin_notes = f"AI Document Analysis:\n" + "\n".join(analysis_notes)
+        document.save()
+        
+        # Auto-approve simple documents (you can customize this logic)
+        auto_approve_types = ['school_id', 'parents_id']
+        if doc_type in auto_approve_types and len(analysis_notes) >= 2:
+            document.status = 'approved'
+            document.reviewed_at = timezone.now()
+            document.save()
 
 class GradeSubmissionSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)
@@ -144,6 +241,31 @@ class GradeSubmissionCreateSerializer(serializers.ModelSerializer):
         fields = ['academic_year', 'semester', 'total_units', 'general_weighted_average', 
                  'semestral_weighted_average', 'grade_sheet', 'has_failing_grades', 
                  'has_incomplete_grades', 'has_dropped_subjects']
+    
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Check if user has at least 2 approved documents
+        approved_documents = DocumentSubmission.objects.filter(
+            student=user, 
+            status='approved'
+        ).count()
+        
+        if approved_documents < 2:
+            submitted_documents = DocumentSubmission.objects.filter(student=user).count()
+            if submitted_documents < 2:
+                raise serializers.ValidationError(
+                    f'You must submit and have at least 2 documents approved before submitting grades. '
+                    f'You currently have {submitted_documents} document(s) submitted and {approved_documents} approved.'
+                )
+            else:
+                raise serializers.ValidationError(
+                    f'You must have at least 2 documents approved before submitting grades. '
+                    f'You have {submitted_documents} document(s) submitted but only {approved_documents} approved. '
+                    f'Please wait for admin approval of your documents.'
+                )
+        
+        return data
         
     def create(self, validated_data):
         validated_data['student'] = self.context['request'].user

@@ -10,8 +10,8 @@ interface Grade {
   academic_year: string;
   semester: string;
   semester_display: string;
-  general_weighted_average: number;
-  semestral_weighted_average: number;
+  general_weighted_average: number | string;
+  semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;
   qualifies_for_merit_incentive: boolean;
   status: string;
@@ -220,11 +220,11 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                 <div className="grade-metrics">
                   <div className="metric-item">
                     <div className="metric-label">General Weighted Average</div>
-                    <div className="metric-value">{grade.general_weighted_average.toFixed(2)}%</div>
+                    <div className="metric-value">{Number(grade.general_weighted_average).toFixed(2)}%</div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Semestral Weighted Average</div>
-                    <div className="metric-value">{grade.semestral_weighted_average.toFixed(2)}%</div>
+                    <div className="metric-value">{Number(grade.semestral_weighted_average).toFixed(2)}%</div>
                   </div>
                 </div>
 
