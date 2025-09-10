@@ -158,6 +158,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
     });
   };
 
+  // Safe function to format numbers with 2 decimal places
+  const safeToFixed = (value: number | string | null | undefined): string => {
+    if (value === null || value === undefined || value === '') {
+      return '0.00';
+    }
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    return isNaN(numValue) ? '0.00' : numValue.toFixed(2);
+  };
+
   const handleQuickAction = async (actionType: string, itemId: number, newStatus: string) => {
     const actionKey = `${actionType}_${itemId}`;
     
@@ -422,18 +431,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </div>
             )}
           </button>
-
-          <button className="command-btn analytics" onClick={() => {}}>
-            <div className="command-header">
-              <div className="command-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="command-label">Analytics</div>
-            <div className="command-status">View Reports</div>
-          </button>
         </div>
 
         {/* Operations Dashboard */}
@@ -540,7 +537,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                       ID: {grade.student_id} • {grade.academic_year} {grade.semester_display}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '5px' }}>
-                      GWA: {Number(grade.general_weighted_average).toFixed(2)} | SWA: {Number(grade.semestral_weighted_average).toFixed(2)}
+                      GWA: {safeToFixed(grade.general_weighted_average)} | SWA: {safeToFixed(grade.semestral_weighted_average)}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Submitted: {formatDate(grade.submitted_at)}
