@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safeToFixed } from '../utils/numberUtils';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -76,7 +77,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           setDashboardData(response.data);
         } catch (apiError) {
           // If API fails, try to get individual data
-          console.log('Main dashboard API failed, trying individual endpoints...');
           
           try {
             const [documentsRes, gradesRes, applicationsRes, usersRes] = await Promise.all([
@@ -104,7 +104,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               }
             });
           } catch (individualError) {
-            console.log('Individual APIs also failed, using demo data for development');
             // Use demo data structure
             setDashboardData({
               pending_documents: [],
