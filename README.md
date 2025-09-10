@@ -381,7 +381,7 @@ This project is developed for Taguig City University. All rights reserved.
 
 For technical support or questions:
 
-- **Email**: support@tcu-ceaa.edu.ph
+- **Email**: syanpole@gmail.com
 - **Documentation**: Check this README and inline code comments
 - **Issues**: Create GitHub issues for bugs or feature requests
 
@@ -393,6 +393,6 @@ For technical support or questions:
 
 ---
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Last Updated**: September 2025  
-**Maintained by**: TCU Development Team
+**Maintained by**: BSCS A2024 THESIS STUDENTS

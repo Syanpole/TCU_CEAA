@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import './DocumentsManagement.css';
 
@@ -20,7 +19,6 @@ interface DocumentsManagementProps {
 }
 
 const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

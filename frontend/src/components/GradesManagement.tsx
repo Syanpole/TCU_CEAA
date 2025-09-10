@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safePercentage } from '../utils/numberUtils';
 import './GradesManagement.css';
 
 interface Grade {
@@ -24,7 +24,6 @@ interface GradesManagementProps {
 }
 
 const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
