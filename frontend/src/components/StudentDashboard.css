@@ -2,56 +2,56 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
-/* Modern CSS Custom Properties - Enhanced Student-Friendly Blue Theme */
+/* Modern CSS Custom Properties - Enhanced Student-Friendly TCU Red Theme */
 :root {
   --primary-bg: #ffffff;
-  --secondary-bg: #f8fafc;
-  --surface-bg: #f1f5f9;
+  --secondary-bg: #fef2f2;
+  --surface-bg: #fef2f2;
   --card-bg: #ffffff;
-  --accent-blue: #2563eb;
-  --accent-blue-hover: #1d4ed8;
-  --accent-blue-light: #3b82f6;
-  --accent-blue-dark: #1e3a8a;
-  --accent-blue-secondary: #06b6d4;
-  --accent-blue-tertiary: #0ea5e9;
-  --accent-cyan: #06b6d4;
-  --light-blue: #dbeafe;
-  --lighter-blue: #eff6ff;
+  --accent-red: #dc2626;
+  --accent-red-hover: #b91c1c;
+  --accent-red-light: #ef4444;
+  --accent-red-dark: #991b1b;
+  --accent-red-secondary: #f87171;
+  --accent-red-tertiary: #fee2e2;
+  --accent-crimson: #dc143c;
+  --light-red: #fee2e2;
+  --lighter-red: #fef2f2;
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  --success: #0ea5e9;
-  --warning: #0ea5e9;
+  --success: #dc2626;
+  --warning: #dc2626;
   --error: #ef4444;
-  --info: #3b82f6;
-  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  --gradient-success: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  --gradient-secondary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --gradient-tertiary: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  --gradient-accent: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-  --gradient-light: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  --gradient-rainbow: linear-gradient(135deg, #3970e6 0%, #3e61bf 100%);
-  --gradient-light-blue: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  --shadow-light: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-medium: 0 4px 16px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06);
-  --shadow-large: 0 8px 32px rgba(15, 23, 42, 0.12), 0 4px 16px rgba(15, 23, 42, 0.08);
-  --shadow-xl: 0 16px 64px rgba(37, 99, 235, 0.3), 0 8px 32px rgba(59, 130, 246, 0.2);
+  --info: #dc2626;
+  --gradient-primary: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --gradient-success: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --gradient-secondary: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  --gradient-tertiary: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  --gradient-accent: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  --gradient-light: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --gradient-rainbow: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --gradient-light-red: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  --shadow-light: 0 2px 8px rgba(220, 38, 38, 0.04), 0 1px 3px rgba(220, 38, 38, 0.06);
+  --shadow-medium: 0 4px 16px rgba(220, 38, 38, 0.08), 0 2px 6px rgba(220, 38, 38, 0.06);
+  --shadow-large: 0 8px 32px rgba(220, 38, 38, 0.12), 0 4px 16px rgba(220, 38, 38, 0.08);
+  --shadow-xl: 0 16px 64px rgba(220, 38, 38, 0.3), 0 8px 32px rgba(239, 68, 68, 0.2);
 }
 
-/* Dark Theme Variables - Modern and Eye-friendly Blue Theme */
+/* Dark Theme Variables - Modern and Eye-friendly TCU Red Theme */
 .student-dashboard-container.dark-theme {
   --primary-bg: #0f172a;
   --secondary-bg: #1e293b;
   --surface-bg: #334155;
   --card-bg: #1e293b;
-  --light-blue: #1e40af;
-  --lighter-blue: #2563eb;
+  --light-red: #991b1b;
+  --lighter-red: #dc2626;
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --border-color: #475569;
-  --gradient-light-blue: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  --gradient-light-red: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
   --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
   --shadow-large: 0 8px 32px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.35);
@@ -127,7 +127,7 @@
 }
 
 .student-dashboard-container.dark-theme .empty-state {
-  background: var(--gradient-light-blue);
+  background: var(--gradient-light-red);
   color: var(--text-primary);
 }
 
@@ -372,7 +372,7 @@
   border-top: 3px solid transparent;
   border-right: 3px solid transparent;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, var(--accent-blue), var(--accent-blue-light), var(--accent-blue-secondary), var(--accent-cyan), var(--accent-blue));
+  background: conic-gradient(from 0deg, var(--accent-red), var(--accent-red-light), var(--accent-red-secondary), var(--accent-crimson), var(--accent-red));
   -webkit-mask: radial-gradient(circle at center, transparent 14px, black 15px);
   mask: radial-gradient(circle at center, transparent 14px, black 15px);
   animation: modernSpin 1.5s linear infinite;
@@ -539,7 +539,7 @@
 .action-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
 }
 
 .action-icon {
@@ -664,7 +664,7 @@
 
 .submission-item:hover {
   background: rgba(255, 255, 255, 0.98);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
   box-shadow: var(--shadow-medium);
   transform: translateY(-2px);
 }
@@ -777,7 +777,7 @@
   text-align: center;
   padding: 32px 24px;
   color: var(--text-primary);
-  background: var(--gradient-light-blue);
+  background: var(--gradient-light-red);
   border-radius: 12px;
   border: 2px dashed rgba(102, 126, 234, 0.3);
   position: relative;
@@ -810,7 +810,7 @@
   height: 60px;
   margin: 0 auto 16px;
   opacity: 0.7;
-  color: var(--accent-blue);
+  color: var(--accent-red);
   position: relative;
   z-index: 1;
 }
@@ -1166,7 +1166,7 @@
 .stat-card:hover {
   transform: translateY(-4px) scale(1.01);
   box-shadow: var(--shadow-xl);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
   background: rgba(255, 255, 255, 1);
 }
 
@@ -1317,7 +1317,7 @@
 .content-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-xl);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
 }
 
 .content-card:hover::before {
@@ -1492,7 +1492,7 @@
 }
 
 .retry-button:hover {
-  background: var(--accent-blue-hover);
+  background: var(--accent-red-hover);
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 5px 12px rgba(37, 99, 235, 0.4);
 }
@@ -1545,7 +1545,7 @@
 }
 
 .student-dashboard-container::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-blue-hover);
+  background: var(--accent-red-hover);
 }
 
 /* Dark theme scrollbar */
@@ -1810,7 +1810,7 @@
   top: 60px;
   bottom: 20px;
   width: 3px;
-  background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple), var(--accent-pink));
+  background: linear-gradient(to bottom, var(--accent-red), var(--accent-red-light), var(--accent-red-dark));
   border-radius: 1px;
   z-index: 0;
 }
@@ -1848,7 +1848,7 @@
 .progress-step:hover {
   transform: translateY(-3px) scale(1.005);
   box-shadow: var(--shadow-xl);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
 }
 
 .progress-step:hover::before {
@@ -2496,8 +2496,8 @@
   align-items: flex-start;
   gap: 16px;
   padding: 20px;
-  background: var(--lighter-blue);
-  border: 2px solid var(--light-blue);
+  background: var(--lighter-red);
+  border: 2px solid var(--light-red);
   border-radius: 16px;
   margin-bottom: 20px;
   animation: slideIn 0.5s ease-out;
@@ -2515,14 +2515,14 @@
 }
 
 .notice-content h4 {
-  color: var(--accent-blue-dark);
+  color: var(--accent-red-dark);
   font-weight: 600;
   font-size: 16px;
   margin: 0 0 8px 0;
 }
 
 .student-dashboard-container.dark-theme .notice-content h4 {
-  color: var(--accent-blue-light);
+  color: var(--accent-red-light);
 }
 
 .notice-content p {

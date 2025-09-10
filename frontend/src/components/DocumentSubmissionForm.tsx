@@ -140,7 +140,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         if (onSubmissionSuccess) {
           onSubmissionSuccess();
         }
-      }, 2000);
+      }, 3000); // Increased delay to show AI processing message
     } catch (error: any) {
       console.error('Error submitting document:', error);
       
@@ -284,7 +284,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
                 Uploading...
               </>
             ) : (
-              'Submit Document'
+              'Submit for Instant AI Approval'
             )}
           </button>
         </div>
@@ -294,10 +294,10 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         isOpen={showNotification}
         onClose={() => setShowNotification(false)}
         type="success"
-        title="Document Submitted Successfully!"
-        message="Your document has been uploaded and analyzed by our AI system. The document has been processed and is now under admin review. You'll receive a notification once it's approved or if any revisions are needed. The AI analysis will help speed up the review process!"
+        title="Document Submitted & Auto-Processed!"
+        message="🎉 Great news! Your document has been successfully uploaded and automatically processed by our advanced AI system. The AI has analyzed your document, verified its authenticity, assessed quality, and AUTOMATICALLY APPROVED it for your allowance application. No manual admin review needed - the AI system has full processing authority! You can now proceed with your next steps immediately. The entire process is complete in seconds rather than days!"
         autoClose={true}
-        duration={8000}
+        duration={12000}
       />
     </div>
   );

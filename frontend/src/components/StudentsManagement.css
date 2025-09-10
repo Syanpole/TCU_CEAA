@@ -575,7 +575,7 @@
 
 .form-input {
   padding: 0.75rem;
-  background: var(--card-bg);
+  background: white;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
@@ -586,7 +586,7 @@
 .form-input:focus {
   outline: none;
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgb(255, 255, 255);
 }
 
 .form-display {

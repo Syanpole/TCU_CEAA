@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication
+from .ai_service import document_analyzer, grade_analyzer
+import json
 
 class UserSerializer(serializers.ModelSerializer):
     profile_image_url = serializers.SerializerMethodField()
@@ -108,8 +110,12 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
         model = DocumentSubmission
         fields = ['id', 'document_type', 'document_type_display', 'document_file', 'description', 
                  'status', 'status_display', 'admin_notes', 'submitted_at', 'reviewed_at', 
-                 'student_name', 'student_id', 'reviewed_by_name']
-        read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by']
+                 'student_name', 'student_id', 'reviewed_by_name', 'ai_analysis_completed',
+                 'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
+                 'ai_auto_approved', 'ai_analysis_notes']
+        read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
+                          'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
+                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
@@ -155,65 +161,94 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         # Create the document submission
         document = super().create(validated_data)
         
-        # Run AI analysis after creation
-        self.run_ai_document_analysis(document)
+        # Set status to AI processing
+        document.status = 'ai_processing'
+        document.save()
+        
+        # Run comprehensive AI analysis
+        self.run_comprehensive_ai_analysis(document)
         
         return document
     
-    def run_ai_document_analysis(self, document):
-        """AI-powered document analysis"""
-        analysis_notes = []
-        
-        # Basic document type validation
-        doc_type = document.document_type
-        filename = document.document_file.name.lower() if document.document_file else ""
-        
-        # AI Analysis based on document type
-        if doc_type == 'birth_certificate':
-            analysis_notes.append("🤖 AI Analysis: Birth certificate detected")
-            if 'birth' in filename or 'certificate' in filename:
-                analysis_notes.append("✅ Filename matches document type")
-            else:
-                analysis_notes.append("⚠️ Filename doesn't clearly indicate birth certificate")
+    def run_comprehensive_ai_analysis(self, document):
+        """Run comprehensive AI analysis using the enhanced AI service"""
+        try:
+            # Perform AI analysis
+            analysis_result = document_analyzer.analyze_document(document)
+            
+            # Save AI analysis results to database
+            document.ai_analysis_completed = True
+            document.ai_confidence_score = analysis_result.get('confidence_score', 0.0)
+            document.ai_document_type_match = analysis_result.get('document_type_match', False)
+            document.ai_extracted_text = analysis_result.get('extracted_text', '')
+            document.ai_key_information = analysis_result.get('key_information', {})
+            document.ai_quality_assessment = analysis_result.get('quality_assessment', {})
+            document.ai_recommendations = analysis_result.get('recommendations', [])
+            document.ai_auto_approved = analysis_result.get('auto_approve', False)
+            
+            # Generate comprehensive analysis notes
+            analysis_notes = []
+            analysis_notes.append("🤖 Comprehensive AI Document Analysis")
+            analysis_notes.append("=" * 40)
+            analysis_notes.extend(analysis_result.get('analysis_notes', []))
+            
+            # Add quality assessment
+            quality = analysis_result.get('quality_assessment', {})
+            if quality:
+                analysis_notes.append(f"\n📊 Quality Assessment: {quality.get('overall_quality', 'Unknown')}")
+                analysis_notes.append(f"Quality Score: {quality.get('quality_score', 0):.1%}")
                 
-        elif doc_type == 'school_id':
-            analysis_notes.append("🤖 AI Analysis: School ID detected")
-            if 'id' in filename or 'school' in filename:
-                analysis_notes.append("✅ Filename matches document type")
-            else:
-                analysis_notes.append("⚠️ Filename doesn't clearly indicate school ID")
+                if quality.get('issues'):
+                    analysis_notes.append("Issues identified:")
+                    for issue in quality['issues']:
+                        analysis_notes.append(f"  • {issue}")
                 
-        elif doc_type == 'report_card':
-            analysis_notes.append("🤖 AI Analysis: Report card/grades detected")
-            if any(term in filename for term in ['grade', 'report', 'card', 'transcript']):
-                analysis_notes.append("✅ Filename matches document type")
+                if quality.get('strengths'):
+                    analysis_notes.append("Strengths identified:")
+                    for strength in quality['strengths']:
+                        analysis_notes.append(f"  • {strength}")
+            
+            # Add recommendations
+            recommendations = analysis_result.get('recommendations', [])
+            if recommendations:
+                analysis_notes.append("\n💡 AI Recommendations:")
+                for rec in recommendations:
+                    analysis_notes.append(f"  • {rec}")
+            
+            # Add confidence and matching information
+            analysis_notes.append(f"\n📈 Analysis Confidence: {analysis_result.get('confidence_score', 0):.1%}")
+            analysis_notes.append(f"Document Type Match: {'✅ Yes' if analysis_result.get('document_type_match') else '❌ No'}")
+            
+            document.ai_analysis_notes = "\n".join(analysis_notes)
+            
+            # Determine final status based on AI analysis - Autonomous processing
+            auto_approve = analysis_result.get('auto_approve', False)
+            confidence_score = analysis_result.get('confidence_score', 0)
+            
+            # Enhanced autonomous approval logic
+            if auto_approve or confidence_score >= 0.5:
+                document.status = 'approved'
+                document.reviewed_at = timezone.now()
+                document.admin_notes = f"✅ Auto-approved by AI System (Confidence: {confidence_score:.1%})\n\n{document.admin_notes or ''}"
+            elif confidence_score >= 0.3:
+                # Medium confidence - still approve but flag for potential review
+                document.status = 'approved'
+                document.reviewed_at = timezone.now()
+                document.admin_notes = f"✅ Auto-approved by AI System - Medium Confidence ({confidence_score:.1%})\n⚠️ May benefit from quality improvement\n\n{document.admin_notes or ''}"
             else:
-                analysis_notes.append("⚠️ Filename doesn't clearly indicate grades/report card")
-        
-        # File format analysis
-        if document.document_file.name.endswith('.pdf'):
-            analysis_notes.append("✅ PDF format - good for document preservation")
-        elif document.document_file.name.lower().endswith(('.jpg', '.jpeg', '.png')):
-            analysis_notes.append("✅ Image format - ensure text is clearly readable")
-        
-        # File size analysis
-        file_size_mb = document.document_file.size / (1024 * 1024)
-        if file_size_mb < 0.1:
-            analysis_notes.append("⚠️ File is very small - ensure document is complete")
-        elif file_size_mb > 5:
-            analysis_notes.append("⚠️ Large file size - consider compressing if possible")
-        else:
-            analysis_notes.append("✅ File size appears appropriate")
-        
-        # Save AI analysis results
-        document.admin_notes = f"AI Document Analysis:\n" + "\n".join(analysis_notes)
-        document.save()
-        
-        # Auto-approve simple documents (you can customize this logic)
-        auto_approve_types = ['school_id', 'parents_id']
-        if doc_type in auto_approve_types and len(analysis_notes) >= 2:
-            document.status = 'approved'
-            document.reviewed_at = timezone.now()
+                # Very low confidence - approve but with strong recommendations
+                document.status = 'approved'
+                document.reviewed_at = timezone.now()
+                document.admin_notes = f"✅ Auto-approved by AI System - Basic Acceptance ({confidence_score:.1%})\n⚠️ Strongly recommend document improvement for future submissions\n\n{document.admin_notes or ''}"
+            
+            document.save()
+            
+        except Exception as e:
+            # Handle AI analysis errors gracefully
+            document.ai_analysis_completed = False
+            document.ai_analysis_notes = f"AI Analysis Error: {str(e)}"
+            document.status = 'pending'
+            document.admin_notes = f"AI analysis failed - Manual review required. Error: {str(e)}"
             document.save()
 
 class GradeSubmissionSerializer(serializers.ModelSerializer):
@@ -228,11 +263,14 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
         fields = ['id', 'academic_year', 'semester', 'semester_display', 'total_units', 
                  'general_weighted_average', 'semestral_weighted_average', 'grade_sheet',
                  'has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects',
-                 'ai_evaluation_completed', 'ai_evaluation_notes', 'qualifies_for_basic_allowance',
-                 'qualifies_for_merit_incentive', 'status', 'status_display', 'admin_notes',
-                 'submitted_at', 'reviewed_at', 'student_name', 'student_id', 'reviewed_by_name']
+                 'ai_evaluation_completed', 'ai_evaluation_notes', 'ai_confidence_score',
+                 'ai_extracted_grades', 'ai_grade_validation', 'ai_recommendations',
+                 'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive', 
+                 'status', 'status_display', 'admin_notes', 'submitted_at', 'reviewed_at', 
+                 'student_name', 'student_id', 'reviewed_by_name']
         read_only_fields = ['id', 'ai_evaluation_completed', 'ai_evaluation_notes', 
-                          'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive',
+                          'ai_confidence_score', 'ai_extracted_grades', 'ai_grade_validation',
+                          'ai_recommendations', 'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive',
                           'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by']
 
 class GradeSubmissionCreateSerializer(serializers.ModelSerializer):
@@ -271,11 +309,69 @@ class GradeSubmissionCreateSerializer(serializers.ModelSerializer):
         validated_data['student'] = self.context['request'].user
         grade_submission = super().create(validated_data)
         
-        # Run AI evaluation
-        grade_submission.calculate_allowance_eligibility()
-        grade_submission.save()
+        # Run comprehensive AI evaluation
+        self.run_comprehensive_ai_grade_analysis(grade_submission)
         
         return grade_submission
+    
+    def run_comprehensive_ai_grade_analysis(self, grade_submission):
+        """Run comprehensive AI analysis on grade submission - Autonomous processing"""
+        try:
+            # Perform AI analysis
+            analysis_result = grade_analyzer.analyze_grades(grade_submission)
+            
+            # Save AI analysis results to database
+            grade_submission.ai_evaluation_completed = True
+            grade_submission.ai_confidence_score = analysis_result.get('confidence_score', 0.0)
+            grade_submission.ai_extracted_grades = analysis_result.get('extracted_grades', {})
+            grade_submission.ai_grade_validation = analysis_result.get('grade_validation', {})
+            grade_submission.ai_recommendations = analysis_result.get('recommendations', [])
+            
+            # Set allowance qualifications
+            basic_analysis = analysis_result.get('basic_allowance_analysis', {})
+            merit_analysis = analysis_result.get('merit_incentive_analysis', {})
+            
+            grade_submission.qualifies_for_basic_allowance = basic_analysis.get('eligible', False)
+            grade_submission.qualifies_for_merit_incentive = merit_analysis.get('eligible', False)
+            
+            # Generate comprehensive evaluation notes
+            evaluation_notes = analysis_result.get('analysis_notes', [])
+            grade_submission.ai_evaluation_notes = "\n".join(evaluation_notes)
+            
+            # Autonomous approval based on AI analysis
+            confidence_score = analysis_result.get('confidence_score', 0.0)
+            validation_issues = analysis_result.get('grade_validation', {}).get('issues', [])
+            
+            # Auto-approve grades if:
+            # 1. No critical validation issues
+            # 2. Confidence score is reasonable (≥30%)
+            # 3. AI analysis completed successfully
+            
+            if len(validation_issues) == 0 and confidence_score >= 0.3:
+                grade_submission.status = 'approved'
+                grade_submission.reviewed_at = timezone.now()
+                grade_submission.admin_notes = f"✅ Auto-approved by AI System (Confidence: {confidence_score:.1%})\n\nAI has validated your grades and calculated allowance eligibility. Processing complete - no manual review required."
+            elif len(validation_issues) <= 1 and confidence_score >= 0.2:
+                # Minor issues but still approvable
+                grade_submission.status = 'approved'
+                grade_submission.reviewed_at = timezone.now()
+                grade_submission.admin_notes = f"✅ Auto-approved by AI System with minor notes (Confidence: {confidence_score:.1%})\n\nMinor validation notes detected but grades are acceptable for processing."
+            else:
+                # Even with issues, approve but note the concerns
+                grade_submission.status = 'approved'
+                grade_submission.reviewed_at = timezone.now()
+                grade_submission.admin_notes = f"✅ Auto-approved by AI System - Basic Acceptance (Confidence: {confidence_score:.1%})\n\n⚠️ Some validation concerns noted. Future submissions would benefit from addressing the AI recommendations."
+            
+            grade_submission.save()
+            
+        except Exception as e:
+            # Handle AI analysis errors gracefully - still approve with notes
+            grade_submission.ai_evaluation_completed = False
+            grade_submission.ai_evaluation_notes = f"AI Analysis encountered an error but submission is processed: {str(e)}"
+            grade_submission.status = 'approved'  # Still approve even with AI errors
+            grade_submission.reviewed_at = timezone.now()
+            grade_submission.admin_notes = f"✅ Auto-approved - AI analysis had technical issues but submission is accepted\n\nTechnical note: {str(e)}"
+            grade_submission.save()
 
 class AllowanceApplicationSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)

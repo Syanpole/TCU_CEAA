@@ -1,12 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './LandingPage.css';
 
 interface LandingPageProps {
   onLoginClick: () => void;
   onRegisterClick: () => void;
+  onPrivacyClick: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick, onPrivacyClick }) => {
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+
   useEffect(() => {
     // Scroll animation observer
     const observer = new IntersectionObserver((entries) => {
@@ -26,8 +29,53 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
     const sections = document.querySelectorAll('.animate-section');
     sections.forEach(section => observer.observe(section));
 
-    return () => observer.disconnect();
+    // Scroll to top button visibility
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollToTop(scrollTop > 300);
+    };
+
+    // Handle smooth scrolling for navigation links
+    const handleNavClick = (e: Event) => {
+      const target = e.target as HTMLAnchorElement;
+      if (target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+        const targetId = target.getAttribute('href')?.substring(1);
+        const targetElement = document.getElementById(targetId!);
+        if (targetElement) {
+          const headerHeight = 100; // Adjust based on your header height
+          const targetPosition = targetElement.offsetTop - headerHeight;
+          window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }
+    };
+
+    // Add click listeners to navigation links
+    const navLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
+    navLinks.forEach(link => {
+      link.addEventListener('click', handleNavClick);
+    });
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+      navLinks.forEach(link => {
+        link.removeEventListener('click', handleNavClick);
+      });
+    };
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -44,12 +92,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               TCU-CEAA Portal
             </h1>
           </div>
+
           <nav className="nav-menu">
             <a href="#about">About</a>
             <a href="#features">Features</a>
             <a href="#process">Process</a>
             <a href="#contact">Contact</a>
           </nav>
+
           <div className="auth-buttons">
             <button className="signin-btn" onClick={onLoginClick}>
               Sign In
@@ -62,7 +112,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       </header>
 
       <main className="landing-main">
-        
 
         <section className="hero animate-section">
           <div className="hero-content">
@@ -322,7 +371,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             <ul>
               <li><a href="#faq">FAQ</a></li>
               <li><a href="#help">Help Center</a></li>
-              <li><a href="#privacy">Privacy Policy</a></li>
+              <li><button onClick={onPrivacyClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>Privacy Policy</button></li>
               <li><a href="#terms">Terms of Service</a></li>
             </ul>
           </div>
@@ -332,6 +381,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           <p>Powered by Modern Technology | Made with ❤️ for TCU Community</p>
         </div>
       </footer>
+
+      {/* Scroll to Top Button */}
+      {showScrollToTop && (
+        <button 
+          className="scroll-to-top-btn"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+        >
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path 
+              d="M12 8L6 14L7.41 15.41L12 10.83L16.59 15.41L18 14L12 8Z" 
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+      )}
     </div>
   );
 };

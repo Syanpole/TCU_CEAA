@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, ProfileImageResponse } from '../services/authService';
 import ImageCropper from './ImageCropper';
@@ -19,6 +19,9 @@ interface ProfileUpdateData {
 const ProfileSettings: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Theme state - sync with StudentDashboard theme
+  const [darkMode, setDarkMode] = useState(false);
   
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
@@ -44,6 +47,33 @@ const ProfileSettings: React.FC = () => {
     new: false,
     confirm: false,
   });
+
+  // Load saved theme preference from StudentDashboard
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('studentDashboardTheme');
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+    } else {
+      setDarkMode(false); // Explicitly set to false for light mode
+    }
+
+    // Listen for theme changes from other components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'studentDashboardTheme') {
+        if (e.newValue === 'dark') {
+          setDarkMode(true);
+        } else {
+          setDarkMode(false);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -282,7 +312,7 @@ const ProfileSettings: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="profile-settings-container">
+      <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
         <div className="no-user-message">
           <h2>Please log in to access profile settings</h2>
         </div>
@@ -291,7 +321,7 @@ const ProfileSettings: React.FC = () => {
   }
 
   return (
-    <div className="profile-settings-container">
+    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}
