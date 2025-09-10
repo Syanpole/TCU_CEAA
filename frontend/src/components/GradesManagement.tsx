@@ -32,6 +32,13 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [statusFilter, setStatusFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
 
+  // Helper function to safely format percentage values
+  const safePercentage = (value: number | string): string => {
+    const numValue = Number(value);
+    if (isNaN(numValue)) return '0.00%';
+    return `${numValue.toFixed(2)}%`;
+  };
+
   useEffect(() => {
     const fetchGrades = async () => {
       try {
@@ -220,11 +227,11 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                 <div className="grade-metrics">
                   <div className="metric-item">
                     <div className="metric-label">General Weighted Average</div>
-                    <div className="metric-value">{Number(grade.general_weighted_average).toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.general_weighted_average)}</div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Semestral Weighted Average</div>
-                    <div className="metric-value">{Number(grade.semestral_weighted_average).toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.semestral_weighted_average)}</div>
                   </div>
                 </div>
 
