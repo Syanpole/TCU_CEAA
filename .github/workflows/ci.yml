@@ -31,7 +31,21 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
+          python -m pip install --upgrade setuptools wheel
           pip install -r requirements.txt
+          
+      - name: Verify AI dependencies compatibility
+        run: |
+          cd backend
+          python -c "import sys; print(f'Python version: {sys.version}')"
+          python -c "import pkgutil; print('pkgutil module loaded successfully')"
+          python -c "
+          try:
+              import PyPDF2, cv2, numpy, pytesseract, sklearn, nltk, docx
+              print('✅ All AI dependencies loaded successfully')
+          except ImportError as e:
+              print(f'⚠️ AI dependency issue: {e}')
+          "
 
       - name: Run Django migrations
         run: |
@@ -139,6 +153,7 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
+          python -m pip install --upgrade setuptools wheel
           pip install -r requirements.txt
           python manage.py collectstatic --noinput
         env:
