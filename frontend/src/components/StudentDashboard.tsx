@@ -6,6 +6,7 @@ import GradeSubmissionForm from './GradeSubmissionForm';
 import AllowanceApplicationForm from './AllowanceApplicationForm';
 import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
+import FastDocumentUploadSimple from './FastDocumentUploadSimple';
 import './StudentDashboard.css';
 
 interface Assignment {
@@ -23,6 +24,12 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
+}
+
+interface UploadResult {
+  success: boolean;
+  message?: string;
+  data?: any;
 }
 
 interface GradeSubmission {
@@ -207,6 +214,17 @@ const StudentDashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Function to refresh documents after upload
+  const refreshDocuments = async () => {
+    try {
+      const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] }));
+      const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+      setDocuments(fetchedDocuments);
+    } catch (error) {
+      console.error('Error refreshing documents:', error);
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -624,6 +642,7 @@ const StudentDashboard: React.FC = () => {
                 📤 Upload Document
               </button>
             </div>
+        
             <div className="card-content">
               {documents.length === 0 ? (
                 <div className="empty-state">

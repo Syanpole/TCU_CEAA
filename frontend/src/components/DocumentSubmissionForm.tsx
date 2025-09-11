@@ -26,6 +26,8 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showNotification, setShowNotification] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [instantApproval, setInstantApproval] = useState(false);
 
   const documentTypes = [
     'birth_certificate',
@@ -106,6 +108,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
 
     setLoading(true);
     setError('');
+    setProcessingStatus('⬆️ Uploading document...');
 
     try {
       const submitFormData = new FormData();
@@ -113,11 +116,18 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       submitFormData.append('description', formData.description);
       submitFormData.append('file', formData.file);
 
+      // Show instant processing status
+      setProcessingStatus('🤖 AI analyzing document...');
+
       const response = await apiClient.post('/documents/', submitFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      // Show instant approval status
+      setProcessingStatus('✅ Document approved instantly!');
+      setInstantApproval(true);
 
       // Reset form
       setFormData({
@@ -140,9 +150,11 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         if (onSubmissionSuccess) {
           onSubmissionSuccess();
         }
-      }, 3000); // Increased delay to show AI processing message
+      }, 3000);
     } catch (error: any) {
       console.error('Error submitting document:', error);
+      setProcessingStatus('');
+      setInstantApproval(false);
       
       // Handle specific error responses
       if (error.response?.data) {
@@ -190,6 +202,33 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         <div className="error-alert">
           <span className="error-icon">⚠️</span>
           {error}
+        </div>
+      )}
+
+      {processingStatus && (
+        <div className={`processing-status ${instantApproval ? 'success' : 'processing'}`}>
+          <div className="processing-content">
+            <span className="processing-icon">{instantApproval ? '🎉' : '⚡'}</span>
+            <div className="processing-text">
+              <div className="status-title">{processingStatus}</div>
+              {instantApproval && (
+                <div className="success-details">
+                  ✅ Your document has been instantly analyzed and approved by our AI system!<br/>
+                  🚀 Ready to proceed to the next step!
+                </div>
+              )}
+              {!instantApproval && loading && (
+                <div className="processing-details">
+                  🤖 Our ultra-fast AI is analyzing your document in real-time...
+                </div>
+              )}
+            </div>
+          </div>
+          {loading && !instantApproval && (
+            <div className="progress-bar">
+              <div className="progress-fill"></div>
+            </div>
+          )}
         </div>
       )}
 
@@ -281,10 +320,10 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
             {loading ? (
               <>
                 <span className="loading-spinner"></span>
-                Uploading...
+                {processingStatus || 'Processing...'}
               </>
             ) : (
-              'Submit for Instant AI Approval'
+              '⚡ Submit for Instant AI Processing'
             )}
           </button>
         </div>
@@ -294,10 +333,10 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         isOpen={showNotification}
         onClose={() => setShowNotification(false)}
         type="success"
-        title="Document Submitted & Auto-Processed!"
-        message="🎉 Great news! Your document has been successfully uploaded and automatically processed by our advanced AI system. The AI has analyzed your document, verified its authenticity, assessed quality, and AUTOMATICALLY APPROVED it for your allowance application. No manual admin review needed - the AI system has full processing authority! You can now proceed with your next steps immediately. The entire process is complete in seconds rather than days!"
+        title="⚡ Instant AI Processing Complete!"
+        message="🎉 AMAZING! Your document has been uploaded and processed in SECONDS by our ultra-fast AI system! ⚡ The AI instantly analyzed your document, verified its authenticity, checked quality, and IMMEDIATELY APPROVED it! 🚀 No waiting, no manual review needed - everything is automated and complete! You can now proceed to submit your grades or apply for allowances right away. Welcome to the future of document processing!"
         autoClose={true}
-        duration={12000}
+        duration={8000}
       />
     </div>
   );
