@@ -1,0 +1,34 @@
+# Minimal requirements for CI/CD - avoids compilation issues
+# For GitHub Actions, Docker, and other CI environments
+
+# Core Django
+Django==5.2.5
+djangorestframework==3.15.2
+django-cors-headers==4.4.0
+
+# Database (using binary wheels)
+psycopg[binary]==3.2.3
+
+# Image processing (minimal)
+Pillow==10.4.0
+
+# Document processing (no compilation required)
+PyPDF2==3.0.1
+python-docx==1.1.2
+
+# Essential for build process
+setuptools>=75.1.0
+wheel>=0.44.0
+pip>=24.0
+
+# Basic numpy (required by many other packages)
+numpy==1.26.4
+
+# Text processing (lightweight)
+nltk==3.9.1
+
+# Only include if absolutely necessary for your application:
+# opencv-python-headless==4.10.0.84  # Can cause issues in some CI environments
+# scikit-learn==1.5.2                # Requires numpy, can be heavy
+# scipy==1.11.4                      # Often causes compilation issues
+# matplotlib==3.8.4                  # Heavy dependency
