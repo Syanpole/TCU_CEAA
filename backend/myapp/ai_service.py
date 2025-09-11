@@ -464,25 +464,25 @@ class AIDocumentAnalyzer:
         quality_score = analysis_result.get('quality_assessment', {}).get('quality_score', 0)
         type_match = analysis_result.get('document_type_match', False)
         
-        # More lenient auto-approve criteria for autonomous processing
-        # Auto-approve if confidence >= 50% and basic quality checks pass
+        # Stricter auto-approve criteria for autonomous processing
+        # Auto-approve only if confidence >= 70%, quality_score >= 0.6, and no issues
         basic_approval = (
-            confidence >= 0.5 and
-            quality_score >= 0.4 and
-            len(analysis_result.get('quality_assessment', {}).get('issues', [])) <= 2
-        )
-        
-        # Higher approval for perfect matches
-        high_confidence_approval = (
             confidence >= 0.7 and
             quality_score >= 0.6 and
+            len(analysis_result.get('quality_assessment', {}).get('issues', [])) == 0
+        )
+        
+        # Higher approval for perfect matches (raise thresholds slightly)
+        high_confidence_approval = (
+            confidence >= 0.8 and
+            quality_score >= 0.7 and
             type_match
         )
         
-        # Even if type doesn't perfectly match, approve if other criteria are strong
+        # Even if type doesn't perfectly match, approve only if other criteria are very strong
         flexible_approval = (
-            confidence >= 0.6 and
-            quality_score >= 0.5 and
+            confidence >= 0.75 and
+            quality_score >= 0.65 and
             len(analysis_result.get('quality_assessment', {}).get('issues', [])) == 0
         )
         
