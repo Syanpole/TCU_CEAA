@@ -14,31 +14,35 @@ from decimal import Decimal
 import tempfile
 from pathlib import Path
 
+def check_optional_imports(imports):
+    try:
+        for imp in imports:
+            exec(f"import {imp}", globals())
+        return True
+    except ImportError:
+        return False
+
 # PDF and image processing
-try:
-    import PyPDF2
-    from PIL import Image, ImageEnhance, ImageFilter
-    import cv2
-    import numpy as np
-    PDF_AVAILABLE = True
-except ImportError:
-    PDF_AVAILABLE = False
+PDF_AVAILABLE = check_optional_imports([
+    "PyPDF2",
+    "PIL.Image",
+    "PIL.ImageEnhance",
+    "PIL.ImageFilter",
+    "cv2",
+    "numpy"
+])
 
 # OCR capabilities 
-try:
-    import pytesseract
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
+OCR_AVAILABLE = check_optional_imports([
+    "pytesseract"
+])
 
 # Machine learning for text classification
-try:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
-    import nltk
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
+ML_AVAILABLE = check_optional_imports([
+    "sklearn.feature_extraction.text",
+    "sklearn.metrics.pairwise",
+    "nltk"
+])
 
 
 class AIDocumentAnalyzer:
