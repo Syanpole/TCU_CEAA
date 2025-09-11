@@ -19,17 +19,15 @@ pdfplumber==0.9.0
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
 
-# Text processing - pure Python packages
+# Text processing - pure Python packages (minimal to avoid data dependencies)
 pytesseract==0.3.13
-nltk==3.9.1
-textblob==0.18.0
 
 # Build tools
 setuptools>=75.1.0
 wheel>=0.44.0
 pip>=24.0
 
-# Note: scikit-learn and scipy are INTENTIONALLY EXCLUDED
-# They require compilation and cause CI failures
+# Note: scikit-learn, scipy, nltk, textblob are INTENTIONALLY EXCLUDED
+# They require compilation or large data downloads that cause CI failures
 # Use numpy for basic math operations
-# Use simpler alternatives for ML if needed in CI
+# Use simpler alternatives for text processing if needed in CI
