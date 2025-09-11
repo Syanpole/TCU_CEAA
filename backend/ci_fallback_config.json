@@ -1,0 +1,21 @@
+{
+  "scipy_available": false,
+  "matplotlib_available": false,
+  "pdf_processors": [
+    "django",
+    "numpy",
+    "PyPDF2",
+    "pdfplumber",
+    "opencv-python (cv2)",
+    "cv2"
+  ],
+  "ai_fallback_mode": true,
+  "compilation_free": true,
+  "fixes_applied": [
+    "Cache cleared: pip cache purge",
+    "Cache cleared: pip uninstall scipy -y || true",
+    "Cache cleared: pip uninstall matplotlib -y || true",
+    "Dependencies installed: pip install --only-binary=all --no-cache-dir -r requirements-ci.txt"
+  ],
+  "timestamp": "The current date is: 11/09/2025 \nEnter the new date: (dd-mm-yy)"
+}

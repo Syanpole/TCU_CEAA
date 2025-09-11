@@ -52,3 +52,28 @@ export const isValidNumber = (value: any): boolean => {
   const numValue = Number(value);
   return !isNaN(numValue) && isFinite(numValue);
 };
+
+/**
+ * Formats a number as currency (Philippine Peso)
+ * @param value - The value to format
+ * @param fallback - Fallback value if conversion fails (default: 0)
+ * @returns Formatted currency string
+ */
+export const formatCurrency = (value: any, fallback: number = 0): string => {
+  const numValue = safeNumber(value, fallback);
+  return `₱${numValue.toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
+
+/**
+ * Formats a number with proper thousands separators
+ * @param value - The value to format
+ * @param fallback - Fallback value if conversion fails (default: 0)
+ * @returns Formatted number string
+ */
+export const formatNumber = (value: any, fallback: number = 0): string => {
+  const numValue = safeNumber(value, fallback);
+  return numValue.toLocaleString('en-PH');
+};

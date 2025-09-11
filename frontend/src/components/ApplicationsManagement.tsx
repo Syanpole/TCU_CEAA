@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
+import { formatCurrency } from '../utils/numberUtils';
 import './ApplicationsManagement.css';
 
 interface Application {
@@ -26,6 +27,9 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -44,6 +48,59 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
 
     fetchApplications();
   }, []);
+
+  // Function to refresh applications data
+  const refreshApplications = async () => {
+    try {
+      const response = await apiClient.get<Application[]>('/applications/');
+      setApplications(response.data);
+    } catch (error) {
+      console.error('Error refreshing applications:', error);
+    }
+  };
+
+  // Handle view application details
+  const handleViewApplication = (application: Application) => {
+    setSelectedApplication(application);
+    setShowApplicationModal(true);
+  };
+
+  // Close application modal
+  const closeApplicationModal = () => {
+    setShowApplicationModal(false);
+    setSelectedApplication(null);
+  };
+
+  // Handle application actions (approve, reject, disburse)
+  const handleApplicationAction = async (applicationId: number, action: string) => {
+    const actionKey = `${action}_${applicationId}`;
+    
+    try {
+      setActionLoading(prev => ({ ...prev, [actionKey]: true }));
+      
+      const endpoint = `/applications/${applicationId}/process/`;
+      const payload = { 
+        status: action, 
+        admin_notes: `Application ${action} by admin` 
+      };
+      
+      await apiClient.post(endpoint, payload);
+      
+      // Refresh applications data
+      await refreshApplications();
+      
+      // Close modal if it's open
+      if (showApplicationModal) {
+        closeApplicationModal();
+      }
+      
+    } catch (error) {
+      console.error(`Error ${action}ing application:`, error);
+      alert(`Failed to ${action} application. Please try again.`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [actionKey]: false }));
+    }
+  };
 
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,11 +181,11 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
               <div className="stat-label">Total Applications</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">₱{approvedAmount.toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(approvedAmount)}</div>
               <div className="stat-label">Approved Amount</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">₱{pendingAmount.toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(pendingAmount)}</div>
               <div className="stat-label">Pending Amount</div>
             </div>
           </div>
@@ -228,7 +285,7 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
 
                 <div className="amount-section">
                   <div className="amount-label">Requested Amount</div>
-                  <div className="amount-value">₱{app.amount.toLocaleString()}</div>
+                  <div className="amount-value">{formatCurrency(app.amount)}</div>
                 </div>
 
                 <div className="application-details">
@@ -245,7 +302,10 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
                 </div>
 
                 <div className="application-actions">
-                  <button className="action-btn view-btn">
+                  <button 
+                    className="action-btn view-btn"
+                    onClick={() => handleViewApplication(app)}
+                  >
                     <svg viewBox="0 0 24 24" fill="currentColor">
                       <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
@@ -254,26 +314,38 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
                   </button>
                   {app.status === 'pending' && (
                     <>
-                      <button className="action-btn approve-btn">
+                      <button 
+                        className="action-btn approve-btn"
+                        onClick={() => handleApplicationAction(app.id, 'approved')}
+                        disabled={actionLoading[`approved_${app.id}`]}
+                      >
                         <svg viewBox="0 0 24 24" fill="currentColor">
                           <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Approve
+                        {actionLoading[`approved_${app.id}`] ? 'Processing...' : 'Approve'}
                       </button>
-                      <button className="action-btn reject-btn">
+                      <button 
+                        className="action-btn reject-btn"
+                        onClick={() => handleApplicationAction(app.id, 'rejected')}
+                        disabled={actionLoading[`rejected_${app.id}`]}
+                      >
                         <svg viewBox="0 0 24 24" fill="currentColor">
                           <path d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Reject
+                        {actionLoading[`rejected_${app.id}`] ? 'Processing...' : 'Reject'}
                       </button>
                     </>
                   )}
                   {app.status === 'approved' && (
-                    <button className="action-btn disburse-btn">
+                    <button 
+                      className="action-btn disburse-btn"
+                      onClick={() => handleApplicationAction(app.id, 'disbursed')}
+                      disabled={actionLoading[`disbursed_${app.id}`]}
+                    >
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      Disburse
+                      {actionLoading[`disbursed_${app.id}`] ? 'Processing...' : 'Disburse'}
                     </button>
                   )}
                 </div>
@@ -281,6 +353,113 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
             ))
           )}
         </div>
+
+        {/* Application Details Modal */}
+        {showApplicationModal && selectedApplication && (
+          <div className="modal-overlay" onClick={closeApplicationModal}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Application Details</h2>
+                <button className="modal-close" onClick={closeApplicationModal}>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="modal-body">
+                <div className="application-info-grid">
+                  <div className="info-section">
+                    <h3>Student Information</h3>
+                    <div className="info-row">
+                      <label>Student Name:</label>
+                      <span>{selectedApplication.student_name}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Student ID:</label>
+                      <span>{selectedApplication.student_id}</span>
+                    </div>
+                  </div>
+
+                  <div className="info-section">
+                    <h3>Application Information</h3>
+                    <div className="info-row">
+                      <label>Application ID:</label>
+                      <span>#{selectedApplication.id}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Application Type:</label>
+                      <span>{selectedApplication.application_type_display}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Requested Amount:</label>
+                      <span className="amount-highlight">{formatCurrency(selectedApplication.amount)}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Status:</label>
+                      <span 
+                        className="status-badge-modal"
+                        style={{ backgroundColor: getStatusColor(selectedApplication.status) }}
+                      >
+                        {selectedApplication.status_display}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <label>Applied Date:</label>
+                      <span>{formatDate(selectedApplication.applied_at)}</span>
+                    </div>
+                    {selectedApplication.reason && (
+                      <div className="info-row">
+                        <label>Reason/Comments:</label>
+                        <span className="reason-text">{selectedApplication.reason}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons in Modal */}
+                <div className="modal-actions">
+                  {selectedApplication.status === 'pending' && (
+                    <>
+                      <button 
+                        className="modal-action-btn approve"
+                        onClick={() => handleApplicationAction(selectedApplication.id, 'approved')}
+                        disabled={actionLoading[`approved_${selectedApplication.id}`]}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {actionLoading[`approved_${selectedApplication.id}`] ? 'Processing...' : 'Approve Application'}
+                      </button>
+                      <button 
+                        className="modal-action-btn reject"
+                        onClick={() => handleApplicationAction(selectedApplication.id, 'rejected')}
+                        disabled={actionLoading[`rejected_${selectedApplication.id}`]}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {actionLoading[`rejected_${selectedApplication.id}`] ? 'Processing...' : 'Reject Application'}
+                      </button>
+                    </>
+                  )}
+                  {selectedApplication.status === 'approved' && (
+                    <button 
+                      className="modal-action-btn disburse"
+                      onClick={() => handleApplicationAction(selectedApplication.id, 'disbursed')}
+                      disabled={actionLoading[`disbursed_${selectedApplication.id}`]}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {actionLoading[`disbursed_${selectedApplication.id}`] ? 'Processing...' : 'Disburse Funds'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

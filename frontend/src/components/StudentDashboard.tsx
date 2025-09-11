@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { formatCurrency } from '../utils/numberUtils';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
 import GradeSubmissionForm from './GradeSubmissionForm';
 import AllowanceApplicationForm from './AllowanceApplicationForm';
@@ -501,7 +502,7 @@ const StudentDashboard: React.FC = () => {
               </svg>
             </div>
             <div className="stat-content">
-              <div className="stat-number">₱{applications.filter(a => a.status === 'approved' || a.status === 'disbursed').reduce((sum, app) => sum + Number(app.amount), 0).toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(applications.filter(a => a.status === 'approved' || a.status === 'disbursed').reduce((sum, app) => sum + Number(app.amount), 0))}</div>
               <div className="stat-label">Total Received</div>
               <div className="stat-sub">
                 {applications.filter(a => a.status === 'pending').length} pending
@@ -875,7 +876,7 @@ const StudentDashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="application-amount">
-                        💵 Amount: ₱{app.amount.toLocaleString()}
+                        💵 Amount: {formatCurrency(app.amount)}
                       </div>
                       <div className="submission-date">
                         📅 Applied: {new Date(app.applied_at).toLocaleDateString()}

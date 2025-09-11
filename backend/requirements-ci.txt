@@ -1,32 +1,34 @@
+# Core Django dependencies
 Django==5.2.5
 djangorestframework==3.15.2
 django-cors-headers==4.4.0
 psycopg[binary]==3.2.3
 Pillow==10.4.0
 
-# Enhanced AI Document Verification Dependencies (excluding PyMuPDF)
+# Document processing - lightweight versions for CI
 PyPDF2==3.0.1
-# PyMuPDF installed separately to prevent C++ compilation
-opencv-python==4.10.0.84
-numpy==1.26.4
-pytesseract==0.3.13
-scikit-learn==1.5.2
-nltk==3.9.1
-textblob==0.18.0
 python-docx==1.1.2
-
-# Alternative PDF processing libraries
 pdfplumber==0.9.0
 
-# Image processing and analysis
-scipy==1.13.1
-matplotlib==3.8.4
+# AI/ML dependencies - using wheel-compatible versions
+numpy==1.26.4
+scikit-learn==1.5.2
+opencv-python-headless==4.10.0.84
+pytesseract==0.3.13
 
-# Additional dependencies for Python 3.12+ compatibility
+# Text processing
+nltk==3.9.1
+textblob==0.18.0
+
+# Lightweight math library for CI (avoid SciPy compilation issues)
+# scipy==1.11.4  # Commented out to avoid OpenBLAS compilation issues in CI
+
+# Build tools for CI compatibility
 setuptools>=75.1.0
 wheel>=0.44.0
+pip>=24.0
 
-# Optional: For even better AI capabilities (can be installed separately)
-# tensorflow>=2.13.0  # For advanced ML models
-# torch>=2.0.0        # For deep learning models
-# transformers>=4.30.0 # For NLP models
+# Alternative lightweight packages for CI
+# If scipy functionality is needed, use individual packages:
+# - For linear algebra: numpy (already included)
+# - For optimization: scipy-openblas or pre-compiled wheels only
