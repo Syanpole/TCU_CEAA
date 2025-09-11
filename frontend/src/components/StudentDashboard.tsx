@@ -237,7 +237,7 @@ const StudentDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return '#dc2626';
+      case 'approved': return '#22c55e';
       case 'rejected': return '#ef4444';
       case 'pending': return '#f59e0b';
       case 'revision_needed': return '#8b5cf6';
