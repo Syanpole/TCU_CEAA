@@ -4,9 +4,9 @@ django-cors-headers==4.4.0
 psycopg[binary]==3.2.3
 Pillow==10.4.0
 
-# Enhanced AI Document Verification Dependencies
+# Enhanced AI Document Verification Dependencies (excluding PyMuPDF)
 PyPDF2==3.0.1
-PyMuPDF==1.24.10  # Updated to latest stable version with better wheel support
+# PyMuPDF installed separately to prevent C++ compilation
 opencv-python==4.10.0.84
 numpy==1.26.4
 pytesseract==0.3.13
@@ -14,6 +14,9 @@ scikit-learn==1.5.2
 nltk==3.9.1
 textblob==0.18.0
 python-docx==1.1.2
+
+# Alternative PDF processing libraries
+pdfplumber==0.9.0
 
 # Image processing and analysis
 scipy==1.13.1

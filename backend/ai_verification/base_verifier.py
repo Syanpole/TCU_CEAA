@@ -34,13 +34,39 @@ try:
 except ImportError:
     NLP_AVAILABLE = False
 
-# PDF processing
+# PDF processing with comprehensive fallback handling
+PDF_AVAILABLE = False
+PYMUPDF_AVAILABLE = False
+PDFPLUMBER_AVAILABLE = False
+
 try:
     import PyPDF2
-    import fitz  # PyMuPDF for better PDF handling
     PDF_AVAILABLE = True
+    print("✅ PyPDF2 available for PDF processing")
 except ImportError:
-    PDF_AVAILABLE = False
+    print("⚠️ PyPDF2 not available")
+
+try:
+    import fitz  # PyMuPDF for better PDF handling
+    PYMUPDF_AVAILABLE = True
+    print(f"✅ PyMuPDF available (version: {fitz.version[0]})")
+except ImportError:
+    print("⚠️ PyMuPDF not available - using fallback PDF processors")
+except Exception as e:
+    print(f"⚠️ PyMuPDF import error: {e} - using fallback PDF processors")
+
+try:
+    import pdfplumber  # Alternative PDF processor
+    PDFPLUMBER_AVAILABLE = True
+    print("✅ pdfplumber available as PDF fallback")
+except ImportError:
+    print("⚠️ pdfplumber not available")
+
+# Ensure at least one PDF processor is available
+if not (PDF_AVAILABLE or PYMUPDF_AVAILABLE or PDFPLUMBER_AVAILABLE):
+    print("❌ No PDF processing libraries available")
+else:
+    print(f"📄 PDF processing capabilities: PyMuPDF={PYMUPDF_AVAILABLE}, PyPDF2={PDF_AVAILABLE}, pdfplumber={PDFPLUMBER_AVAILABLE}")
 
 
 class DocumentTypeDetector:
@@ -514,15 +540,16 @@ class DocumentTypeDetector:
         return layout
 
     def _analyze_pdf_content(self, uploaded_file) -> Dict[str, Any]:
-        """Analyze PDF documents"""
-        if not PDF_AVAILABLE:
-            return {'error': 'PDF processing libraries not available'}
+        """Analyze PDF documents with comprehensive fallback support"""
+        if not (PDF_AVAILABLE or PYMUPDF_AVAILABLE or PDFPLUMBER_AVAILABLE):
+            return {'error': 'No PDF processing libraries available'}
         
         analysis = {
             'extracted_text': '',
             'page_count': 0,
             'has_images': False,
-            'pdf_metadata': {}
+            'pdf_metadata': {},
+            'processor_used': None
         }
         
         try:
@@ -532,45 +559,86 @@ class DocumentTypeDetector:
                     temp_file.write(chunk)
                 temp_path = temp_file.name
             
-            # Use PyMuPDF for better text extraction
-            try:
-                pdf_document = fitz.open(temp_path)
+            # Try PDF processors in order of preference
+            # 1. PyMuPDF (best features but can have C++ compilation issues)
+            if PYMUPDF_AVAILABLE:
+                try:
+                    import fitz
+                    pdf_document = fitz.open(temp_path)
                 
-                analysis['page_count'] = pdf_document.page_count
-                
-                # Extract text from all pages
-                text_content = []
-                for page_num in range(pdf_document.page_count):
-                    page = pdf_document[page_num]
-                    text_content.append(page.get_text())
+                    analysis['page_count'] = pdf_document.page_count
+                    analysis['processor_used'] = 'PyMuPDF'
                     
-                    # Check for images
-                    if page.get_images():
-                        analysis['has_images'] = True
-                
-                analysis['extracted_text'] = '\n'.join(text_content)
-                
-                # Get metadata
-                analysis['pdf_metadata'] = {
-                    'title': pdf_document.metadata.get('title', ''),
-                    'author': pdf_document.metadata.get('author', ''),
-                    'creator': pdf_document.metadata.get('creator', ''),
-                    'producer': pdf_document.metadata.get('producer', '')
-                }
-                
-                pdf_document.close()
-                
-            except Exception:
-                # Fallback to PyPDF2
-                with open(temp_path, 'rb') as file:
-                    pdf_reader = PyPDF2.PdfReader(file)
-                    analysis['page_count'] = len(pdf_reader.pages)
-                    
+                    # Extract text from all pages
                     text_content = []
-                    for page in pdf_reader.pages:
-                        text_content.append(page.extract_text())
+                    for page_num in range(pdf_document.page_count):
+                        page = pdf_document[page_num]
+                        text_content.append(page.get_text())
+                        
+                        # Check for images
+                        if page.get_images():
+                            analysis['has_images'] = True
                     
                     analysis['extracted_text'] = '\n'.join(text_content)
+                    
+                    # Get metadata
+                    analysis['pdf_metadata'] = {
+                        'title': pdf_document.metadata.get('title', ''),
+                        'author': pdf_document.metadata.get('author', ''),
+                        'creator': pdf_document.metadata.get('creator', ''),
+                        'producer': pdf_document.metadata.get('producer', '')
+                    }
+                    
+                    pdf_document.close()
+                    
+                except Exception as pymupdf_error:
+                    print(f"⚠️ PyMuPDF processing failed: {pymupdf_error}")
+                    # Fallback to next available processor
+                    PYMUPDF_AVAILABLE = False  # Disable for this session
+            
+            # 2. pdfplumber (good alternative, no C++ compilation)
+            if PDFPLUMBER_AVAILABLE and not analysis.get('processor_used'):
+                try:
+                    import pdfplumber
+                    with pdfplumber.open(temp_path) as pdf:
+                        analysis['page_count'] = len(pdf.pages)
+                        analysis['processor_used'] = 'pdfplumber'
+                        
+                        text_content = []
+                        for page in pdf.pages:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_content.append(page_text)
+                        
+                        analysis['extracted_text'] = '\n'.join(text_content)
+                        
+                        # Check for images (basic detection)
+                        for page in pdf.pages:
+                            if page.images:
+                                analysis['has_images'] = True
+                                break
+                                
+                except Exception as pdfplumber_error:
+                    print(f"⚠️ pdfplumber processing failed: {pdfplumber_error}")
+                    PDFPLUMBER_AVAILABLE = False  # Disable for this session
+            
+            # 3. PyPDF2 (most basic but reliable)
+            if PDF_AVAILABLE and not analysis.get('processor_used'):
+                try:
+                    with open(temp_path, 'rb') as file:
+                        pdf_reader = PyPDF2.PdfReader(file)
+                        analysis['page_count'] = len(pdf_reader.pages)
+                        analysis['processor_used'] = 'PyPDF2'
+                        
+                        text_content = []
+                        for page in pdf_reader.pages:
+                            text_content.append(page.extract_text())
+                        
+                        analysis['extracted_text'] = '\n'.join(text_content)
+                        
+                except Exception as pypdf2_error:
+                    print(f"⚠️ PyPDF2 processing failed: {pypdf2_error}")
+                    analysis['error'] = f"All PDF processors failed. Last error: {pypdf2_error}"
             
             # Clean up
             os.unlink(temp_path)

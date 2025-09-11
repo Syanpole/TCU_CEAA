@@ -30,10 +30,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install backend dependencies
+      - name: Install system dependencies for PyMuPDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmupdf-dev libfreetype6-dev libharfbuzz-dev libopenjp2-7-dev libjbig2dec0-dev
+
+      - name: Install backend dependencies (no C++ compilation)
         run: |
           cd backend
-          pip install -r requirements.txt
+          # Install dependencies excluding PyMuPDF first
+          pip install -r requirements-ci.txt
+          # Install PyMuPDF with wheel-only to prevent C++ compilation
+          python install_pymupdf_no_cpp.py
           
       - name: Verify AI dependencies compatibility
         run: |
