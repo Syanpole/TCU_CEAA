@@ -67,24 +67,28 @@ class TestOpenBLASAndSciPyFix(unittest.TestCase):
         """Test that SciPy is not being compiled from source"""
         print("\n🧪 Testing SciPy compilation avoidance...")
         
-        # Check if scipy is in requirements
+        # Check if scipy is in requirements (not commented out)
         requirements_files = ['requirements-ci.txt', 'requirements-ci-safe.txt']
         scipy_found = False
         
         for req_file in requirements_files:
             if os.path.exists(req_file):
                 with open(req_file, 'r') as f:
-                    content = f.read()
-                    if 'scipy' in content.lower() and not content.lower().find('scipy') in [
-                        line for line in content.split('\n') if line.strip().startswith('#')
-                    ]:
+                    lines = f.readlines()
+                    
+                for line in lines:
+                    line = line.strip()
+                    # Check if scipy is present and NOT commented out
+                    if 'scipy' in line.lower() and not line.startswith('#'):
                         scipy_found = True
-                        print(f"⚠️ SciPy found in {req_file}")
+                        print(f"⚠️ SciPy found uncommented in {req_file}: {line}")
         
         if not scipy_found:
             print("✅ SciPy correctly excluded from CI requirements")
         else:
             print("❌ SciPy still in requirements - may cause compilation issues")
+            # Don't fail the test in CI - just warn
+            print("⚠️ Warning: SciPy found but this may be intentional for local development")
     
     def test_numpy_as_scipy_replacement(self):
         """Test that NumPy can handle basic operations that would use SciPy"""
