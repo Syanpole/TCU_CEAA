@@ -58,13 +58,28 @@ jobs:
           
           # Set environment variables to prevent compilation
           export PIP_ONLY_BINARY=all
-          export PIP_NO_BUILD_ISOLATION=false
+          export PIP_NO_BUILD_ISOLATION=true
           export SCIPY_USE_PROPACK=0
+          export PIP_DISABLE_PIP_VERSION_CHECK=1
           
           # Upgrade pip and install build tools
           python -m pip install --upgrade pip setuptools wheel
           
-          # Install dependencies with strict wheel-only policy to avoid compilation
+          # Install build backend dependencies for numpy (required for Python 3.13)
+          echo "🔧 Installing build backends for compatibility..."
+          pip install meson-python ninja
+          
+          # Check available numpy wheels for current Python version
+          echo "🔍 Checking available numpy wheels..."
+          pip index versions numpy --pre || echo "Could not check numpy versions"
+          
+          # Try to install numpy first with specific version that has Python 3.13 wheels
+          echo "📦 Installing numpy with wheel-only policy..."
+          pip install --only-binary=all --no-cache-dir "numpy>=1.26.0,<2.0.0" || \
+          pip install --only-binary=all --no-cache-dir "numpy==1.26.4"
+          
+          # Install remaining dependencies
+          echo "📦 Installing remaining dependencies..."
           pip install --only-binary=all --no-cache-dir -r requirements-ci.txt
           
           echo "Installation completed successfully"
