@@ -47,31 +47,15 @@ jobs:
       - name: Install backend dependencies (CI-safe installation)
         run: |
           cd backend
-          echo "🔧 Running emergency dependency fix..."
-          python fix_ci_dependencies.py || echo "Fix script completed with warnings"
+          echo "Installing CI dependencies with wheel-only policy..."
           
-          echo "📦 Installing ultra-safe CI dependencies (no compilation)..."
-          # Try ultra-safe requirements first
-          if pip install --only-binary=all --no-cache-dir -r requirements-ci-safe.txt; then
-            echo "✅ Ultra-safe installation successful"
-          elif pip install --only-binary=all --no-cache-dir -r requirements-ci.txt; then
-            echo "✅ Standard CI installation successful"
-          else
-            echo "⚠️ Fallback to minimal package installation..."
-            # Core Django packages (guaranteed to work)
-            pip install Django==5.2.5 djangorestframework==3.15.2 django-cors-headers==4.4.0
-            pip install Pillow==10.4.0 PyPDF2==3.0.1 python-docx==1.1.2
-            
-            # Try AI packages individually with error handling
-            pip install --only-binary=all numpy==1.26.4 || echo "Skipping NumPy"
-            pip install --only-binary=all opencv-python-headless==4.10.0.84 || echo "Skipping OpenCV"
-            pip install pytesseract==0.3.13 nltk==3.9.1 textblob==0.18.0 || echo "Skipping text processing"
-            
-            echo "⚠️ Some AI packages may be missing but core functionality preserved"
-          fi
+          # Upgrade pip and install build tools
+          python -m pip install --upgrade pip setuptools wheel
           
-          echo "✅ Installation summary:"
-          pip list | grep -E "(Django|numpy|opencv|nltk|PyPDF2|pillow|pdfplumber)" || echo "Basic packages installed"
+          # Install dependencies with strict wheel-only policy to avoid compilation
+          pip install --only-binary=all --no-cache-dir -r requirements-ci.txt
+          
+          echo "Installation completed successfully"
           
       - name: Verify AI dependencies compatibility
         run: |
