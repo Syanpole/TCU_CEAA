@@ -43,14 +43,30 @@ jobs:
             libopenjp2-7-dev \
             libjbig2dec0-dev \
             pkg-config
+          
+          # Verify OpenBLAS installation and set PKG_CONFIG_PATH
+          pkg-config --exists openblas && echo "✅ OpenBLAS found via pkg-config" || echo "⚠️ OpenBLAS not found via pkg-config"
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "OPENBLAS_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "BLAS=/usr/lib/x86_64-linux-gnu/libopenblas.so" >> $GITHUB_ENV
+          echo "LAPACK=/usr/lib/x86_64-linux-gnu/libopenblas.so" >> $GITHUB_ENV
 
       - name: Install backend dependencies (CI-safe installation)
         run: |
           cd backend
           echo "Installing CI dependencies with wheel-only policy..."
           
+          # Set environment variables to prevent compilation
+          export PIP_ONLY_BINARY=all
+          export PIP_NO_BUILD_ISOLATION=false
+          export SCIPY_USE_PROPACK=0
+          
           # Upgrade pip and install build tools
           python -m pip install --upgrade pip setuptools wheel
+          
+          # Check for potential SciPy dependencies before installation
+          echo "🔍 Checking for packages that might require SciPy..."
+          pip install --dry-run --only-binary=all -r requirements-ci.txt || echo "Some packages may have issues"
           
           # Install dependencies with strict wheel-only policy to avoid compilation
           pip install --only-binary=all --no-cache-dir -r requirements-ci.txt
