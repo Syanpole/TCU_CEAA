@@ -541,6 +541,8 @@ class DocumentTypeDetector:
 
     def _analyze_pdf_content(self, uploaded_file) -> Dict[str, Any]:
         """Analyze PDF documents with comprehensive fallback support"""
+        global PYMUPDF_AVAILABLE, PDFPLUMBER_AVAILABLE, PDF_AVAILABLE
+        
         if not (PDF_AVAILABLE or PYMUPDF_AVAILABLE or PDFPLUMBER_AVAILABLE):
             return {'error': 'No PDF processing libraries available'}
         

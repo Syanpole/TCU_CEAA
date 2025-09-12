@@ -12,7 +12,7 @@ pdfplumber==0.9.0
 
 # AI/ML dependencies - using wheel-compatible versions
 numpy==1.26.4
-# scikit-learn==1.5.2  # Commented out - may depend on scipy
+scikit-learn==1.5.2  # Added back for CI - should use wheel
 opencv-python-headless==4.10.0.84
 pytesseract==0.3.13
 

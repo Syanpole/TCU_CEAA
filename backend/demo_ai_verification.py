@@ -136,7 +136,7 @@ class AIVerificationDemo:
                 self.document_file = fake_file
             
             def get_document_type_display(self):
-                return doc_type.replace('_', ' ').title()
+                return self.document_type.replace('_', ' ').title()
         
         mock_birth_cert = MockDocumentSubmission('birth_certificate')
         

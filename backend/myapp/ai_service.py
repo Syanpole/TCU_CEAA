@@ -22,6 +22,37 @@ def check_optional_imports(imports):
     except ImportError:
         return False
 
+# Conditional imports for optional dependencies
+try:
+    import PyPDF2
+    PDF_PYPDF2_AVAILABLE = True
+except ImportError:
+    PDF_PYPDF2_AVAILABLE = False
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+
+try:
+    from PIL import Image, ImageEnhance, ImageFilter
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
+try:
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+
 # PDF and image processing
 PDF_AVAILABLE = check_optional_imports([
     "PyPDF2",
@@ -195,9 +226,9 @@ class AIDocumentAnalyzer:
         extracted_text = ""
         
         try:
-            if filename.endswith('.pdf') and PDF_AVAILABLE:
+            if filename.endswith('.pdf') and PDF_PYPDF2_AVAILABLE:
                 extracted_text = self._extract_text_from_pdf(file_obj)
-            elif filename.endswith(('.jpg', '.jpeg', '.png')) and OCR_AVAILABLE:
+            elif filename.endswith(('.jpg', '.jpeg', '.png')) and (CV2_AVAILABLE and PYTESSERACT_AVAILABLE):
                 extracted_text = self._extract_text_from_image(file_obj)
             elif filename.endswith(('.doc', '.docx')):
                 # For demonstration - in production, use python-docx
@@ -209,7 +240,7 @@ class AIDocumentAnalyzer:
 
     def _extract_text_from_pdf(self, file_obj) -> str:
         """Extract text from PDF files"""
-        if not PDF_AVAILABLE:
+        if not PDF_PYPDF2_AVAILABLE:
             return "PDF processing not available"
         
         try:
@@ -235,7 +266,7 @@ class AIDocumentAnalyzer:
 
     def _extract_text_from_image(self, file_obj) -> str:
         """Extract text from image files using OCR"""
-        if not OCR_AVAILABLE:
+        if not (CV2_AVAILABLE and PYTESSERACT_AVAILABLE):
             return "OCR processing not available"
         
         try:
