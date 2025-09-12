@@ -15,7 +15,7 @@ pdfplumber==0.9.0
 
 # AI/ML dependencies - using wheel-compatible versions
 numpy==1.26.4
-scikit-learn==1.5.2  # Using wheel for CI compatibility
+# scikit-learn==1.5.2  # Temporarily disabled - causes SciPy compilation issues in CI
 opencv-python-headless==4.10.0.84
 pytesseract==0.3.13
 
