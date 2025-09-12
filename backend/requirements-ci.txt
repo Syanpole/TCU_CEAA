@@ -1,8 +1,11 @@
-# Core Django dependencies
+# Core Django dependencies - use exact versions for CI stability
 Django==5.2.5
 djangorestframework==3.15.2
 django-cors-headers==4.4.0
+django-authtoken==0.1.1
 psycopg[binary]==3.2.3
+
+# Image processing - ensure wheel availability
 Pillow==10.4.0
 
 # Document processing - lightweight versions for CI
@@ -12,23 +15,15 @@ pdfplumber==0.9.0
 
 # AI/ML dependencies - using wheel-compatible versions
 numpy==1.26.4
-scikit-learn==1.5.2  # Added back for CI - should use wheel
+scikit-learn==1.5.2  # Using wheel for CI compatibility
 opencv-python-headless==4.10.0.84
 pytesseract==0.3.13
 
-# Text processing
+# Text processing - optional but useful
 # nltk==3.9.1          # Commented out - requires data downloads
 # textblob==0.18.0     # Commented out - requires NLTK data
 
-# Lightweight math library for CI (avoid SciPy compilation issues)
-# scipy==1.11.4  # Commented out to avoid OpenBLAS compilation issues in CI
-
-# Build tools for CI compatibility
+# Build tools for CI compatibility - ensure latest versions
 setuptools>=75.1.0
 wheel>=0.44.0
 pip>=24.0
-
-# Alternative lightweight packages for CI
-# If scipy functionality is needed, use individual packages:
-# - For linear algebra: numpy (already included)
-# - For optimization: scipy-openblas or pre-compiled wheels only
