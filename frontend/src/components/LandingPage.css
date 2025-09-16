@@ -337,18 +337,21 @@
 }
 
 .hero-text h2 {
-  font-size: 3.5rem;
-  font-weight: 800;
+  font-size: 4rem;
+  font-weight: 900;
   color: white;
   margin-bottom: 1.5rem;
-  line-height: 1.2;
+  line-height: 1.1;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
 }
 
 .hero-text p {
-  font-size: 1.3rem;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.95);
   margin-bottom: 2.5rem;
   line-height: 1.7;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+  font-weight: 500;
 }
 
 .hero-buttons {
@@ -404,14 +407,17 @@
 }
 
 .stat-number {
-  font-size: 2rem;
-  font-weight: 800;
+  font-size: 2.4rem;
+  font-weight: 900;
   margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .stat-label {
-  font-size: 0.9rem;
-  opacity: 0.9;
+  font-size: 1rem;
+  opacity: 0.95;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* Hero Visual */
@@ -435,34 +441,37 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(15px);
-  border-radius: 20px;
-  padding: 1.5rem 2rem;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2rem 2.5rem;
+  border: 3px solid rgba(220, 38, 38, 0.2);
   transition: all 0.3s ease;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
 }
 
 .visual-stat:hover {
-  transform: translateX(10px);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
-  border-color: rgba(220, 38, 38, 0.3);
+  transform: translateX(15px) scale(1.02);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(255, 255, 255, 1);
 }
 
 .stat-icon {
-  font-size: 2.5rem;
+  font-size: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   border-radius: 50%;
   color: white;
   text-align: center;
   line-height: 1;
   flex-shrink: 0;
+  box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
+  border: 3px solid white;
 }
 
 .stat-info {
@@ -472,18 +481,20 @@
 }
 
 .big-number {
-  font-size: 2rem;
+  font-size: 2.4rem;
   font-weight: 900;
-  color: #1a202c;
+  color: #000000;
   line-height: 1;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .stat-desc {
-  font-size: 0.95rem;
-  color: #4a5568;
-  font-weight: 600;
+  font-size: 1.1rem;
+  color: #000000;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Info Section */
@@ -500,13 +511,20 @@
   margin-right: auto;
 }
 
+<<<<<<< Updated upstream
 .LandingPage-section-header h3 {
   font-size: 1.8rem;
   color: #1e1e1e;
+=======
+.section-header h3 {
+  font-size: 2.2rem;
+  color: #000000;
+>>>>>>> Stashed changes
   margin-bottom: 1rem;
-  font-weight: 800;
+  font-weight: 900;
   position: relative;
   display: inline-block;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .LandingPage-section-header h3::after {
@@ -521,11 +539,18 @@
   border-radius: 2px;
 }
 
+<<<<<<< Updated upstream
 .LandingPage-section-header p {
   font-size: 1.0rem;
   color: #1c232d;
+=======
+.section-header p {
+  font-size: 1.2rem;
+  color: #000000;
+>>>>>>> Stashed changes
   margin-bottom: 0;
-  font-weight: 600;
+  font-weight: 700;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .info-grid {
@@ -538,12 +563,13 @@
 
 .info-card {
   background: white;
-  padding: 2.5rem;
-  border-radius: 16px;
+  padding: 3rem;
+  border-radius: 20px;
   text-align: center;
   transition: all 0.3s ease;
-  border: 1px solid #f0f0f0;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .info-card:hover {
@@ -571,17 +597,19 @@
 }
 
 .info-card h4 {
-  font-size: 1.4rem;
-  color: #1a202c;
+  font-size: 1.6rem;
+  color: #000000;
   margin-bottom: 1rem;
-  font-weight: 600;
+  font-weight: 800;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .info-card p {
-  color: #2a2a2b;
+  color: #000000;
   line-height: 1.7;
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 1.05rem;
 }
 
 /* Features Section */
@@ -668,25 +696,33 @@
   z-index: 1;
 }
 
+<<<<<<< Updated upstream
 .landing-step {
   background: rgb(234, 234, 234);
   padding: 2rem 1.5rem;
   border-radius: 16px;
+=======
+.step {
+  background: rgb(255, 255, 255);
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+>>>>>>> Stashed changes
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  border: 2px solid #f1f5f9;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+  border: 3px solid #dc2626;
   transition: all 0.3s ease;
   flex: 1;
-  min-width: 250px;
-  max-width: 250px;
-  width: 250px;
-  height: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  width: 280px;
+  height: 320px;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
+<<<<<<< Updated upstream
 .landing-step:hover {
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(220, 38, 38, 0.1);
@@ -696,17 +732,30 @@
 .landing-step-number {
   width: 60px;
   height: 60px;
+=======
+.step:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px rgba(220, 38, 38, 0.2);
+  border-color: #b91c1c;
+  background: rgba(255, 255, 255, 1);
+}
+
+.step-number {
+  width: 70px;
+  height: 70px;
+>>>>>>> Stashed changes
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 1.5rem;
+  font-weight: 900;
+  font-size: 1.8rem;
   margin: 0 auto 1.5rem auto;
-  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 10px 35px rgba(220, 38, 38, 0.4);
   position: relative;
+  border: 3px solid white;
 }
 
 .landing-step-number::after {
@@ -738,27 +787,35 @@
 .landing-step-content h4 {
   color: #000000;
   margin-bottom: 0.8rem;
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 800;
+  font-size: 1.3rem;
   line-height: 1.2;
   min-height: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+<<<<<<< Updated upstream
 .landing-step-content p {
   color: #222a36;
   font-size: 0.95rem;
+=======
+.LandingPage-step-content p {
+  color: #000000;
+  font-size: 1.05rem;
+>>>>>>> Stashed changes
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   text-align: center;
   min-height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .landing-step-content .landing-step-arrow {

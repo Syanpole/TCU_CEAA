@@ -11,6 +11,7 @@ import StudentsManagement from './components/StudentsManagement';
 import DocumentsManagement from './components/DocumentsManagement';
 import GradesManagement from './components/GradesManagement';
 import ApplicationsManagement from './components/ApplicationsManagement';
+import Analytics from './components/Analytics';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -97,6 +98,8 @@ const AppContent: React.FC = () => {
         <GradesManagement onViewChange={setCurrentView} />
       ) : currentView === 'applications' && isAdmin ? (
         <ApplicationsManagement onViewChange={setCurrentView} />
+      ) : currentView === 'analytics' && isAdmin ? (
+        <Analytics onViewChange={setCurrentView} />
       ) : (
         isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
       )}

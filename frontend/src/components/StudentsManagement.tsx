@@ -15,6 +15,61 @@ interface Student {
   profile_image_url?: string;
 }
 
+interface ProfileImageProps {
+  src?: string;
+  alt: string;
+  initials: string;
+  className?: string;
+  size?: 'small' | 'large';
+}
+
+// Profile Image Component with loading states
+const ProfileImage: React.FC<ProfileImageProps> = ({ src, alt, initials, className = '', size = 'small' }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+  }, [src]);
+
+  const handleLoad = () => {
+    setLoading(false);
+    setError(false);
+  };
+
+  const handleError = () => {
+    setLoading(false);
+    setError(true);
+  };
+
+  return (
+    <div className={`${size === 'large' ? 'profile-image-large' : 'student-avatar'} ${className}`}>
+      {src && !error ? (
+        <>
+          {loading && (
+            <div className="image-loading">
+              <div className="loading-spinner-small"></div>
+            </div>
+          )}
+          <img 
+            src={src} 
+            alt={alt}
+            className={size === 'large' ? 'profile-img' : 'avatar-image'}
+            onLoad={handleLoad}
+            onError={handleError}
+            style={{ display: loading ? 'none' : 'block' }}
+          />
+        </>
+      ) : (
+        <div className={size === 'large' ? 'profile-placeholder' : 'avatar-initials'}>
+          {initials}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface StudentModalProps {
   student: Student | null;
   isOpen: boolean;
@@ -79,10 +134,10 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className={`modal-content ${mode === 'view' ? 'modal-content-compact modal-content-dark' : ''}`}>
         <div className="modal-header">
-          <h3>{mode === 'view' ? 'View Profile' : 'Edit Profile'}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <h3 style={{ color: mode === 'view' ? '#ffffff' : '' }}>{mode === 'view' ? 'View Profile' : 'Edit Profile'}</h3>
+          <button className="modal-close" onClick={onClose} style={{ color: mode === 'view' ? '#ffffff' : '' }}>
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 6l12 12m0-12L6 18" />
             </svg>
@@ -91,107 +146,128 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
 
         <div className="modal-body">
           <div className="profile-section">
-            <div className="profile-image-large">
-              {student.profile_image_url ? (
-                <img 
-                  src={student.profile_image_url} 
-                  alt={`${student.first_name} ${student.last_name}`}
-                  className="profile-img"
-                />
-              ) : (
-                <div className="profile-placeholder">
-                  {student.first_name[0]}{student.last_name[0]}
-                </div>
-              )}
-            </div>
+            <ProfileImage
+              src={student.profile_image_url}
+              alt={`${student.first_name} ${student.last_name}`}
+              initials={`${student.first_name[0]}${student.last_name[0]}`}
+              size={mode === 'view' ? 'small' : 'large'}
+            />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>First Name</label>
-              {mode === 'edit' ? (
-                <input
-                  type="text"
-                  value={editedStudent.first_name}
-                  onChange={(e) => setEditedStudent({...editedStudent, first_name: e.target.value})}
-                  className="form-input"
-                />
-              ) : (
-                <div className="form-display">{student.first_name}</div>
-              )}
-            </div>
+          <div className={`form-grid ${mode === 'view' ? 'form-grid-compact' : ''}`}>
+            {mode === 'view' ? (
+              <>
+                <div className="name-row">
+                  <div className="form-group">
+                    <label>First Name</label>
+                    <div className="form-display">{student.first_name}</div>
+                  </div>
+                  <div className="form-group">
+                    <label>Last Name</label>
+                    <div className="form-display">{student.last_name}</div>
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>Email Address</label>
+                  <div className="form-display">{student.email}</div>
+                </div>
 
-            <div className="form-group">
-              <label>Last Name</label>
-              {mode === 'edit' ? (
-                <input
-                  type="text"
-                  value={editedStudent.last_name}
-                  onChange={(e) => setEditedStudent({...editedStudent, last_name: e.target.value})}
-                  className="form-input"
-                />
-              ) : (
-                <div className="form-display">{student.last_name}</div>
-              )}
-            </div>
+                <div className="form-group">
+                  <label>Student ID</label>
+                  <div className="form-display">{student.student_id}</div>
+                </div>
 
-            <div className="form-group">
-              <label>Email</label>
-              {mode === 'edit' ? (
-                <input
-                  type="email"
-                  value={editedStudent.email}
-                  onChange={(e) => setEditedStudent({...editedStudent, email: e.target.value})}
-                  className="form-input"
-                />
-              ) : (
-                <div className="form-display">{student.email}</div>
-              )}
-            </div>
+                <div className="form-group">
+                  <label>Username</label>
+                  <div className="form-display">{student.username}</div>
+                </div>
 
-            <div className="form-group">
-              <label>Student ID</label>
-              {mode === 'edit' ? (
-                <input
-                  type="text"
-                  value={editedStudent.student_id}
-                  onChange={(e) => setEditedStudent({...editedStudent, student_id: e.target.value})}
-                  className="form-input"
-                />
-              ) : (
-                <div className="form-display">{student.student_id}</div>
-              )}
-            </div>
+                <div className="form-group">
+                  <label>Role</label>
+                  <div className="form-display">{student.role}</div>
+                </div>
 
-            <div className="form-group">
-              <label>Username</label>
-              {mode === 'edit' ? (
-                <input
-                  type="text"
-                  value={editedStudent.username}
-                  onChange={(e) => setEditedStudent({...editedStudent, username: e.target.value})}
-                  className="form-input"
-                />
-              ) : (
-                <div className="form-display">{student.username}</div>
-              )}
-            </div>
+                <div className="form-group">
+                  <label>Member Since</label>
+                  <div className="form-display">
+                    {new Date(student.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="form-group">
+                  <label>First Name</label>
+                  <input
+                    type="text"
+                    value={editedStudent.first_name}
+                    onChange={(e) => setEditedStudent({...editedStudent, first_name: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
 
-            <div className="form-group">
-              <label>Role</label>
-              <div className="form-display">{student.role}</div>
-            </div>
+                <div className="form-group">
+                  <label>Last Name</label>
+                  <input
+                    type="text"
+                    value={editedStudent.last_name}
+                    onChange={(e) => setEditedStudent({...editedStudent, last_name: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
 
-            <div className="form-group">
-              <label>Joined Date</label>
-              <div className="form-display">
-                {new Date(student.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </div>
-            </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={editedStudent.email}
+                    onChange={(e) => setEditedStudent({...editedStudent, email: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Student ID</label>
+                  <input
+                    type="text"
+                    value={editedStudent.student_id}
+                    onChange={(e) => setEditedStudent({...editedStudent, student_id: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    value={editedStudent.username}
+                    onChange={(e) => setEditedStudent({...editedStudent, username: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Role</label>
+                  <div className="form-display">{student.role}</div>
+                </div>
+
+                <div className="form-group">
+                  <label>Joined Date</label>
+                  <div className="form-display">
+                    {new Date(student.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -418,19 +494,12 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
             filteredStudents.map((student) => (
               <div key={student.id} className="student-card">
                 <div className="student-header">
-                  <div className="student-avatar">
-                    {student.profile_image_url ? (
-                      <img 
-                        src={student.profile_image_url} 
-                        alt={`${student.first_name} ${student.last_name}`}
-                        className="avatar-image"
-                      />
-                    ) : (
-                      <div className="avatar-initials">
-                        {student.first_name[0]}{student.last_name[0]}
-                      </div>
-                    )}
-                  </div>
+                  <ProfileImage
+                    src={student.profile_image_url}
+                    alt={`${student.first_name} ${student.last_name}`}
+                    initials={`${student.first_name[0]}${student.last_name[0]}`}
+                    size="small"
+                  />
                   <div className="student-info">
                     <h3 className="student-name">
                       {student.first_name} {student.last_name}
