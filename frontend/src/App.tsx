@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
+import Privacy from './components/Privacy';
 import Login from './components/Login';
 import Header from './components/Header';
 import Dashboard from './components/AdminDashboard';
@@ -16,37 +17,50 @@ import './App.css';
 const AppContent: React.FC = () => {
   const { user, loading, isAdmin } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showStudentRegistration, setShowStudentRegistration] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'profile'
 
   const showStudentRegister = () => {
     setShowStudentRegistration(true);
     setShowLanding(false);
+    setShowPrivacy(false);
   };
 
   const backToLanding = () => {
     setShowLanding(true);
+    setShowStudentRegistration(false);
+    setShowPrivacy(false);
+  };
+
+  const showPrivacyPage = () => {
+    setShowPrivacy(true);
+    setShowLanding(false);
     setShowStudentRegistration(false);
   };
 
   const goToLogin = () => {
     setShowLanding(false);
     setShowStudentRegistration(false);
+    setShowPrivacy(false);
   };
 
   const handleLoginClick = () => {
     setShowLanding(false);
     setShowStudentRegistration(false);
+    setShowPrivacy(false);
   };
 
   const handleRegisterClick = () => {
     setShowLanding(false);
     setShowStudentRegistration(true);
+    setShowPrivacy(false);
   };
 
   const handleBackToLanding = () => {
     setShowLanding(true);
     setShowStudentRegistration(false);
+    setShowPrivacy(false);
   };
 
   if (loading) {
@@ -59,11 +73,16 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
+    if (showPrivacy) {
+      return <Privacy onBackToHome={handleBackToLanding} />;
+    }
+    
     if (showLanding) {
       return (
         <LandingPage 
           onLoginClick={handleLoginClick}
           onRegisterClick={handleRegisterClick}
+          onPrivacyClick={showPrivacyPage}
         />
       );
     }

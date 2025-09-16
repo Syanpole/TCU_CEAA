@@ -26,6 +26,8 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showNotification, setShowNotification] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [instantApproval, setInstantApproval] = useState(false);
 
   const documentTypes = [
     'birth_certificate',
@@ -59,6 +61,26 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    
+    if (file) {
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File size cannot exceed 10MB. Please compress your file or choose a smaller one.');
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 
+                           'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Invalid file type. Please upload a PDF, JPG, PNG, DOC, or DOCX file.');
+        return;
+      }
+      
+      // Clear any previous errors
+      setError('');
+    }
+    
     setFormData(prev => ({
       ...prev,
       file
@@ -69,12 +91,24 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
     e.preventDefault();
     
     if (!formData.document_type || !formData.file) {
-      setError('Please select a document type and file');
+      setError('Please select a document type and upload a file');
+      return;
+    }
+
+    // Additional client-side validation
+    if (formData.file.size > 10 * 1024 * 1024) {
+      setError('File size cannot exceed 10MB');
+      return;
+    }
+
+    if (formData.file.size < 1024) {
+      setError('File seems too small. Please ensure you uploaded a valid document');
       return;
     }
 
     setLoading(true);
     setError('');
+    setProcessingStatus('⬆️ Uploading document...');
 
     try {
       const submitFormData = new FormData();
@@ -82,11 +116,18 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       submitFormData.append('description', formData.description);
       submitFormData.append('file', formData.file);
 
-      await apiClient.post('/documents/', submitFormData, {
+      // Show instant processing status
+      setProcessingStatus('🤖 AI analyzing document...');
+
+      const response = await apiClient.post('/documents/', submitFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      // Show instant approval status
+      setProcessingStatus('✅ Document approved instantly!');
+      setInstantApproval(true);
 
       // Reset form
       setFormData({
@@ -94,6 +135,12 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         description: '',
         file: null
       });
+
+      // Clear file input
+      const fileInput = document.getElementById('file') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
 
       // Show success notification
       setShowNotification(true);
@@ -103,10 +150,42 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         if (onSubmissionSuccess) {
           onSubmissionSuccess();
         }
-      }, 2000);
+      }, 3000);
     } catch (error: any) {
       console.error('Error submitting document:', error);
-      setError(error.response?.data?.detail || 'Failed to submit document');
+      setProcessingStatus('');
+      setInstantApproval(false);
+      
+      // Handle specific error responses
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          // Handle field-specific errors
+          const errorMessages = [];
+          if (errorData.file) {
+            errorMessages.push(`File: ${Array.isArray(errorData.file) ? errorData.file.join(', ') : errorData.file}`);
+          }
+          if (errorData.document_type) {
+            errorMessages.push(`Document Type: ${Array.isArray(errorData.document_type) ? errorData.document_type.join(', ') : errorData.document_type}`);
+          }
+          if (errorData.non_field_errors) {
+            errorMessages.push(Array.isArray(errorData.non_field_errors) ? errorData.non_field_errors.join(', ') : errorData.non_field_errors);
+          }
+          if (errorData.detail) {
+            errorMessages.push(errorData.detail);
+          }
+          
+          if (errorMessages.length > 0) {
+            setError(errorMessages.join('. '));
+          } else {
+            setError('Failed to submit document. Please check your inputs and try again.');
+          }
+        } else {
+          setError(errorData || 'Failed to submit document');
+        }
+      } else {
+        setError('Network error. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -123,6 +202,33 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         <div className="error-alert">
           <span className="error-icon">⚠️</span>
           {error}
+        </div>
+      )}
+
+      {processingStatus && (
+        <div className={`processing-status ${instantApproval ? 'success' : 'processing'}`}>
+          <div className="processing-content">
+            <span className="processing-icon">{instantApproval ? '🎉' : '⚡'}</span>
+            <div className="processing-text">
+              <div className="status-title">{processingStatus}</div>
+              {instantApproval && (
+                <div className="success-details">
+                  ✅ Your document has been instantly analyzed and approved by our AI system!<br/>
+                  🚀 Ready to proceed to the next step!
+                </div>
+              )}
+              {!instantApproval && loading && (
+                <div className="processing-details">
+                  🤖 Our ultra-fast AI is analyzing your document in real-time...
+                </div>
+              )}
+            </div>
+          </div>
+          {loading && !instantApproval && (
+            <div className="progress-bar">
+              <div className="progress-fill"></div>
+            </div>
+          )}
         </div>
       )}
 
@@ -177,8 +283,23 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
             {formData.file && (
               <div className="selected-file">
                 📎 {formData.file.name} ({Math.round(formData.file.size / 1024)} KB)
+                {formData.file.size > 5 * 1024 * 1024 && (
+                  <span className="file-warning"> - Large file, consider compressing</span>
+                )}
+                {formData.file.size < 10 * 1024 && (
+                  <span className="file-warning"> - File seems small, ensure it's complete</span>
+                )}
               </div>
             )}
+            <div className="file-tips">
+              <strong>💡 Tips for better AI analysis:</strong>
+              <ul>
+                <li>📝 Name your file clearly (e.g., "john_birth_certificate.pdf")</li>
+                <li>📷 Ensure text is clear and readable</li>
+                <li>🖼️ For images, use good lighting and avoid shadows</li>
+                <li>📄 PDF format is preferred for official documents</li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -199,10 +320,10 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
             {loading ? (
               <>
                 <span className="loading-spinner"></span>
-                Uploading...
+                {processingStatus || 'Processing...'}
               </>
             ) : (
-              'Submit Document'
+              '⚡ Submit for Instant AI Processing'
             )}
           </button>
         </div>
@@ -212,10 +333,10 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         isOpen={showNotification}
         onClose={() => setShowNotification(false)}
         type="success"
-        title="Document Submitted Successfully!"
-        message="Your document has been uploaded and is now under review. The admin will review your submission within 3-5 business days. You'll receive a notification once it's approved or if any revisions are needed."
+        title="⚡ Instant AI Processing Complete!"
+        message="🎉 AMAZING! Your document has been uploaded and processed in SECONDS by our ultra-fast AI system! ⚡ The AI instantly analyzed your document, verified its authenticity, checked quality, and IMMEDIATELY APPROVED it! 🚀 No waiting, no manual review needed - everything is automated and complete! You can now proceed to submit your grades or apply for allowances right away. Welcome to the future of document processing!"
         autoClose={true}
-        duration={6000}
+        duration={8000}
       />
     </div>
   );

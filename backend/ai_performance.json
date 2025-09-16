@@ -1,0 +1,62 @@
+{
+  "processing_times": [
+    {
+      "timestamp": "2025-09-11T11:24:40.696993",
+      "processing_time": 0.05361485481262207,
+      "document_type": "test_document",
+      "file_size": 2527,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-11T11:24:40.740054",
+      "processing_time": 0.028386831283569336,
+      "document_type": "test_document",
+      "file_size": 8227,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-11T11:24:40.806259",
+      "processing_time": 0.04088234901428223,
+      "document_type": "test_document",
+      "file_size": 17727,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-11T11:24:40.833213",
+      "processing_time": 0.02003169059753418,
+      "document_type": "test_document",
+      "file_size": 1147,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-11T11:24:41.029981",
+      "processing_time": 0.14450955390930176,
+      "document_type": "test_document",
+      "file_size": 47627,
+      "success": true,
+      "performance_rating": "excellent"
+    }
+  ],
+  "daily_stats": {
+    "2025-09-11": {
+      "total_processed": 5,
+      "average_time": 0.05748505592346191,
+      "fastest_time": 0.02003169059753418,
+      "slowest_time": 0.14450955390930176,
+      "success_rate": 1.0,
+      "performance_distribution": {
+        "excellent": 5,
+        "good": 0,
+        "acceptable": 0,
+        "slow": 0,
+        "timeout": 0
+      }
+    }
+  },
+  "optimization_suggestions": [],
+  "last_updated": "2025-09-11T11:24:41.029981"
+}

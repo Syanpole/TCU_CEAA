@@ -34,12 +34,13 @@
 }
 
 .header-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2rem;
 }
 
 .logo-section {
@@ -96,21 +97,43 @@
 .nav-menu {
   display: flex;
   gap: 2rem;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
 }
 
-.nav-menu a {
+.nav-menu a,
+.nav-menu button {
   text-decoration: none;
-  color: #2d3748;
-  font-weight: 500;
+  color: #272727;
+  font-weight: 600;
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.05rem;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: fit-content;
 }
 
-.nav-menu a:hover {
+.nav-menu a:hover,
+.nav-menu button:hover {
   color: #dc2626;
   background: rgba(220, 38, 38, 0.1);
+  transform: translateY(-2px);
+}
+
+.nav-menu a:active,
+.nav-menu button:active {
+  transform: translateY(0);
+  transition: transform 0.1s ease;
 }
 
 .auth-buttons {
@@ -154,6 +177,9 @@
 /* Main Content */
 .landing-main {
   padding-top: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* TCU-CEAA Banner Section */
@@ -165,6 +191,7 @@
   margin-bottom: 3rem;
   border-radius: 0 0 20px 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  align-self: stretch;
 }
 
 .banner-container {
@@ -299,6 +326,8 @@
   align-items: center;
   position: relative;
   overflow: hidden;
+  align-self: stretch;
+  width: 100%;
 }
 
 .hero::before {
@@ -382,7 +411,7 @@
 }
 
 .cta-secondary {
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(10px);
@@ -490,6 +519,9 @@
 .info-section {
   padding: 80px 2rem;
   background: white;
+  align-self: stretch;
+  width: 100%;
+  scroll-margin-top: 100px; /* Account for fixed header */
 }
 
 .LandingPage-section-header {
@@ -500,7 +532,7 @@
   margin-right: auto;
 }
 
-.section-header h3 {
+.LandingPage-section-header h3 {
   font-size: 1.8rem;
   color: #1e1e1e;
   margin-bottom: 1rem;
@@ -509,7 +541,7 @@
   display: inline-block;
 }
 
-.section-header h3::after {
+.LandingPage-section-header h3::after {
   content: '';
   position: absolute;
   bottom: -10px;
@@ -521,7 +553,7 @@
   border-radius: 2px;
 }
 
-.section-header p {
+.LandingPage-section-header p {
   font-size: 1.0rem;
   color: #1c232d;
   margin-bottom: 0;
@@ -588,6 +620,9 @@
 .features-section {
   padding: 80px 2rem;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  align-self: stretch;
+  width: 100%;
+  scroll-margin-top: 100px; /* Account for fixed header */
 }
 
 .features-grid {
@@ -640,13 +675,16 @@
 }
 
 /* Process Section */
-.process-section {
+.landing-process-section {
   padding: 80px 2rem;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   position: relative;
+  align-self: stretch;
+  width: 100%;
+  scroll-margin-top: 100px; /* Account for fixed header */
 }
 
-.process-section::before {
+.landing-process-section::before {
   content: '';
   position: absolute;
   top: 0;
@@ -656,7 +694,7 @@
   background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23dc2626' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
 }
 
-.process-steps {
+.landing-process-steps {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
@@ -668,7 +706,7 @@
   z-index: 1;
 }
 
-.step {
+.landing-step {
   background: rgb(234, 234, 234);
   padding: 2rem 1.5rem;
   border-radius: 16px;
@@ -687,13 +725,13 @@
   justify-content: space-between;
 }
 
-.step:hover {
+.landing-step:hover {
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(220, 38, 38, 0.1);
   border-color: #dc2626;
 }
 
-.step-number {
+.landing-step-number {
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
@@ -709,7 +747,7 @@
   position: relative;
 }
 
-.step-number::after {
+.landing-step-number::after {
   content: '';
   position: absolute;
   top: -3px;
@@ -723,11 +761,11 @@
   transition: opacity 0.3s ease;
 }
 
-.step:hover .step-number::after {
+.landing-step:hover .landing-step-number::after {
   opacity: 0.3;
 }
 
-.LandingPage-step-content {
+.landing-step-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -735,7 +773,7 @@
   align-items: center;
 }
 
-.LandingPage-step-content h4 {
+.landing-step-content h4 {
   color: #000000;
   margin-bottom: 0.8rem;
   font-weight: 700;
@@ -748,7 +786,7 @@
   text-align: center;
 }
 
-.LandingPage-step-content p {
+.landing-step-content p {
   color: #222a36;
   font-size: 0.95rem;
   margin: 0;
@@ -761,7 +799,7 @@
   justify-content: center;
 }
 
-.LandingPage-step-content .step-arrow {
+.landing-step-content .landing-step-arrow {
   font-size: 1.5rem;
   color: #dc2626;
   font-weight: bold;
@@ -774,6 +812,8 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  align-self: stretch;
+  width: 100%;
 }
 
 .cta-section::before {
@@ -855,6 +895,7 @@
   background: #1a1a1a;
   color: white;
   padding: 4rem 2rem 2rem;
+  scroll-margin-top: 100px; /* Account for fixed header */
 }
 
 .footer-content {
@@ -959,6 +1000,34 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .logo-section {
+    order: 1;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  
+  .nav-menu {
+    order: 2;
+    flex: 1 1 100%;
+    justify-content: center;
+    gap: 1.5rem;
+    margin: 0.5rem 0;
+  }
+  
+  .auth-buttons {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 1200px) {
   .banner-content h2 {
     font-size: 3rem;
@@ -1019,7 +1088,18 @@
   }
   
   .nav-menu {
-    display: none;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 0.5rem 0;
+  }
+  
+  .nav-menu a,
+  .nav-menu button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    min-width: auto;
+    text-align: center;
   }
   
   .hero-text h2 {
@@ -1068,12 +1148,12 @@
     justify-content: center;
   }
   
-  .process-steps {
+  .landing-process-steps {
     flex-direction: column;
     align-items: center;
   }
   
-  .step {
+  .landing-step {
     width: 100%;
     max-width: 320px;
     min-width: 300px;
@@ -1081,7 +1161,7 @@
     min-height: 280px;
   }
   
-  .step-arrow {
+  .landing-step-arrow {
     color: #b91c1c;
     transform: rotate(90deg);
     margin: 1rem 0;
@@ -1124,6 +1204,21 @@
     padding-top: 120px;
   }
   
+  .nav-menu {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .nav-menu a,
+  .nav-menu button {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.95rem;
+    text-align: center;
+    border-radius: 10px;
+  }
+  
   .hero-text h2 {
     font-size: 2rem;
   }
@@ -1142,5 +1237,80 @@
   
   .info-card, .feature-category { 
     padding: 2rem;
+  }
+}
+
+/* Scroll to Top Button */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  font-size: 24px;
+  animation: fadeInUp 0.3s ease;
+}
+
+.scroll-to-top-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.6);
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+}
+
+.scroll-to-top-btn:active {
+  transform: translateY(-1px);
+}
+
+.scroll-to-top-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.scroll-to-top-btn:hover svg {
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments for scroll button */
+@media (max-width: 768px) {
+  .scroll-to-top-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+  }
+}
+
+@media (max-width: 480px) {
+  .scroll-to-top-btn {
+    bottom: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .scroll-to-top-btn svg {
+    width: 20px;
+    height: 20px;
   }
 }

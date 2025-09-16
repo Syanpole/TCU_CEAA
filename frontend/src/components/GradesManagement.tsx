@@ -10,8 +10,8 @@ interface Grade {
   academic_year: string;
   semester: string;
   semester_display: string;
-  general_weighted_average: number;
-  semestral_weighted_average: number;
+  general_weighted_average: number | string;
+  semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;
   qualifies_for_merit_incentive: boolean;
   status: string;
@@ -30,6 +30,13 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
+
+  // Helper function to safely format percentage values
+  const safePercentage = (value: number | string): string => {
+    const numValue = Number(value);
+    if (isNaN(numValue)) return '0.00%';
+    return `${numValue.toFixed(2)}%`;
+  };
 
   useEffect(() => {
     const fetchGrades = async () => {

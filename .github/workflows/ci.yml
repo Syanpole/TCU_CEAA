@@ -2,7 +2,7 @@ name: TCU CEAA CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, AI_Integration ]
   pull_request:
     branches: [ main ]
 
@@ -14,10 +14,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
+
+      - name: Ensure setuptools and wheel are installed
+        run: python -m pip install --upgrade pip setuptools wheel
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
@@ -27,11 +30,80 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install backend dependencies
+      - name: Install system dependencies (OpenBLAS and PyMuPDF)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libopenblas-dev \
+            liblapack-dev \
+            gfortran \
+            libmupdf-dev \
+            libfreetype6-dev \
+            libharfbuzz-dev \
+            libopenjp2-7-dev \
+            libjbig2dec0-dev \
+            pkg-config
+          
+          # Verify OpenBLAS installation and set PKG_CONFIG_PATH
+          pkg-config --exists openblas && echo "✅ OpenBLAS found via pkg-config" || echo "⚠️ OpenBLAS not found via pkg-config"
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "OPENBLAS_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "BLAS=/usr/lib/x86_64-linux-gnu/libopenblas.so" >> $GITHUB_ENV
+          echo "LAPACK=/usr/lib/x86_64-linux-gnu/libopenblas.so" >> $GITHUB_ENV
+
+      - name: Install backend dependencies (CI-safe installation)
         run: |
           cd backend
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          echo "Installing CI dependencies with wheel-only policy..."
+          
+          # Set environment variables to prevent compilation
+          export PIP_ONLY_BINARY=all
+          export PIP_NO_BUILD_ISOLATION=true
+          export SCIPY_USE_PROPACK=0
+          export PIP_DISABLE_PIP_VERSION_CHECK=1
+          
+          # Upgrade pip and install build tools
+          python -m pip install --upgrade pip setuptools wheel
+          
+          # Install build backend dependencies for numpy (required for Python 3.13)
+          echo "🔧 Installing build backends for compatibility..."
+          pip install meson-python ninja
+          
+          # Check available numpy wheels for current Python version
+          echo "🔍 Checking available numpy wheels..."
+          pip index versions numpy --pre || echo "Could not check numpy versions"
+          
+          # Try to install numpy first with specific version that has Python 3.13 wheels
+          echo "📦 Installing numpy with wheel-only policy..."
+          pip install --only-binary=all --no-cache-dir "numpy>=1.26.0,<2.0.0" || \
+          pip install --only-binary=all --no-cache-dir "numpy==1.26.4"
+          
+          # Install remaining dependencies
+          echo "📦 Installing remaining dependencies..."
+          pip install --only-binary=all --no-cache-dir -r requirements-ci.txt
+          
+          echo "Installation completed successfully"
+          
+      - name: Verify AI dependencies compatibility
+        run: |
+          cd backend
+          echo "🧪 Running comprehensive dependency tests..."
+          python test_ci_dependency_resolution.py
+          
+          echo "🔍 Checking individual components..."
+          python -c "import sys; print(f'Python version: {sys.version}')"
+          python -c "import django, numpy, PIL; print('✅ Core packages: Django, NumPy, Pillow')"
+          python -c "
+          try:
+              import PyPDF2; print('✅ PyPDF2: Available')
+          except ImportError: print('⚠️  PyPDF2: Not available')
+          "
+          python -c "
+          try:
+              import pdfplumber; print('✅ pdfplumber: Available')
+          except ImportError: print('⚠️  pdfplumber: Not available')
+          "
+          echo "✅ Dependency verification completed"
 
       - name: Run Django migrations
         run: |
@@ -46,7 +118,7 @@ jobs:
       - name: Check Django code style with flake8
         run: |
           cd backend
-          pip install flake8
+          python -m pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
@@ -93,12 +165,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Ensure setuptools and wheel are installed
+        run: python -m pip install --upgrade pip setuptools wheel
+
       - name: Run security audit for backend
         run: |
           cd backend
-          python -m pip install --upgrade pip
-          pip install pip-audit
-          pip install -r requirements.txt
+          python -m pip install pip-audit
+          pip install --only-binary=all -r requirements-ci.txt
           pip-audit --progress-spinner=off --desc --strict || true
 
       - name: Run security audit for frontend
@@ -115,10 +194,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
+
+      - name: Ensure setuptools and wheel are installed
+        run: python -m pip install --upgrade pip setuptools wheel
 
       - name: Set up Node.js 18
         uses: actions/setup-node@v4
@@ -138,7 +220,6 @@ jobs:
       - name: Collect Django static files
         run: |
           cd backend
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
           python manage.py collectstatic --noinput
         env:
