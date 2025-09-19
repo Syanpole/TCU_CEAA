@@ -83,8 +83,7 @@
   --text-secondary: #e2e8f0;
   --text-muted: #cbd5e1;
   --border-color: rgba(71, 85, 105, 0.6);
-=======
-/* CSS Custom Properties - TCU Red Theme */
+}
 :root {
   /* Light Theme Variables */
   --primary-bg: #ffffff;
@@ -121,7 +120,6 @@
   --input-bg: #334155;
   --input-border: #475569;
   --input-border-focus: #dc2626;
->>>>>>> origin/main
 }
 
 .profile-settings-container {
@@ -313,17 +311,14 @@
 
 .form-input {
   width: 100%;
-<<<<<<< HEAD
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
-=======
   padding: 14px 16px;
   border: 2px solid var(--input-border);
   border-radius: 12px;
   font-size: 15px;
->>>>>>> origin/main
   transition: all 0.3s ease;
   background: var(--input-bg);
   box-sizing: border-box;
@@ -334,12 +329,9 @@
   outline: none;
   border-color: var(--input-border-focus);
   background: var(--card-bg);
-<<<<<<< HEAD
   box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.1);
-=======
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
   transform: translateY(-1px);
->>>>>>> origin/main
 }
 
 .form-input::placeholder {
@@ -589,13 +581,8 @@
 }
 
 .save-button:hover:not(:disabled) {
-<<<<<<< HEAD
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(197, 48, 48, 0.3);
-=======
   transform: translateY(-2px);
   box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
->>>>>>> origin/main
 }
 
 .save-button:active:not(:disabled) {

@@ -1043,22 +1043,6 @@ const StudentDashboard: React.FC = () => {
         {activeTab === 'applications' && (
           <div className="content-card">
             <div className="card-header">
-<<<<<<< HEAD
-              <div className="header-with-breadcrumb">
-                <div className="breadcrumb">
-                  <span 
-                    className="breadcrumb-link" 
-                    onClick={() => setActiveTab('overview')}
-                  >
-                    Overview
-                  </span>
-                  <span className="breadcrumb-separator">›</span>
-                  <span className="breadcrumb-current">Applications</span>
-                </div>
-                <h3>💸 Allowance Applications ({applications.length} total)</h3>
-              </div>
-              <button className="add-button">💰 New Application</button>
-=======
               <h3>💸 Allowance Applications</h3>
               {canApplyForAllowance ? (
                 <button 
@@ -1076,7 +1060,6 @@ const StudentDashboard: React.FC = () => {
                   💰 New Application (Requirements not met)
                 </button>
               )}
->>>>>>> origin/main
             </div>
             <div className="card-content">
               {!canApplyForAllowance && (

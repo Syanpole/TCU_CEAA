@@ -2,7 +2,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
-<<<<<<< HEAD
 /* Modern CSS Custom Properties - Enhanced Student-Friendly Pure Red Theme */
 :root {
   --primary-bg: #ffffff;
@@ -41,7 +40,6 @@
 }
 
 /* Enhanced Dark Theme Variables with smooth transitions - Modern and Eye-friendly Pure Red Theme */
-=======
 /* Modern CSS Custom Properties - Enhanced Student-Friendly TCU Red Theme */
 :root {
   --primary-bg: #ffffff;
@@ -80,28 +78,18 @@
 }
 
 /* Dark Theme Variables - Modern and Eye-friendly TCU Red Theme */
->>>>>>> origin/main
 .student-dashboard-container.dark-theme {
   --primary-bg: #0f172a;
   --secondary-bg: #1e293b;
   --surface-bg: #334155;
   --card-bg: #1e293b;
-<<<<<<< HEAD
-  --light-red: #c53030;
-  --lighter-red: #e53e3e;
-=======
   --light-red: #991b1b;
   --lighter-red: #dc2626;
->>>>>>> origin/main
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --border-color: #475569;
-<<<<<<< HEAD
-  --gradient-light-red: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
-=======
   --gradient-light-red: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
->>>>>>> origin/main
   --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
   --shadow-large: 0 8px 32px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.35);
@@ -1938,30 +1926,7 @@
   transform: translateY(-4px) scale(1.01);
   box-shadow: var(--shadow-xl);
   border-color: var(--accent-red);
-<<<<<<< HEAD
-  background: rgba(255, 255, 255, 0.98);
-}
-
-/* Dark theme specific hover styles for all stat cards */
-.student-dashboard-container.dark-theme .stat-card:hover {
-  background: rgba(30, 41, 59, 0.98) !important; /* Dark background for dark mode */
-}
-
-/* Ensure text is visible on hover for general stat cards */
-.student-dashboard-container.dark-theme .stat-card:hover .stat-sub {
-  color: #f1f5f9 !important; /* Light text for dark background in dark mode */
-}
-
-.student-dashboard-container.dark-theme .stat-card:hover .stat-number {
-  color: #f1f5f9 !important; /* Ensure stat number is visible in dark mode */
-  -webkit-text-fill-color: #f1f5f9 !important;
-}
-
-.student-dashboard-container.dark-theme .stat-card:hover .stat-label {
-  color: #cbd5e1 !important; /* Ensure stat label is visible in dark mode */
-=======
   background: rgba(255, 255, 255, 1);
->>>>>>> origin/main
 }
 
 .stat-card:hover::before {
