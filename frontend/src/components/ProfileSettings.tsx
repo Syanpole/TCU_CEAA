@@ -85,6 +85,70 @@ const ProfileSettings: React.FC = () => {
     };
   }, []);
 
+  // Initialize Vanta.js background effect
+  useEffect(() => {
+    const initVanta = () => {
+      if (window.VANTA && window.THREE && vantaRef.current) {
+        // Clean up existing effect
+        if (vantaEffect.current) {
+          vantaEffect.current.destroy();
+        }
+
+        // Use exactly the same configuration as StudentDashboard for consistency
+        const lightThemeConfig = {
+          color: 0xf20000,        // Exact same red as StudentDashboard
+          backgroundColor: 0xffffff, // White background
+          points: 10.00,          // Same as StudentDashboard
+          maxDistance: 20.00,     // Same as StudentDashboard
+          spacing: 15.00          // Same as StudentDashboard
+        };
+
+        const darkThemeConfig = {
+          color: 0xff4444,        // Same bright red as StudentDashboard
+          backgroundColor: 0x1a1a1a, // Same dark background as StudentDashboard
+          points: 10.00,          // Same as StudentDashboard
+          maxDistance: 20.00,     // Same as StudentDashboard
+          spacing: 15.00          // Same as StudentDashboard
+        };
+
+        const config = darkMode ? darkThemeConfig : lightThemeConfig;
+
+        // Initialize Vanta NET effect with exact same configuration as StudentDashboard
+        vantaEffect.current = window.VANTA.NET({
+          el: vantaRef.current,
+          mouseControls: true,
+          touchControls: true,
+          gyroControls: false,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
+          scaleMobile: 1.00,
+          showDots: true,  // Add this to match StudentDashboard
+          ...config
+        });
+      }
+    };
+
+    // Delay initialization to ensure scripts are loaded
+    const timer = setTimeout(initVanta, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (vantaEffect.current) {
+        vantaEffect.current.destroy();
+      }
+    };
+  }, [darkMode]);
+
+  // Cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      if (vantaEffect.current) {
+        vantaEffect.current.destroy();
+      }
+    };
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -331,7 +395,10 @@ const ProfileSettings: React.FC = () => {
   }
 
   return (
-    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
+    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Vanta.js animated background */}
+      <div ref={vantaRef} className="vanta-background" />
+      
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}
