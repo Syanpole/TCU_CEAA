@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { formatCurrency } from '../utils/numberUtils';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
 import GradeSubmissionForm from './GradeSubmissionForm';
+import AllowanceApplicationForm from './AllowanceApplicationForm';
 import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
+import FastDocumentUploadSimple from './FastDocumentUploadSimple';
 import './StudentDashboard.css';
 
 // Declare VANTA for TypeScript
@@ -30,6 +33,12 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
+}
+
+interface UploadResult {
+  success: boolean;
+  message?: string;
+  data?: any;
 }
 
 interface GradeSubmission {
@@ -84,6 +93,7 @@ const StudentDashboard: React.FC = () => {
   const [currentDateTime, setCurrentDateTime] = useState<Date>(new Date());
   const [showDocumentForm, setShowDocumentForm] = useState(false);
   const [showGradeForm, setShowGradeForm] = useState(false);
+  const [showAllowanceForm, setShowAllowanceForm] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'error' | 'info'>('info');
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -346,11 +356,10 @@ const StudentDashboard: React.FC = () => {
               total_documents: fetchedDocuments.length,
               approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length,
               total_applications: fetchedApplications.length,
-              approved_applications: fetchedApplications.filter(a => a.status === 'approved').length
+              approved_applications: fetchedApplications.filter(a => a.status === 'approved' || a.status === 'disbursed').length
             });
           }
         } catch (apiError) {
-          console.log('API not available, using demo data');
           // Use demo/sample data for development
         }
 
@@ -396,13 +405,24 @@ const StudentDashboard: React.FC = () => {
     // Set up interval to refresh data every 5 minutes (less frequent and less disruptive)
     const interval = setInterval(() => {
       // Only refresh if user is not currently interacting with modals
-      if (!showDocumentForm && !showGradeForm && !showNotification) {
+      if (!showDocumentForm && !showGradeForm && !showAllowanceForm && !showNotification) {
         fetchStudentData();
       }
     }, 300000); // 5 minutes instead of 30 seconds
 
     return () => clearInterval(interval);
   }, []);
+
+  // Function to refresh documents after upload
+  const refreshDocuments = async () => {
+    try {
+      const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] }));
+      const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+      setDocuments(fetchedDocuments);
+    } catch (error) {
+      console.error('Error refreshing documents:', error);
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -415,7 +435,7 @@ const StudentDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return '#10b981';
+      case 'approved': return '#22c55e';
       case 'rejected': return '#ef4444';
       case 'pending': return '#f59e0b';
       case 'revision_needed': return '#8b5cf6';
@@ -428,7 +448,7 @@ const StudentDashboard: React.FC = () => {
     // Show dashboard notification
     setNotificationType('success');
     setNotificationTitle('Document Uploaded Successfully!');
-    setNotificationMessage('Your document has been submitted and is being analyzed by our AI system. You will be notified once it is reviewed and approved by the admin.');
+    setNotificationMessage('Your document has been submitted and analyzed by our AI system. It has been instantly approved and processed automatically!');
     setShowNotification(true);
     
     // Refresh documents data to update the count
@@ -471,14 +491,73 @@ const StudentDashboard: React.FC = () => {
     // Show dashboard notification  
     setNotificationType('success');
     setNotificationTitle('Grades Submitted Successfully!');
-    setNotificationMessage('Your grades have been submitted for review. The allowance calculation will be processed within 3-5 business days.');
+    setNotificationMessage('Your grades have been submitted and analyzed by AI. They have been instantly approved and you can now apply for allowances!');
     setShowNotification(true);
     
-    // Optionally refresh data without loading state
-    setTimeout(() => {
-      // In real app, refetch grades data here silently
-      // No loading state to avoid visual disruption
-    }, 2000);
+    // Refresh data to update counts
+    setTimeout(async () => {
+      try {
+        const [gradesRes, applicationsRes] = await Promise.all([
+          apiClient.get<GradeSubmission[]>('/grades/').catch(() => ({ data: [] as GradeSubmission[] })),
+          apiClient.get<AllowanceApplication[]>('/applications/').catch(() => ({ data: [] as AllowanceApplication[] }))
+        ]);
+
+        const fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
+        const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
+        
+        setGrades(fetchedGrades);
+        setApplications(fetchedApplications);
+        
+        // Update assignments to show grade submission is complete
+        setAssignments(prevAssignments => 
+          prevAssignments.map((assignment, index) => {
+            if (index === 1) {
+              return { ...assignment, submitted: fetchedGrades.length > 0 };
+            }
+            return assignment;
+          })
+        );
+      } catch (error) {
+        console.log('Could not refresh data:', error);
+      }
+    }, 1000);
+  };
+
+  const handleAllowanceApplicationSuccess = () => {
+    setShowAllowanceForm(false);
+    // Show dashboard notification  
+    setNotificationType('success');
+    setNotificationTitle('Allowance Application Submitted!');
+    setNotificationMessage('Your allowance application has been submitted successfully. It will be reviewed by admin within 3-5 business days. You will receive email updates on the status.');
+    setShowNotification(true);
+    
+    // Refresh applications data
+    setTimeout(async () => {
+      try {
+        const applicationsRes = await apiClient.get<AllowanceApplication[]>('/applications/');
+        const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
+        setApplications(fetchedApplications);
+        
+        // Update stats
+        setStats(prevStats => ({
+          ...prevStats,
+          total_applications: fetchedApplications.length,
+          approved_applications: fetchedApplications.filter(a => a.status === 'approved' || a.status === 'disbursed').length
+        }));
+
+        // Update assignments to show application is complete
+        setAssignments(prevAssignments => 
+          prevAssignments.map((assignment, index) => {
+            if (index === 2) {
+              return { ...assignment, submitted: fetchedApplications.length > 0 };
+            }
+            return assignment;
+          })
+        );
+      } catch (error) {
+        console.log('Could not refresh applications:', error);
+      }
+    }, 1000);
   };
 
   if (loading) {
@@ -514,6 +593,10 @@ const StudentDashboard: React.FC = () => {
   // Check if grade submission is available
   const approvedDocuments = documents.filter(d => d.status === 'approved').length;
   const canSubmitGrades = approvedDocuments >= 2;
+  
+  // Check if allowance application is available
+  const hasApprovedGrades = grades.some(g => g.status === 'approved' && (g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive));
+  const canApplyForAllowance = hasApprovedGrades;
 
   const pendingAssignments = assignments.filter(a => !a.submitted);
   const completedAssignments = assignments.filter(a => a.submitted);
@@ -622,7 +705,7 @@ const StudentDashboard: React.FC = () => {
             <div className="stat-content">
               <div className="stat-number">{stats.total_applications}</div>
               <div className="stat-label">Applications</div>
-              <div className="stat-sub">✅ {stats.approved_applications} approved</div>
+              <div className="stat-sub">✅ {stats.approved_applications} processed</div>
             </div>
           </div>
           <div 
@@ -636,7 +719,7 @@ const StudentDashboard: React.FC = () => {
               </svg>
             </div>
             <div className="stat-content">
-              <div className="stat-number">₱{applications.filter(a => a.status === 'approved').reduce((sum, app) => sum + app.amount, 0).toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(applications.filter(a => a.status === 'approved' || a.status === 'disbursed').reduce((sum, app) => sum + Number(app.amount), 0))}</div>
               <div className="stat-label">Total Received</div>
               <div className="stat-sub">
                 {applications.filter(a => a.status === 'pending').length} pending
@@ -740,9 +823,29 @@ const StudentDashboard: React.FC = () => {
                             </div>
                           )}
                           {index === 2 && (
-                            <button className="quick-action-btn">
-                              Apply Now
-                            </button>
+                            <div>
+                              {canApplyForAllowance ? (
+                                <button 
+                                  className="quick-action-btn"
+                                  onClick={() => setShowAllowanceForm(true)}
+                                >
+                                  Apply Now
+                                </button>
+                              ) : (
+                                <div className="requirement-warning">
+                                  <p className="requirement-text">
+                                    📊 Need approved grades that qualify for allowances
+                                  </p>
+                                  <button 
+                                    className="quick-action-btn disabled"
+                                    disabled
+                                    title="You need approved grades that qualify for allowances to apply"
+                                  >
+                                    Apply Now (Requirements not met)
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -775,6 +878,7 @@ const StudentDashboard: React.FC = () => {
                 📤 Upload Document
               </button>
             </div>
+        
             <div className="card-content">
               {documents.length === 0 ? (
                 <div className="empty-state">
@@ -939,6 +1043,7 @@ const StudentDashboard: React.FC = () => {
         {activeTab === 'applications' && (
           <div className="content-card">
             <div className="card-header">
+<<<<<<< HEAD
               <div className="header-with-breadcrumb">
                 <div className="breadcrumb">
                   <span 
@@ -953,8 +1058,49 @@ const StudentDashboard: React.FC = () => {
                 <h3>💸 Allowance Applications ({applications.length} total)</h3>
               </div>
               <button className="add-button">💰 New Application</button>
+=======
+              <h3>💸 Allowance Applications</h3>
+              {canApplyForAllowance ? (
+                <button 
+                  className="add-button"
+                  onClick={() => setShowAllowanceForm(true)}
+                >
+                  💰 New Application
+                </button>
+              ) : (
+                <button 
+                  className="add-button disabled"
+                  disabled
+                  title="You need approved grades that qualify for allowances to apply"
+                >
+                  💰 New Application (Requirements not met)
+                </button>
+              )}
+>>>>>>> origin/main
             </div>
             <div className="card-content">
+              {!canApplyForAllowance && (
+                <div className="requirement-notice">
+                  <div className="notice-icon">🔒</div>
+                  <div className="notice-content">
+                    <h4>Allowance Application Requirements</h4>
+                    <p>
+                      You need <strong>approved grades that qualify for allowances</strong> before you can apply.
+                    </p>
+                    <div className="requirement-status">
+                      <span className="status-item">
+                        📊 Grades: {grades.length} submitted, {grades.filter(g => g.status === 'approved').length} approved
+                      </span>
+                      <span className="status-item">
+                        {hasApprovedGrades ? '✅' : '❌'} Qualification: {hasApprovedGrades ? 'Eligible for allowances' : 'Need qualifying grades'}
+                      </span>
+                    </div>
+                    <p className="help-text">
+                      Submit grades with good academic performance to unlock allowance applications.
+                    </p>
+                  </div>
+                </div>
+              )}
               {applications.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">
@@ -963,7 +1109,22 @@ const StudentDashboard: React.FC = () => {
                     </svg>
                   </div>
                   <p>🚀 Ready to apply for your allowance? Once your documents and grades are approved, you can submit your application!</p>
-                  <button className="action-button">💰 Apply for Allowance</button>
+                  {canApplyForAllowance ? (
+                    <button 
+                      className="action-button"
+                      onClick={() => setShowAllowanceForm(true)}
+                    >
+                      💰 Apply for Allowance
+                    </button>
+                  ) : (
+                    <button 
+                      className="action-button disabled"
+                      disabled
+                      title="Complete requirements first"
+                    >
+                      💰 Apply for Allowance (Requirements not met)
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="submissions-list">
@@ -979,11 +1140,16 @@ const StudentDashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="application-amount">
-                        💵 Amount: ₱{app.amount.toLocaleString()}
+                        💵 Amount: {formatCurrency(app.amount)}
                       </div>
                       <div className="submission-date">
                         📅 Applied: {new Date(app.applied_at).toLocaleDateString()}
                       </div>
+                      {app.status === 'pending' && (
+                        <div className="application-timeline">
+                          ⏰ Expected processing: 3-5 business days
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1168,6 +1334,18 @@ const StudentDashboard: React.FC = () => {
             <GradeSubmissionForm
               onSubmissionSuccess={handleGradeSubmissionSuccess}
               onCancel={() => setShowGradeForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Allowance Application Form Modal */}
+      {showAllowanceForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <AllowanceApplicationForm
+              onSubmissionSuccess={handleAllowanceApplicationSuccess}
+              onCancel={() => setShowAllowanceForm(false)}
             />
           </div>
         </div>

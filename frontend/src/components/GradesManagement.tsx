@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safePercentage } from '../utils/numberUtils';
 import './GradesManagement.css';
 
 interface Grade {
@@ -24,7 +24,6 @@ interface GradesManagementProps {
 }
 
 const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +32,13 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [semesterFilter, setSemesterFilter] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Helper function to safely format percentage values
+  const safePercentage = (value: number | string): string => {
+    const numValue = Number(value);
+    if (isNaN(numValue)) return '0.00%';
+    return `${numValue.toFixed(2)}%`;
+  };
 
   useEffect(() => {
     const fetchGrades = async () => {
@@ -229,11 +235,11 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                 <div className="grade-metrics">
                   <div className="metric-item">
                     <div className="metric-label">General Weighted Average</div>
-                    <div className="metric-value">{Number(grade.general_weighted_average).toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.general_weighted_average)}</div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Semestral Weighted Average</div>
-                    <div className="metric-value">{Number(grade.semestral_weighted_average).toFixed(2)}%</div>
+                    <div className="metric-value">{safePercentage(grade.semestral_weighted_average)}</div>
                   </div>
                 </div>
 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import './StudentsManagement.css';
 
@@ -340,7 +339,6 @@ interface StudentsManagementProps {
 }
 
 const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

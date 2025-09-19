@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { formatCurrency } from '../utils/numberUtils';
 import './ApplicationsManagement.css';
 
 interface Application {
@@ -172,7 +173,6 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
 };
 
 const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewChange }) => {
-  const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -280,7 +280,6 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
       if (showApplicationModal) {
         closeApplicationModal();
       }
-      
       // Show success message
       showNotification(`Application ${action} successfully!`, 'success');
       
@@ -535,11 +534,11 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
               <div className="stat-label">Total Applications</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">₱{approvedAmount.toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(approvedAmount)}</div>
               <div className="stat-label">Approved Amount</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">₱{pendingAmount.toLocaleString()}</div>
+              <div className="stat-number">{formatCurrency(pendingAmount)}</div>
               <div className="stat-label">Pending Amount</div>
             </div>
             <div className="stat-item">
@@ -643,7 +642,7 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
 
                 <div className="amount-section">
                   <div className="amount-label">Requested Amount</div>
-                  <div className="amount-value">₱{app.amount.toLocaleString()}</div>
+                  <div className="amount-value">{formatCurrency(app.amount)}</div>
                 </div>
 
                 <div className="application-details">

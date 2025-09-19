@@ -33,6 +33,9 @@ const ProfileSettings: React.FC = () => {
   // Theme state - read from localStorage like StudentDashboard
   const [darkMode, setDarkMode] = useState(false);
   
+  // Theme state - sync with StudentDashboard theme
+  const [darkMode, setDarkMode] = useState(false);
+  
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -58,12 +61,17 @@ const ProfileSettings: React.FC = () => {
     confirm: false,
   });
 
+<<<<<<< HEAD
   // Load saved theme preference from localStorage
+=======
+  // Load saved theme preference from StudentDashboard
+>>>>>>> origin/main
   useEffect(() => {
     const savedTheme = localStorage.getItem('studentDashboardTheme');
     if (savedTheme === 'dark') {
       setDarkMode(true);
     } else {
+<<<<<<< HEAD
       setDarkMode(false);
     }
   }, []);
@@ -129,6 +137,26 @@ const ProfileSettings: React.FC = () => {
       if (vantaEffect.current) {
         vantaEffect.current.destroy();
       }
+=======
+      setDarkMode(false); // Explicitly set to false for light mode
+    }
+
+    // Listen for theme changes from other components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'studentDashboardTheme') {
+        if (e.newValue === 'dark') {
+          setDarkMode(true);
+        } else {
+          setDarkMode(false);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+>>>>>>> origin/main
     };
   }, []);
 
@@ -369,7 +397,7 @@ const ProfileSettings: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="profile-settings-container">
+      <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
         <div className="no-user-message">
           <h2>Please log in to access your profile</h2>
         </div>
@@ -378,10 +406,14 @@ const ProfileSettings: React.FC = () => {
   }
 
   return (
+<<<<<<< HEAD
     <div className={`profile-settings-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       {/* Vanta.js animated background */}
       <div ref={vantaRef} className="vanta-background" />
       
+=======
+    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
+>>>>>>> origin/main
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}

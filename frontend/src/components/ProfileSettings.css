@@ -83,6 +83,45 @@
   --text-secondary: #e2e8f0;
   --text-muted: #cbd5e1;
   --border-color: rgba(71, 85, 105, 0.6);
+=======
+/* CSS Custom Properties - TCU Red Theme */
+:root {
+  /* Light Theme Variables */
+  --primary-bg: #ffffff;
+  --secondary-bg: #fef2f2;
+  --surface-bg: #fef2f2;
+  --card-bg: #ffffff;
+  --accent-red: #dc2626;
+  --accent-red-hover: #b91c1c;
+  --accent-red-light: #ef4444;
+  --accent-red-dark: #991b1b;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --success: #dc2626;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --gradient-primary: linear-gradient(135deg, var(--accent-red), var(--accent-red-hover));
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-border-focus: #dc2626;
+}
+
+/* Dark Theme Variables */
+.profile-settings-container.dark-theme {
+  --primary-bg: #0f172a;
+  --secondary-bg: #1e293b;
+  --surface-bg: #334155;
+  --card-bg: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #cbd5e1;
+  --border-color: #475569;
+  --input-bg: #334155;
+  --input-border: #475569;
+  --input-border-focus: #dc2626;
+>>>>>>> origin/main
 }
 
 .profile-settings-container {
@@ -274,21 +313,33 @@
 
 .form-input {
   width: 100%;
+<<<<<<< HEAD
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
+=======
+  padding: 14px 16px;
+  border: 2px solid var(--input-border);
+  border-radius: 12px;
+  font-size: 15px;
+>>>>>>> origin/main
   transition: all 0.3s ease;
-  background: var(--surface-bg);
+  background: var(--input-bg);
   box-sizing: border-box;
   color: var(--text-primary);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--accent-blue);
+  border-color: var(--input-border-focus);
   background: var(--card-bg);
+<<<<<<< HEAD
   box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.1);
+=======
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+  transform: translateY(-1px);
+>>>>>>> origin/main
 }
 
 .form-input::placeholder {
@@ -313,12 +364,12 @@
 }
 
 .password-toggle-button:hover {
-  color: var(--accent-blue);
+  color: var(--accent-red);
 }
 
 .password-toggle-button:focus {
   outline: none;
-  color: var(--accent-blue);
+  color: var(--accent-red);
 }
 
 /* Profile Image Section */
@@ -471,8 +522,8 @@
 
 .toggle-password-section {
   background: none;
-  border: 2px solid var(--accent-blue);
-  color: var(--accent-blue);
+  border: 2px solid var(--accent-red);
+  color: var(--accent-red);
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -482,7 +533,7 @@
 }
 
 .toggle-password-section:hover {
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   transform: translateY(-1px);
 }
@@ -538,8 +589,13 @@
 }
 
 .save-button:hover:not(:disabled) {
+<<<<<<< HEAD
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(197, 48, 48, 0.3);
+=======
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
+>>>>>>> origin/main
 }
 
 .save-button:active:not(:disabled) {

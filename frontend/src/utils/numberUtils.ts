@@ -1,18 +1,26 @@
-// Number utility functions for safe handling of numeric operations
+/**
+ * Utility functions for safe number operations
+ */
 
 /**
  * Safely converts a value to a fixed decimal number
  * @param value - The value to convert (can be number, string, null, or undefined)
  * @param decimals - Number of decimal places (default: 2)
+ * @param fallback - Fallback value if conversion fails (default: 0)
  * @returns String representation with fixed decimal places
  */
-export const safeToFixed = (value: number | string | null | undefined, decimals: number = 2): string => {
+export const safeToFixed = (
+  value: number | string | null | undefined | any, 
+  decimals: number = 2, 
+  fallback: number = 0
+): string => {
   if (value === null || value === undefined || value === '') {
-    return '0.00';
+    return fallback.toFixed(decimals);
   }
   
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(numValue) ? '0.00' : numValue.toFixed(decimals);
+  const numValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+  const safeValue = isNaN(numValue) ? fallback : numValue;
+  return safeValue.toFixed(decimals);
 };
 
 /**
@@ -30,14 +38,31 @@ export const safeToNumber = (value: any, defaultValue: number = 0): number => {
   return isNaN(numValue) ? defaultValue : numValue;
 };
 
+// Alias for backward compatibility
+export const safeNumber = safeToNumber;
+
+/**
+ * Validates if a value is a valid number
+ * @param value - The value to validate
+ * @returns Boolean indicating if value is a valid number
+ */
+export const isValidNumber = (value: any): boolean => {
+  if (value === null || value === undefined || value === '') {
+    return false;
+  }
+  const numValue = Number(value);
+  return !isNaN(numValue) && isFinite(numValue);
+};
+
 /**
  * Formats a number as currency with Philippine Peso symbol
  * @param amount - The amount to format
  * @param currency - Currency symbol (default: '₱')
+ * @param fallback - Fallback value if conversion fails (default: 0)
  * @returns Formatted currency string
  */
-export const formatCurrency = (amount: number | string, currency: string = '₱'): string => {
-  const numAmount = safeToNumber(amount, 0);
+export const formatCurrency = (amount: number | string | any, currency: string = '₱', fallback: number = 0): string => {
+  const numAmount = safeToNumber(amount, fallback);
   
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -51,15 +76,26 @@ export const formatCurrency = (amount: number | string, currency: string = '₱'
  * Formats a number with thousand separators
  * @param value - The number to format
  * @param decimals - Number of decimal places (default: 2)
+ * @param fallback - Fallback value if conversion fails (default: 0)
  * @returns Formatted number string
  */
-export const formatNumber = (value: number | string, decimals: number = 2): string => {
-  const numValue = safeToNumber(value, 0);
+export const formatNumber = (value: number | string | any, decimals: number = 2, fallback: number = 0): string => {
+  const numValue = safeToNumber(value, fallback);
   
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   }).format(numValue);
+};
+
+/**
+ * Formats a percentage value safely
+ * @param value - The percentage value
+ * @param decimals - Number of decimal places (default: 2)
+ * @returns Formatted percentage string
+ */
+export const safePercentage = (value: any, decimals: number = 2): string => {
+  return `${safeToFixed(value, decimals)}%`;
 };
 
 /**

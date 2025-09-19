@@ -11,9 +11,10 @@ import './LandingPage.css';
 interface LandingPageProps {
   onLoginClick: () => void;
   onRegisterClick: () => void;
+  onPrivacyClick: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick, onPrivacyClick }) => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -78,7 +79,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('animate');
-          // Stop observing this element once it's animated
           observer.unobserve(entry.target);
         }
       });
@@ -97,13 +97,41 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       setShowScrollTop(scrollTop > 300);
     };
 
+    // Handle smooth scrolling for navigation links
+    const handleNavClick = (e: Event) => {
+      const target = e.target as HTMLAnchorElement;
+      if (target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+        const targetId = target.getAttribute('href')?.substring(1);
+        const targetElement = document.getElementById(targetId!);
+        if (targetElement) {
+          const headerHeight = 100;
+          const targetPosition = targetElement.offsetTop - headerHeight;
+          window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }
+    };
+
+    // Add click listeners to navigation links
+    const navLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
+    navLinks.forEach(link => {
+      link.addEventListener('click', handleNavClick);
+    });
+
     window.addEventListener('scroll', handleScroll);
 
     return () => {
       observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
+      navLinks.forEach(link => {
+        link.removeEventListener('click', handleNavClick);
+      });
     };
   }, []);
+
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -120,12 +148,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               TCU-CEAA Portal
             </h1>
           </div>
+
           <nav className="nav-menu">
             <a href="#about">About</a>
             <a href="#features">Features</a>
             <a href="#process">Process</a>
             <a href="#contact">Contact</a>
           </nav>
+
           <div className="auth-buttons">
             <button className="signin-btn" onClick={handleLoginClick}>
               Sign In
@@ -138,116 +168,168 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       </header>
 
       <main className="landing-main">
-        
+        {/* TCU-CEAA Banner Section */}
+        <section className="banner-section animate-section">
+          <div className="banner-container">
+            <img 
+              src="/images/tcu_ceaa_banner.jpg" 
+              alt="TCU-CEAA Banner" 
+              className="banner-image"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="banner-fallback" style={{ display: 'none' }}>
+              <div className="banner-logo-section">
+                <img src="/images/TCU_logo.png" alt="TCU Logo" className="banner-logo" />
+                <div className="banner-title-section">
+                  <h1>TCU-CEAA</h1>
+                  <h2>Computer Engineering Alumni Association</h2>
+                </div>
+              </div>
+            </div>
+            <div className="banner-overlay">
+              <div className="banner-content">
+                <h2>Welcome to TCU-CEAA Portal</h2>
+                <p>Supporting Computer Engineering Students Through Academic Excellence</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="hero animate-section">
           <div className="hero-content">
             <div className="hero-text">
-              <h2>City Educational Assistance Allowance</h2>
+              <h1>Empowering Future Engineers</h1>
+              <h2>TCU Computer Engineering Alumni Association</h2>
               <p>
-                Welcome to the official portal of TCU City Educational Assistance Allowance. 
-                Experience seamless academic management, student services, and administrative 
-                excellence powered by modern technology and AI-driven insights.
+                Join our community of successful Computer Engineering graduates and access 
+                exclusive opportunities, scholarships, and career advancement programs designed 
+                to help you excel in your academic and professional journey.
               </p>
               <div className="hero-buttons">
-                <button className="cta-primary" onClick={handleRegisterClick}>
-                  Student Registration
+                <button className="cta-primary" onClick={handleLoginClick}>
+                  Get Started Today
                 </button>
-                <button className="cta-secondary" onClick={handleLoginClick}>
-                  Sign In
+                <button className="cta-secondary" onClick={handleRegisterClick}>
+                  Join Our Community
                 </button>
               </div>
               <div className="hero-stats">
                 <div className="stat">
-                  <div className="stat-number">5,000+</div>
-                  <div className="stat-label">Active Students</div>
+                  <div className="stat-number">500+</div>
+                  <div className="stat-label">Alumni Members</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-number">98%</div>
-                  <div className="stat-label">Satisfaction Rate</div>
+                  <div className="stat-number">₱2M+</div>
+                  <div className="stat-label">Scholarships Awarded</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-number">24/7</div>
-                  <div className="stat-label">Support Available</div>
+                  <div className="stat-number">95%</div>
+                  <div className="stat-label">Success Rate</div>
+                </div>
+              </div>
+            </div>
+            <div className="hero-visual">
+              <div className="hero-stats-visual">
+                <div className="visual-stat">
+                  <div className="stat-icon">🎓</div>
+                  <div className="stat-info">
+                    <div className="big-number">1000+</div>
+                    <div className="stat-desc">Graduates Supported</div>
+                  </div>
+                </div>
+                <div className="visual-stat">
+                  <div className="stat-icon">💼</div>
+                  <div className="stat-info">
+                    <div className="big-number">85%</div>
+                    <div className="stat-desc">Job Placement Rate</div>
+                  </div>
+                </div>
+                <div className="visual-stat">
+                  <div className="stat-icon">🌟</div>
+                  <div className="stat-info">
+                    <div className="big-number">4.9/5</div>
+                    <div className="stat-desc">Student Satisfaction</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* TCU-CEAA Banner Section */}
-        <section className="banner-section animate-section">
-          <div className="banner-container">
-            {/* Full TCU-CEAA Banner Image */}
-            <img 
-              src="/images/TCU-CEAA-IMAGE.jpg" 
-              alt="Taguig City University - City Educational Assistance Allowance Program" 
-              className="banner-image"
-            />
-          </div>
-        </section>
-
         <section id="about" className="info-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>About TCU-CEAA</h3>
-            <p>Supporting TCU students with educational financial assistance</p>
+            <h3>Why Choose TCU-CEAA?</h3>
+            <p>Discover the benefits of joining our thriving alumni community</p>
           </div>
           <div className="info-grid">
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/financial-assistance.png" alt="Financial Assistance" />
               </div>
-              <h4>Financial Assistance</h4>
-              <p>Get the financial support you need to continue your education and achieve your academic goals.</p>
+              <h4>Financial Support</h4>
+              <p>Access scholarships, grants, and financial aid programs designed to help you succeed academically without financial stress.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/easy-application.png" alt="Easy Application" />
               </div>
               <h4>Easy Application</h4>
-              <p>Simple online application process - upload your documents and submit your grades easily.</p>
+              <p>Streamlined application process with digital submissions and real-time status tracking for all your needs.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/quick-processing.png" alt="Quick Processing" />
               </div>
               <h4>Quick Processing</h4>
-              <p>Fast evaluation of your application so you can get your allowance as soon as possible.</p>
+              <p>Fast and efficient processing of applications with transparent timelines and regular updates on your progress.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/track-status.png" alt="Track Status" />
               </div>
               <h4>Track Status</h4>
-              <p>Check your application status anytime, anywhere through your student dashboard.</p>
+              <p>Monitor your application status in real-time with detailed tracking and notification system.</p>
             </div>
           </div>
         </section>
 
         <section id="features" className="features-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>What You Can Do</h3>
-            <p>Everything you need to apply for and manage your educational allowance</p>
+            <h3>Comprehensive Student Support</h3>
+            <p>Everything you need to succeed in your academic journey</p>
           </div>
           <div className="features-grid">
             <div className="feature-category">
-              <h4>Core Features</h4>
+              <h4>🎓 Academic Excellence</h4>
               <ul>
-                <li>✅ Student Information System</li>
-                <li>✅ Academic Records Management</li>
-                <li>✅ Course Registration Portal</li>
-                <li>✅ Grade Management System</li>
-                <li>✅ Real-time Notifications</li>
+                <li>Merit-based scholarships and grants</li>
+                <li>Academic performance incentives</li>
+                <li>Research funding opportunities</li>
+                <li>Study abroad program support</li>
+                <li>Academic mentorship programs</li>
               </ul>
             </div>
             <div className="feature-category">
-              <h4>Advanced Capabilities</h4>
+              <h4>💼 Career Development</h4>
               <ul>
-                <li>✅ AI-Powered Analytics</li>
-                <li>✅ Mobile-Responsive Design</li>
-                <li>✅ Secure Data Management</li>
-                <li>✅ Integration APIs</li>
-                <li>✅ Custom Reporting Tools</li>
+                <li>Industry internship placements</li>
+                <li>Professional networking events</li>
+                <li>Career guidance and counseling</li>
+                <li>Job placement assistance</li>
+                <li>Professional skill development</li>
+              </ul>
+            </div>
+            <div className="feature-category">
+              <h4>🌟 Community Support</h4>
+              <ul>
+                <li>Alumni mentorship network</li>
+                <li>Peer-to-peer learning groups</li>
+                <li>Community service opportunities</li>
+                <li>Leadership development programs</li>
+                <li>Social and cultural activities</li>
               </ul>
             </div>
           </div>
@@ -255,39 +337,39 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="process" className="landing-process-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>How to Apply</h3>
-            <p>Simple steps to get your educational allowance</p>
+            <h3>Simple Application Process</h3>
+            <p>Get started in just a few easy steps</p>
           </div>
           <div className="landing-process-steps">
             <div className="landing-step">
               <div className="landing-step-number">1</div>
               <div className="landing-step-content">
                 <h4>Register Account</h4>
-                <p>Sign up with your student information</p>
+                <p>Create your student account with basic information</p>
               </div>
             </div>
             <div className="landing-step-arrow">→</div>
             <div className="landing-step">
               <div className="landing-step-number">2</div>
               <div className="landing-step-content">
-                <h4>Submit Documents</h4>
-                <p>Upload required documents and grades</p>
+                <h4>Complete Profile</h4>
+                <p>Fill in your academic and personal details</p>
               </div>
             </div>
             <div className="landing-step-arrow">→</div>
             <div className="landing-step">
               <div className="landing-step-number">3</div>
               <div className="landing-step-content">
-                <h4>Access Dashboard</h4>
-                <p>Navigate your personalized portal</p>
+                <h4>Submit Application</h4>
+                <p>Choose your program and submit required documents</p>
               </div>
             </div>
             <div className="landing-step-arrow">→</div>
             <div className="landing-step">
               <div className="landing-step-number">4</div>
               <div className="landing-step-content">
-                <h4>Get Allowance</h4>
-                <p>Receive your educational assistance</p>
+                <h4>Get Approved</h4>
+                <p>Track your application and receive your benefits</p>
               </div>
             </div>
           </div>
@@ -295,172 +377,121 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section className="cta-section animate-section">
           <div className="cta-content">
-            <h3>Need Financial Support for Your Studies?</h3>
-            <p>Join thousands of TCU students who are getting educational assistance through our program</p>
+            <h3>Ready to Transform Your Future?</h3>
+            <p>Join thousands of successful Computer Engineering students who have benefited from our programs</p>
             <div className="cta-buttons-large">
-              <button className="cta-primary-large" onClick={handleRegisterClick}>
-                Apply for Allowance
+              <button className="cta-primary-large" onClick={handleLoginClick}>
+                Access Your Portal
               </button>
-              <button className="cta-secondary-large" onClick={handleLoginClick}>
-                Already Registered? Sign In
+              <button className="cta-secondary-large" onClick={handleRegisterClick}>
+                Start Your Journey
               </button>
             </div>
           </div>
         </section>
       </main>
 
-      <footer id="contact" className="landing-footer">
+      <footer id="contact" className="landing-footer animate-section">
         <div className="footer-content">
           <div className="footer-section">
             <h4>TCU-CEAA Portal</h4>
-            <p>Taguig City University - City Educational Assistance Allowance - Supporting students through financial assistance and academic excellence.</p>
+            <p>
+              Empowering Computer Engineering students through comprehensive support,
+              scholarships, and community engagement since our founding.
+            </p>
             <div className="social-links">
-              <a 
-                href="https://www.facebook.com/TaguigCityUniversity" 
-                className="social-btn facebook" 
-                title="Follow us on Facebook"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Visit our Facebook page (opens in new tab)"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <a href="https://www.facebook.com/TCUPhilippines" className="social-btn facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
               </a>
-              <a 
-                href="https://tcu.edu.ph/" 
-                className="social-btn website" 
-                title="Visit TCU Main Website"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Visit TCU main website (opens in new tab)"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zM4 12c0-.61.08-1.21.22-1.79L9 15v1c0 1.1.9 2 2 2v1.93C7.06 19.43 4 16.07 4 12zm13.89 5.4c-.26-.81-1-1.4-1.89-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41C17.92 5.77 20 8.65 20 12c0 2.08-.81 3.98-2.11 5.4z"/>
-                </svg>
-              </a>
-              <a 
-                href="https://www.linkedin.com/school/taguig-city-university-graduateschool/posts/?feedView=all"
-                className="social-btn linkedin" 
-                title="Connect with us on LinkedIn"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Visit our LinkedIn page (opens in new tab)"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              <a href="https://www.tcu.edu.ph" className="social-btn website">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                 </svg>
               </a>
             </div>
           </div>
+
           <div className="footer-section">
             <h4>Quick Links</h4>
             <ul>
-              <li><a href="#about">About CEAA</a></li>
+              <li><a href="#about">About Us</a></li>
               <li><a href="#features">Features</a></li>
-              <li><a href="#process">How It Works</a></li>
-              <li><a href="#contact">Contact Support</a></li>
+              <li><a href="#process">Process</a></li>
+              <li><button className="footer-link-button" onClick={showFAQ}>FAQ</button></li>
+              <li><button className="footer-link-button" onClick={showHelpCenter}>Help Center</button></li>
             </ul>
           </div>
+
           <div className="footer-section">
-            <h4>Contact Info</h4>
-            <p>📍 Gen. Santos Ave. Central Bicutan<br />Taguig City, Philippines</p>
-            <p>📞 (817) 257-TCU1 (8281)</p>
-            <p>✉️ ceaa@tcu.edu</p>
-          </div>
-          <div className="footer-section">
-            <h4>Support</h4>
+            <h4>Student Resources</h4>
             <ul>
-              <li><button onClick={showFAQ} className="footer-link-button">FAQ</button></li>
-              <li><button onClick={showHelpCenter} className="footer-link-button">Help Center</button></li>
-              <li><button onClick={showPrivacy} className="footer-link-button">Privacy Policy</button></li>
-              <li><button onClick={showDisclaimer} className="footer-link-button">Disclaimer</button></li>
+              <li><a href="#">Scholarship Programs</a></li>
+              <li><a href="#">Academic Support</a></li>
+              <li><a href="#">Career Services</a></li>
+              <li><a href="#">Alumni Network</a></li>
+              <li><a href="#">Student Portal</a></li>
+            </ul>
+          </div>
+
+          <div className="footer-section">
+            <h4>Legal & Support</h4>
+            <ul>
+              <li><button className="footer-link-button" onClick={showPrivacy}>Privacy Policy</button></li>
+              <li><button className="footer-link-button" onClick={showDisclaimer}>Terms of Service</button></li>
+              <li><a href="#">Contact Support</a></li>
+              <li><a href="#">Report Issues</a></li>
+              <li><a href="#">Accessibility</a></li>
             </ul>
           </div>
         </div>
+
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Taguig City University CEAA Portal. All rights reserved.</p>
-          <p>Powered by Modern Technology | Made with ❤️ for TCU Community</p>
+          <p>&copy; 2024 TCU Computer Engineering Alumni Association. All rights reserved.</p>
+          <p>Tarlac College University - College of Engineering</p>
         </div>
       </footer>
 
       {/* Scroll to Top Button */}
-      <button 
-        className={`scroll-to-top ${showScrollTop ? 'visible' : ''}`}
-        onClick={scrollToTop}
-        aria-label="Scroll to top"
-      >
-        <svg 
-          width="24" 
-          height="24" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path 
-            d="M12 19V5M5 12L12 5L19 12" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      {showScrollTop && (
+        <button className="scroll-to-top-btn" onClick={scrollToTop}>
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 14l5-5 5 5z"/>
+          </svg>
+        </button>
+      )}
 
       {/* Modals */}
-      <Modal
-        isOpen={showLoginModal}
-        onClose={closeModals}
-        size="small"
-      >
-        <ModalLogin
+      {showLoginModal && (
+        <ModalLogin 
           onClose={closeModals}
           onSwitchToRegister={switchToRegister}
         />
-      </Modal>
+      )}
 
-      <Modal
-        isOpen={showRegisterModal}
-        onClose={closeModals}
-        size="medium"
-      >
-        <ModalRegistration
+      {showRegisterModal && (
+        <ModalRegistration 
           onClose={closeModals}
           onSwitchToLogin={switchToLogin}
         />
-      </Modal>
+      )}
 
-      <Modal
-        isOpen={showDisclaimerModal}
-        onClose={closeModals}
-        size="large"
-      >
+      {showDisclaimerModal && (
         <DisclaimerModal onClose={closeModals} />
-      </Modal>
+      )}
 
-      <Modal
-        isOpen={showPrivacyModal}
-        onClose={closeModals}
-        size="large"
-      >
+      {showPrivacyModal && (
         <PrivacyPolicyModal onClose={closeModals} />
-      </Modal>
+      )}
 
-      <Modal
-        isOpen={showFAQModal}
-        onClose={closeModals}
-        size="large"
-      >
+      {showFAQModal && (
         <FAQModal onClose={closeModals} />
-      </Modal>
+      )}
 
-      <Modal
-        isOpen={showHelpCenterModal}
-        onClose={closeModals}
-        size="large"
-      >
+      {showHelpCenterModal && (
         <HelpCenterModal onClose={closeModals} />
-      </Modal>
+      )}
     </div>
   );
 };

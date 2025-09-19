@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from PIL import Image
 import os
 
@@ -94,6 +95,7 @@ class DocumentSubmission(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('revision_needed', 'Revision Needed'),
+        ('ai_processing', 'AI Processing'),
     ]
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
@@ -102,6 +104,18 @@ class DocumentSubmission(models.Model):
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True)
+    
+    # AI Analysis Fields
+    ai_analysis_completed = models.BooleanField(default=False)
+    ai_confidence_score = models.FloatField(default=0.0, help_text="AI confidence score (0.0-1.0)")
+    ai_document_type_match = models.BooleanField(default=False)
+    ai_extracted_text = models.TextField(blank=True, null=True)
+    ai_key_information = models.JSONField(default=dict, blank=True)
+    ai_quality_assessment = models.JSONField(default=dict, blank=True)
+    ai_recommendations = models.JSONField(default=list, blank=True)
+    ai_auto_approved = models.BooleanField(default=False)
+    ai_analysis_notes = models.TextField(blank=True, null=True)
+    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 
@@ -149,6 +163,10 @@ class GradeSubmission(models.Model):
     # AI evaluation results
     ai_evaluation_completed = models.BooleanField(default=False)
     ai_evaluation_notes = models.TextField(blank=True, null=True)
+    ai_confidence_score = models.FloatField(default=0.0, help_text="AI analysis confidence (0.0-1.0)")
+    ai_extracted_grades = models.JSONField(default=dict, blank=True, help_text="AI extracted grade data")
+    ai_grade_validation = models.JSONField(default=dict, blank=True, help_text="AI grade validation results")
+    ai_recommendations = models.JSONField(default=list, blank=True, help_text="AI recommendations")
     qualifies_for_basic_allowance = models.BooleanField(default=False)
     qualifies_for_merit_incentive = models.BooleanField(default=False)
     
@@ -166,7 +184,41 @@ class GradeSubmission(models.Model):
         unique_together = ['student', 'academic_year', 'semester']
     
     def calculate_allowance_eligibility(self):
-        """AI-based calculation of allowance eligibility"""
+        """AI-based calculation of allowance eligibility - Enhanced Autonomous version"""
+        try:
+            from .ai_service import grade_analyzer
+            
+            # Use the comprehensive AI analyzer
+            analysis_result = grade_analyzer.analyze_grades(self)
+            
+            # Extract eligibility results
+            basic_analysis = analysis_result.get('basic_allowance_analysis', {})
+            merit_analysis = analysis_result.get('merit_incentive_analysis', {})
+            
+            self.qualifies_for_basic_allowance = basic_analysis.get('eligible', False)
+            self.qualifies_for_merit_incentive = merit_analysis.get('eligible', False)
+            self.ai_evaluation_completed = True
+            self.ai_confidence_score = analysis_result.get('confidence_score', 0.0)
+            self.ai_extracted_grades = analysis_result.get('extracted_grades', {})
+            self.ai_grade_validation = analysis_result.get('grade_validation', {})
+            self.ai_recommendations = analysis_result.get('recommendations', [])
+            
+            # Generate evaluation notes
+            evaluation_notes = analysis_result.get('analysis_notes', [])
+            self.ai_evaluation_notes = "\n".join(evaluation_notes)
+            
+            # Autonomous processing - auto-approve all calculations
+            self.status = 'approved'
+            self.reviewed_at = timezone.now()
+            
+            return self.qualifies_for_basic_allowance, self.qualifies_for_merit_incentive
+            
+        except Exception as e:
+            # Fallback to basic calculation if AI service fails - still autonomous
+            return self._basic_allowance_calculation_autonomous()
+    
+    def _basic_allowance_calculation_autonomous(self):
+        """Fallback basic calculation method - Autonomous processing"""
         # Basic Educational Assistance (₱5,000): GWA ≥ 80%, no fails/inc/drops, ≥15 units
         basic_eligible = (
             self.general_weighted_average >= 80.0 and
@@ -189,8 +241,15 @@ class GradeSubmission(models.Model):
         self.qualifies_for_merit_incentive = merit_eligible
         self.ai_evaluation_completed = True
         
-        # Generate AI evaluation notes
+        # Autonomous approval
+        self.status = 'approved'
+        self.reviewed_at = timezone.now()
+        
+        # Generate basic evaluation notes
         notes = []
+        notes.append("🤖 Autonomous AI Processing - Auto-Approved")
+        notes.append("=" * 40)
+        
         if basic_eligible:
             notes.append("✅ Qualifies for Basic Educational Assistance (₱5,000)")
         else:
@@ -230,9 +289,14 @@ class GradeSubmission(models.Model):
             total_allowance += 5000
         
         if total_allowance > 0:
-            notes.append(f"💰 Total Allowance: ₱{total_allowance:,}")
+            notes.append(f"💰 Total Allowance Qualified: ₱{total_allowance:,}")
+            notes.append("🎉 Congratulations! You qualify for TCU-CEAA allowance.")
         else:
             notes.append("💰 Total Allowance: ₱0")
+            notes.append("📚 Keep working hard! Review the requirements for future eligibility.")
+        
+        notes.append("\n⚡ Processing Status: Automatically approved by AI system")
+        notes.append("📋 Next Step: Allowance application available for final approval")
         
         self.ai_evaluation_notes = "\n".join(notes)
         return basic_eligible, merit_eligible

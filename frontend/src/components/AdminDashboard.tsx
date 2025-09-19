@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safeToFixed, formatCurrency } from '../utils/numberUtils';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -113,7 +114,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           setDashboardData(response.data);
         } catch (apiError) {
           // If API fails, try to get individual data
-          console.log('Main dashboard API failed, trying individual endpoints...');
           
           try {
             const [documentsRes, gradesRes, applicationsRes, usersRes] = await Promise.all([
@@ -144,7 +144,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               }
             });
           } catch (individualError) {
-            console.log('Individual APIs also failed, using demo data for development');
             // Use demo data structure
             setDashboardData({
               pending_documents: [],
@@ -621,7 +620,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             <div className="command-status">Requires Approval</div>
             {dashboardData?.pending_applications && dashboardData.pending_applications.length > 0 && (
               <div className="priority-indicator low">
-                ₱{dashboardData.pending_applications.reduce((sum, app) => sum + app.amount, 0).toLocaleString()} pending
+                {formatCurrency(dashboardData.pending_applications.reduce((sum, app) => sum + app.amount, 0))} pending
               </div>
             )}
           </button>
@@ -846,7 +845,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                       ID: {app.student_id} • {app.application_type_display}
                     </div>
                     <div style={{ color: '#10b981', fontSize: '14px', fontWeight: '600', marginBottom: '5px' }}>
-                      ₱{app.amount.toLocaleString()}
+                      {formatCurrency(app.amount)}
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
                       Applied: {new Date(app.applied_at).toLocaleDateString()}
