@@ -58,6 +58,19 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
+    if (showLanding) {
+      return (
+        <LandingPage 
+          onLoginClick={handleLoginClick}
+          onRegisterClick={handleRegisterClick}
+        />
+      );
+    }
+    
+    if (showStudentRegistration) {
+      return <StudentRegistration onBack={backToLanding} onGoToLogin={goToLogin} />;
+    }
+
     return (
       <LandingPage 
         onLoginClick={handleLoginClick}
