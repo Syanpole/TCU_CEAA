@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import './ApplicationsManagement.css';
 
@@ -180,7 +181,29 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
   const [typeFilter, setTypeFilter] = useState('');
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'reject' | 'disburse', applicationId: number } | null>(null);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  // Money formatting function
+  const formatCurrency = (amount: number | string): string => {
+    const numAmount = Number(amount);
+    if (isNaN(numAmount)) return '₱0.00';
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(numAmount).replace('$', '₱');
+  };
+
+  // Function to show notifications
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000); // Auto-hide after 5 seconds
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -204,9 +227,22 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
   const refreshApplications = async () => {
     try {
       const response = await apiClient.get<Application[]>('/applications/');
-      setApplications(response.data);
-    } catch (error) {
-      console.error('Error refreshing applications:', error);
+      console.log('Refreshed applications data:', response.data); // Debug log
+      
+      if (Array.isArray(response.data)) {
+        setApplications(response.data);
+        console.log('Applications state updated successfully'); // Debug log
+        console.log('Status breakdown:', response.data.reduce((acc: any, app: Application) => {
+          acc[app.status] = (acc[app.status] || 0) + 1;
+          return acc;
+        }, {})); // Debug log
+      } else {
+        console.error('Invalid response format: expected array, got:', typeof response.data);
+        showNotification('Invalid data format received from server', 'error');
+      }
+    } catch (err) {
+      console.error('Error refreshing applications:', err);
+      showNotification('Failed to refresh application data', 'error');
     }
   };
 
@@ -245,41 +281,16 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
         closeApplicationModal();
       }
       
+      // Show success message
+      showNotification(`Application ${action} successfully!`, 'success');
+      
     } catch (error) {
       console.error(`Error ${action}ing application:`, error);
-      alert(`Failed to ${action} application. Please try again.`);
+      showNotification(`Failed to ${action} application. Please try again.`, 'error');
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
   };
-
-=======
-      console.log('Refreshed applications data:', response.data); // Debug log
-      
-      if (Array.isArray(response.data)) {
-        setApplications(response.data);
-        console.log('Applications state updated successfully'); // Debug log
-        console.log('Status breakdown:', response.data.reduce((acc: any, app: Application) => {
-          acc[app.status] = (acc[app.status] || 0) + 1;
-          return acc;
-        }, {})); // Debug log
-      } else {
-        console.error('Invalid response format: expected array, got:', typeof response.data);
-        showNotification('Invalid data format received from server', 'error');
-      }
-    } catch (err) {
-      console.error('Error refreshing applications:', err);
-      showNotification('Failed to refresh application data', 'error');
-    }
-  };
-
-  // Function to show notifications
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000); // Auto-hide after 5 seconds
-  };
-
->>>>>>> Stashed changes
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -36,13 +36,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleLoginClick = () => {
-    setShowLanding(false);
-    setShowStudentRegistration(false);
+    // Login is now handled by modal, no state change needed
   };
 
   const handleRegisterClick = () => {
-    setShowLanding(false);
-    setShowStudentRegistration(true);
+    // Registration is now handled by modal, no state change needed
   };
 
   const handleBackToLanding = () => {
@@ -60,22 +58,10 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    if (showLanding) {
-      return (
-        <LandingPage 
-          onLoginClick={handleLoginClick}
-          onRegisterClick={handleRegisterClick}
-        />
-      );
-    }
-    
-    if (showStudentRegistration) {
-      return <StudentRegistration onBack={backToLanding} onGoToLogin={goToLogin} />;
-    }
     return (
-      <Login 
-        onStudentRegister={showStudentRegister}
-        onBackToLanding={handleBackToLanding}
+      <LandingPage 
+        onLoginClick={handleLoginClick}
+        onRegisterClick={handleRegisterClick}
       />
     );
   }

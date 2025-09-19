@@ -58,18 +58,49 @@ interface AdminDashboardProps {
   onViewChange?: (view: string) => void;
 }
 
+// Utility functions
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2
+  }).format(amount);
+};
+
+const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const safeToFixed = (value: number | string, decimals: number = 2): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return isNaN(num) ? '0.00' : num.toFixed(decimals);
+};
+
+const getPriorityLevel = (doc: DocumentSubmission): 'high' | 'medium' | 'low' => {
+  const submittedDate = new Date(doc.submitted_at);
+  const daysSinceSubmitted = (Date.now() - submittedDate.getTime()) / (1000 * 60 * 60 * 24);
+  
+  if (daysSinceSubmitted > 7) return 'high';
+  if (daysSinceSubmitted > 3) return 'medium';
+  return 'low';
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-<<<<<<< Updated upstream
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-=======
+
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [allApplications, setAllApplications] = useState<AllowanceApplication[]>([]);
->>>>>>> Stashed changes
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -252,6 +283,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
     if (daysOld >= 7) return 'high';
     if (daysOld >= 3) return 'medium';
     return 'low';
+  };
+
+  // Calculate financial statistics for the stats modal
+  const calculateFinancialStats = () => {
+    if (!allApplications || allApplications.length === 0) {
+      return {
+        total: { amount: 0, count: 0 },
+        approved: { amount: 0, count: 0 },
+        disbursed: { amount: 0, count: 0 },
+        pending: { amount: 0, count: 0 },
+        rejected: { amount: 0, count: 0 }
+      };
+    }
+
+    const stats = {
+      total: { amount: 0, count: allApplications.length },
+      approved: { amount: 0, count: 0 },
+      disbursed: { amount: 0, count: 0 },
+      pending: { amount: 0, count: 0 },
+      rejected: { amount: 0, count: 0 }
+    };
+
+    allApplications.forEach(app => {
+      stats.total.amount += app.amount;
+      
+      switch (app.status) {
+        case 'approved':
+          stats.approved.amount += app.amount;
+          stats.approved.count++;
+          break;
+        case 'disbursed':
+          stats.disbursed.amount += app.amount;
+          stats.disbursed.count++;
+          break;
+        case 'pending':
+          stats.pending.amount += app.amount;
+          stats.pending.count++;
+          break;
+        case 'rejected':
+          stats.rejected.amount += app.amount;
+          stats.rejected.count++;
+          break;
+      }
+    });
+
+    return stats;
   };
 
   // Stats Modal Component
@@ -548,8 +625,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </div>
             )}
           </button>
-<<<<<<< Updated upstream
-=======
 
           <button className="command-btn analytics" onClick={() => onViewChange && onViewChange('analytics')}>
             <div className="command-header">
@@ -565,7 +640,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               Data Insights
             </div>
           </button>
->>>>>>> Stashed changes
         </div>
 
         {/* Operations Dashboard */}
@@ -771,12 +845,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                     <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '5px' }}>
                       ID: {app.student_id} • {app.application_type_display}
                     </div>
-<<<<<<< Updated upstream
                     <div style={{ color: '#10b981', fontSize: '14px', fontWeight: '600', marginBottom: '5px' }}>
-                      {formatCurrency(app.amount)}
+                      ₱{app.amount.toLocaleString()}
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                      Applied: {formatDate(app.applied_at)}
+                      Applied: {new Date(app.applied_at).toLocaleDateString()}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                       <button 

@@ -1,4 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import Modal from './Modal';
+import ModalLogin from './ModalLogin';
+import ModalRegistration from './ModalRegistration';
+import DisclaimerModal from './DisclaimerModal';
+import PrivacyPolicyModal from './PrivacyPolicyModal';
+import FAQModal from './FAQModal';
+import HelpCenterModal from './HelpCenterModal';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -7,6 +14,64 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
+  const [showHelpCenterModal, setShowHelpCenterModal] = useState(false);
+
+  const handleLoginClick = () => {
+    setShowLoginModal(true);
+  };
+
+  const handleRegisterClick = () => {
+    setShowRegisterModal(true);
+  };
+
+  const closeModals = () => {
+    setShowLoginModal(false);
+    setShowRegisterModal(false);
+    setShowDisclaimerModal(false);
+    setShowPrivacyModal(false);
+    setShowFAQModal(false);
+    setShowHelpCenterModal(false);
+  };
+
+  const showDisclaimer = () => {
+    setShowDisclaimerModal(true);
+  };
+
+  const showPrivacy = () => {
+    setShowPrivacyModal(true);
+  };
+
+  const showFAQ = () => {
+    setShowFAQModal(true);
+  };
+
+  const showHelpCenter = () => {
+    setShowHelpCenterModal(true);
+  };
+
+  const switchToLogin = () => {
+    setShowRegisterModal(false);
+    setShowLoginModal(true);
+  };
+
+  const switchToRegister = () => {
+    setShowLoginModal(false);
+    setShowRegisterModal(true);
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   useEffect(() => {
     // Scroll animation observer
     const observer = new IntersectionObserver((entries) => {
@@ -26,7 +91,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
     const sections = document.querySelectorAll('.animate-section');
     sections.forEach(section => observer.observe(section));
 
-    return () => observer.disconnect();
+    // Scroll to top button visibility
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
   return (
     <div className="landing-container">
@@ -51,10 +127,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             <a href="#contact">Contact</a>
           </nav>
           <div className="auth-buttons">
-            <button className="signin-btn" onClick={onLoginClick}>
+            <button className="signin-btn" onClick={handleLoginClick}>
               Sign In
             </button>
-            <button className="register-btn" onClick={onRegisterClick}>
+            <button className="register-btn" onClick={handleRegisterClick}>
               Student Registration
             </button>
           </div>
@@ -74,10 +150,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
                 excellence powered by modern technology and AI-driven insights.
               </p>
               <div className="hero-buttons">
-                <button className="cta-primary" onClick={onRegisterClick}>
+                <button className="cta-primary" onClick={handleRegisterClick}>
                   Student Registration
                 </button>
-                <button className="cta-secondary" onClick={onLoginClick}>
+                <button className="cta-secondary" onClick={handleLoginClick}>
                   Sign In
                 </button>
               </div>
@@ -93,31 +169,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
                 <div className="stat">
                   <div className="stat-number">24/7</div>
                   <div className="stat-label">Support Available</div>
-                </div>
-              </div>
-            </div>
-            <div className="hero-visual">
-              <div className="hero-stats-visual">
-                <div className="visual-stat">
-                  <div className="stat-icon">📚</div>
-                  <div className="stat-info">
-                    <span className="big-number">15K+</span>
-                    <span className="stat-desc">Students Helped</span>
-                  </div>
-                </div>
-                <div className="visual-stat">
-                  <div className="stat-icon">💎</div>
-                  <div className="stat-info">
-                    <span className="big-number">₱50M</span>
-                    <span className="stat-desc">Total Assistance</span>
-                  </div>
-                </div>
-                <div className="visual-stat">
-                  <div className="stat-icon">⭐</div>
-                  <div className="stat-info">
-                    <span className="big-number">4.9/5</span>
-                    <span className="stat-desc">Student Rating</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -247,10 +298,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             <h3>Need Financial Support for Your Studies?</h3>
             <p>Join thousands of TCU students who are getting educational assistance through our program</p>
             <div className="cta-buttons-large">
-              <button className="cta-primary-large" onClick={onRegisterClick}>
+              <button className="cta-primary-large" onClick={handleRegisterClick}>
                 Apply for Allowance
               </button>
-              <button className="cta-secondary-large" onClick={onLoginClick}>
+              <button className="cta-secondary-large" onClick={handleLoginClick}>
                 Already Registered? Sign In
               </button>
             </div>
@@ -320,10 +371,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           <div className="footer-section">
             <h4>Support</h4>
             <ul>
-              <li><a href="#faq">FAQ</a></li>
-              <li><a href="#help">Help Center</a></li>
-              <li><a href="#privacy">Privacy Policy</a></li>
-              <li><a href="#terms">Terms of Service</a></li>
+              <li><button onClick={showFAQ} className="footer-link-button">FAQ</button></li>
+              <li><button onClick={showHelpCenter} className="footer-link-button">Help Center</button></li>
+              <li><button onClick={showPrivacy} className="footer-link-button">Privacy Policy</button></li>
+              <li><button onClick={showDisclaimer} className="footer-link-button">Disclaimer</button></li>
             </ul>
           </div>
         </div>
@@ -332,6 +383,84 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           <p>Powered by Modern Technology | Made with ❤️ for TCU Community</p>
         </div>
       </footer>
+
+      {/* Scroll to Top Button */}
+      <button 
+        className={`scroll-to-top ${showScrollTop ? 'visible' : ''}`}
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+      >
+        <svg 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path 
+            d="M12 19V5M5 12L12 5L19 12" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {/* Modals */}
+      <Modal
+        isOpen={showLoginModal}
+        onClose={closeModals}
+        size="small"
+      >
+        <ModalLogin
+          onClose={closeModals}
+          onSwitchToRegister={switchToRegister}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showRegisterModal}
+        onClose={closeModals}
+        size="medium"
+      >
+        <ModalRegistration
+          onClose={closeModals}
+          onSwitchToLogin={switchToLogin}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showDisclaimerModal}
+        onClose={closeModals}
+        size="large"
+      >
+        <DisclaimerModal onClose={closeModals} />
+      </Modal>
+
+      <Modal
+        isOpen={showPrivacyModal}
+        onClose={closeModals}
+        size="large"
+      >
+        <PrivacyPolicyModal onClose={closeModals} />
+      </Modal>
+
+      <Modal
+        isOpen={showFAQModal}
+        onClose={closeModals}
+        size="large"
+      >
+        <FAQModal onClose={closeModals} />
+      </Modal>
+
+      <Modal
+        isOpen={showHelpCenterModal}
+        onClose={closeModals}
+        size="large"
+      >
+        <HelpCenterModal onClose={closeModals} />
+      </Modal>
     </div>
   );
 };

@@ -26,15 +26,12 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-<<<<<<< Updated upstream
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
-=======
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
->>>>>>> Stashed changes
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -102,7 +99,26 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
   };
 
   // Handle view document
-  const handleViewDocument = (document: Document) => {
+  const handleViewDocument = async (document: Document) => {
+    if (!document.document_file) {
+      setError('No document file available for viewing.');
+      return;
+    }
+    
+    try {
+      // Open the document in a new tab/window
+      const fileUrl = document.document_file.startsWith('http') 
+        ? document.document_file 
+        : `${window.location.origin}${document.document_file}`;
+      window.open(fileUrl, '_blank');
+    } catch (err) {
+      console.error('Error viewing document:', err);
+      setError('Failed to open document. Please try again.');
+    }
+  };
+
+  // Show document details in modal
+  const handleShowDocumentModal = (document: Document) => {
     setSelectedDocument(document);
     setShowDocumentModal(true);
   };
@@ -138,24 +154,6 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const handleViewDocument = async (document: Document) => {
-    if (!document.document_file) {
-      setError('No document file available for viewing.');
-      return;
-    }
-    
-    try {
-      // Open the document in a new tab/window
-      const fileUrl = document.document_file.startsWith('http') 
-        ? document.document_file 
-        : `${window.location.origin}${document.document_file}`;
-      window.open(fileUrl, '_blank');
-    } catch (err) {
-      console.error('Error viewing document:', err);
-      setError('Failed to open document. Please try again.');
-    }
   };
 
   const handleDeleteClick = (document: Document) => {
@@ -339,21 +337,13 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
                   <button 
                     className="action-btn view-btn"
                     onClick={() => handleViewDocument(doc)}
-<<<<<<< Updated upstream
-                    disabled={actionLoading[`view_${doc.id}`]}
-=======
                     disabled={!doc.document_file}
->>>>>>> Stashed changes
                   >
                     <svg viewBox="0 0 24 24" fill="currentColor">
                       <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
                     </svg>
-<<<<<<< Updated upstream
-                    {actionLoading[`view_${doc.id}`] ? 'Loading...' : 'View Document'}
-=======
                     View
->>>>>>> Stashed changes
                   </button>
                   
                   {doc.status === 'pending' && (
@@ -380,19 +370,6 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
                       </button>
                     </>
                   )}
-<<<<<<< Updated upstream
-                  
-                  {/* Delete button - available for all documents */}
-                  <button 
-                    className="action-btn delete-btn"
-                    onClick={() => handleDocumentAction(doc.id, 'delete')}
-                    disabled={actionLoading[`delete_${doc.id}`]}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd" />
-                    </svg>
-                    {actionLoading[`delete_${doc.id}`] ? 'Deleting...' : 'Delete'}
-=======
                   <button 
                     className="action-btn delete-btn"
                     onClick={() => handleDeleteClick(doc)}
@@ -401,7 +378,6 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
                       <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.393 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.607-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd" />
                     </svg>
                     Delete
->>>>>>> Stashed changes
                   </button>
                 </div>
               </div>

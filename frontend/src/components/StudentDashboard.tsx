@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
@@ -6,6 +6,14 @@ import GradeSubmissionForm from './GradeSubmissionForm';
 import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
 import './StudentDashboard.css';
+
+// Declare VANTA for TypeScript
+declare global {
+  interface Window {
+    VANTA?: any;
+    THREE?: any;
+  }
+}
 
 interface Assignment {
   id: number;
@@ -81,9 +89,24 @@ const StudentDashboard: React.FC = () => {
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  
+  // Vanta.js reference
+  const vantaRef = useRef<HTMLDivElement>(null);
+  const vantaEffect = useRef<any>(null);
 
-  // Theme toggle function
+  // Enhanced smooth theme toggle function
   const toggleTheme = () => {
+    // Add a transitioning class for extra smooth effects
+    const container = document.querySelector('.student-dashboard-container');
+    if (container) {
+      container.classList.add('theme-transitioning');
+      
+      // Remove the transitioning class after animation completes
+      setTimeout(() => {
+        container.classList.remove('theme-transitioning');
+      }, 600); // Match CSS transition duration
+    }
+    
     setDarkMode(!darkMode);
     // Save preference to localStorage
     localStorage.setItem('studentDashboardTheme', !darkMode ? 'dark' : 'light');
@@ -98,6 +121,180 @@ const StudentDashboard: React.FC = () => {
       setDarkMode(false); // Explicitly set to false for light mode
     }
   }, []);
+
+  // Initialize Vanta.js NET background effect with improved navigation handling
+  useEffect(() => {
+    const initVanta = () => {
+      if (vantaRef.current && window.VANTA && window.THREE) {
+        // Clean up existing effect thoroughly
+        if (vantaEffect.current) {
+          try {
+            vantaEffect.current.destroy();
+          } catch (error) {
+            console.warn('Error destroying previous Vanta effect:', error);
+          }
+          vantaEffect.current = null;
+        }
+
+        // Wait a bit to ensure cleanup is complete before reinitializing
+        setTimeout(() => {
+          if (vantaRef.current && window.VANTA && window.THREE) {
+            try {
+              // Initialize new effect with original red theme
+              vantaEffect.current = window.VANTA.NET({
+                el: vantaRef.current,
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                scale: 1.00,
+                scaleMobile: 1.00,
+                color: darkMode ? 0xff4444 : 0xf20000, // Original red colors
+                backgroundColor: darkMode ? 0x1a1a1a : 0xffffff, // Original background colors
+                points: 10.00,
+                maxDistance: 20.00,
+                spacing: 15.00,
+                showDots: true
+              });
+            } catch (error) {
+              console.warn('Error initializing Vanta effect:', error);
+            }
+          }
+        }, 200);
+      }
+    };
+
+    // Try to initialize immediately
+    initVanta();
+
+    // If VANTA is not loaded yet, wait a bit and try again
+    if (!window.VANTA || !window.THREE) {
+      const timer = setTimeout(() => {
+        initVanta();
+      }, 300);
+      
+      return () => {
+        clearTimeout(timer);
+        if (vantaEffect.current) {
+          try {
+            vantaEffect.current.destroy();
+          } catch (error) {
+            console.warn('Error destroying Vanta effect on cleanup:', error);
+          }
+          vantaEffect.current = null;
+        }
+      };
+    }
+
+    // Cleanup function
+    return () => {
+      if (vantaEffect.current) {
+        try {
+          vantaEffect.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying Vanta effect on cleanup:', error);
+        }
+        vantaEffect.current = null;
+      }
+    };
+  }, [darkMode]); // Re-run when theme changes
+
+  // Additional effect to handle component remounting (e.g., when navigating back from Profile Settings)
+  useEffect(() => {
+    const handlePageShow = () => {
+      // Read current theme from localStorage to ensure consistency
+      const savedTheme = localStorage.getItem('studentDashboardTheme');
+      const currentDarkMode = savedTheme === 'dark';
+      
+      // Reinitialize Vanta when coming back to this page
+      setTimeout(() => {
+        if (vantaRef.current && window.VANTA && window.THREE && !vantaEffect.current) {
+          try {
+            vantaEffect.current = window.VANTA.NET({
+              el: vantaRef.current,
+              mouseControls: true,
+              touchControls: true,
+              gyroControls: false,
+              minHeight: 200.00,
+              minWidth: 200.00,
+              scale: 1.00,
+              scaleMobile: 1.00,
+              color: currentDarkMode ? 0xff4444 : 0xf20000,
+              backgroundColor: currentDarkMode ? 0x1a1a1a : 0xffffff,
+              points: 10.00,
+              maxDistance: 20.00,
+              spacing: 15.00,
+              showDots: true
+            });
+          } catch (error) {
+            console.warn('Error reinitializing Vanta effect:', error);
+          }
+        }
+      }, 100);
+    };
+
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', handlePageShow);
+    window.addEventListener('pageshow', handlePageShow);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handlePageShow);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [darkMode]);
+
+  // Ensure Vanta initializes when component mounts (especially after navigation)
+  useEffect(() => {
+    const mountTimer = setTimeout(() => {
+      if (vantaRef.current && window.VANTA && window.THREE && !vantaEffect.current) {
+        // Read current theme from localStorage to ensure consistency
+        const savedTheme = localStorage.getItem('studentDashboardTheme');
+        const currentDarkMode = savedTheme === 'dark';
+        
+        try {
+          vantaEffect.current = window.VANTA.NET({
+            el: vantaRef.current,
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: currentDarkMode ? 0xff4444 : 0xf20000,
+            backgroundColor: currentDarkMode ? 0x1a1a1a : 0xffffff,
+            points: 10.00,
+            maxDistance: 20.00,
+            spacing: 15.00,
+            showDots: true
+          });
+        } catch (error) {
+          console.warn('Error initializing Vanta on mount:', error);
+        }
+      }
+    }, 500); // Longer delay to ensure everything is ready
+
+    return () => clearTimeout(mountTimer);
+  }, []); // Run only on mount
+
+  // Sync theme state when component becomes visible (in case ProfileSettings changed it)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Page became visible, sync theme from localStorage
+        const savedTheme = localStorage.getItem('studentDashboardTheme');
+        const shouldBeDark = savedTheme === 'dark';
+        
+        if (shouldBeDark !== darkMode) {
+          setDarkMode(shouldBeDark);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [darkMode]);
 
   // Simple date/time update
   useEffect(() => {
@@ -245,11 +442,11 @@ const StudentDashboard: React.FC = () => {
         setStats(prevStats => ({
           ...prevStats,
           total_documents: fetchedDocuments.length,
-          approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length
+          approved_documents: fetchedDocuments.filter((d: DocumentSubmission) => d.status === 'approved').length
         }));
 
         // Update assignments with new document count
-        const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
+        const currentApprovedDocuments = fetchedDocuments.filter((d: DocumentSubmission) => d.status === 'approved').length;
         setAssignments(prevAssignments => 
           prevAssignments.map((assignment, index) => {
             if (index === 0) {
@@ -323,6 +520,10 @@ const StudentDashboard: React.FC = () => {
 
   return (
     <div className={`student-dashboard-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Vanta.js NET Background */}
+      <div ref={vantaRef} className="vanta-background"></div>
+      
+      
       <div className="student-dashboard-content">
         {/* Welcome Section with Enhanced Greeting */}
         <div className="welcome-section">
@@ -374,7 +575,11 @@ const StudentDashboard: React.FC = () => {
 
         {/* Enhanced Quick Stats */}
         <div className="stats-grid">
-          <div className="stat-card documents">
+          <div 
+            className="stat-card documents clickable" 
+            onClick={() => setActiveTab('documents')}
+            title="Click to view all documents"
+          >
             <div className="stat-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
                 <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -386,7 +591,11 @@ const StudentDashboard: React.FC = () => {
               <div className="stat-sub">✅ {stats.approved_documents} approved</div>
             </div>
           </div>
-          <div className="stat-card grades">
+          <div 
+            className="stat-card grades clickable"
+            onClick={() => setActiveTab('grades')}
+            title="Click to view all grade reports"
+          >
             <div className="stat-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -400,7 +609,11 @@ const StudentDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="stat-card applications">
+          <div 
+            className="stat-card applications clickable"
+            onClick={() => setActiveTab('applications')}
+            title="Click to view all applications"
+          >
             <div className="stat-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
                 <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -412,7 +625,11 @@ const StudentDashboard: React.FC = () => {
               <div className="stat-sub">✅ {stats.approved_applications} approved</div>
             </div>
           </div>
-          <div className="stat-card allowance">
+          <div 
+            className="stat-card allowance clickable"
+            onClick={() => setActiveTab('allowance')}
+            title="Click to view allowance summary"
+          >
             <div className="stat-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
                 <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -451,6 +668,12 @@ const StudentDashboard: React.FC = () => {
             onClick={() => setActiveTab('applications')}
           >
             Applications
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'allowance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('allowance')}
+          >
+            Allowance
           </button>
         </div>
 
@@ -532,7 +755,19 @@ const StudentDashboard: React.FC = () => {
         )}        {activeTab === 'documents' && (
           <div className="content-card">
             <div className="card-header">
-              <h3>📋 Document Submissions</h3>
+              <div className="header-with-breadcrumb">
+                <div className="breadcrumb">
+                  <span 
+                    className="breadcrumb-link" 
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Overview
+                  </span>
+                  <span className="breadcrumb-separator">›</span>
+                  <span className="breadcrumb-current">Documents</span>
+                </div>
+                <h3>📋 Document Submissions ({stats.total_documents} total)</h3>
+              </div>
               <button 
                 className="add-button"
                 onClick={() => setShowDocumentForm(true)}
@@ -583,7 +818,19 @@ const StudentDashboard: React.FC = () => {
         {activeTab === 'grades' && (
           <div className="content-card">
             <div className="card-header">
-              <h3>📈 Grade Submissions</h3>
+              <div className="header-with-breadcrumb">
+                <div className="breadcrumb">
+                  <span 
+                    className="breadcrumb-link" 
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Overview
+                  </span>
+                  <span className="breadcrumb-separator">›</span>
+                  <span className="breadcrumb-current">Grades</span>
+                </div>
+                <h3>📈 Grade Submissions ({grades.length} total)</h3>
+              </div>
               {canSubmitGrades ? (
                 <button 
                   className="add-button"
@@ -692,7 +939,19 @@ const StudentDashboard: React.FC = () => {
         {activeTab === 'applications' && (
           <div className="content-card">
             <div className="card-header">
-              <h3>💸 Allowance Applications</h3>
+              <div className="header-with-breadcrumb">
+                <div className="breadcrumb">
+                  <span 
+                    className="breadcrumb-link" 
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Overview
+                  </span>
+                  <span className="breadcrumb-separator">›</span>
+                  <span className="breadcrumb-current">Applications</span>
+                </div>
+                <h3>💸 Allowance Applications ({applications.length} total)</h3>
+              </div>
               <button className="add-button">💰 New Application</button>
             </div>
             <div className="card-content">
@@ -732,12 +991,161 @@ const StudentDashboard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'allowance' && (
+          <div className="content-card">
+            <div className="card-header">
+              <div className="header-with-breadcrumb">
+                <div className="breadcrumb">
+                  <span 
+                    className="breadcrumb-link" 
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Overview
+                  </span>
+                  <span className="breadcrumb-separator">›</span>
+                  <span className="breadcrumb-current">Allowance</span>
+                </div>
+                <h3>💰 Allowance Summary</h3>
+              </div>
+              <div className="count-badge">
+                ₱{applications.filter(a => a.status === 'approved').reduce((sum, app) => sum + app.amount, 0).toLocaleString()} Total
+              </div>
+            </div>
+            <div className="card-content">
+              <div className="allowance-overview">
+                <div className="allowance-stats-grid">
+                  <div className="allowance-stat-item">
+                    <div className="allowance-stat-icon">💰</div>
+                    <div className="allowance-stat-content">
+                      <div className="allowance-stat-value">
+                        ₱{applications.filter(a => a.status === 'approved').reduce((sum, app) => sum + app.amount, 0).toLocaleString()}
+                      </div>
+                      <div className="allowance-stat-label">Total Received</div>
+                    </div>
+                  </div>
+                  <div className="allowance-stat-item">
+                    <div className="allowance-stat-icon">⏳</div>
+                    <div className="allowance-stat-content">
+                      <div className="allowance-stat-value">
+                        ₱{applications.filter(a => a.status === 'pending').reduce((sum, app) => sum + app.amount, 0).toLocaleString()}
+                      </div>
+                      <div className="allowance-stat-label">Pending Amount</div>
+                    </div>
+                  </div>
+                  <div className="allowance-stat-item">
+                    <div className="allowance-stat-icon">📈</div>
+                    <div className="allowance-stat-content">
+                      <div className="allowance-stat-value">{applications.filter(a => a.status === 'approved').length}</div>
+                      <div className="allowance-stat-label">Approved Applications</div>
+                    </div>
+                  </div>
+                  <div className="allowance-stat-item">
+                    <div className="allowance-stat-icon">⏰</div>
+                    <div className="allowance-stat-content">
+                      <div className="allowance-stat-value">{applications.filter(a => a.status === 'pending').length}</div>
+                      <div className="allowance-stat-label">Pending Applications</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="allowance-breakdown">
+                  <h4>💵 Allowance Breakdown by Type</h4>
+                  {applications.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="60" height="60">
+                          <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p>🚀 No allowance applications yet! Complete your requirements and start earning your benefits.</p>
+                      <button 
+                        className="action-button"
+                        onClick={() => setActiveTab('applications')}
+                      >
+                        💰 Go to Applications
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="allowance-type-summary">
+                      {Object.entries(
+                        applications.reduce((acc, app) => {
+                          if (!acc[app.application_type_display]) {
+                            acc[app.application_type_display] = {
+                              approved: 0,
+                              pending: 0,
+                              total_approved_amount: 0,
+                              total_pending_amount: 0,
+                              count: 0
+                            };
+                          }
+                          acc[app.application_type_display].count++;
+                          if (app.status === 'approved') {
+                            acc[app.application_type_display].approved++;
+                            acc[app.application_type_display].total_approved_amount += app.amount;
+                          } else if (app.status === 'pending') {
+                            acc[app.application_type_display].pending++;
+                            acc[app.application_type_display].total_pending_amount += app.amount;
+                          }
+                          return acc;
+                        }, {} as Record<string, any>)
+                      ).map(([type, data]) => (
+                        <div key={type} className="allowance-type-card">
+                          <div className="allowance-type-header">
+                            <h5>💼 {type}</h5>
+                            <span className="allowance-type-count">{data.count} applications</span>
+                          </div>
+                          <div className="allowance-type-details">
+                            <div className="allowance-detail-row">
+                              <span className="allowance-detail-label">✅ Approved:</span>
+                              <span className="allowance-detail-value">
+                                {data.approved} apps (₱{data.total_approved_amount.toLocaleString()})
+                              </span>
+                            </div>
+                            <div className="allowance-detail-row">
+                              <span className="allowance-detail-label">⏳ Pending:</span>
+                              <span className="allowance-detail-value">
+                                {data.pending} apps (₱{data.total_pending_amount.toLocaleString()})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="allowance-actions">
+                  <button 
+                    className="action-button"
+                    onClick={() => setActiveTab('applications')}
+                  >
+                    📄 View All Applications
+                  </button>
+                  <button 
+                    className="action-button"
+                    onClick={() => setActiveTab('grades')}
+                  >
+                    📊 Check Grade Requirements
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Document Submission Form Modal */}
       {showDocumentForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="compact-modal-overlay">
+          <div className="compact-modal-content">
+            <button 
+              className="modal-close-btn"
+              onClick={() => setShowDocumentForm(false)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
             <DocumentSubmissionForm
               onSubmissionSuccess={handleDocumentSubmissionSuccess}
               onCancel={() => setShowDocumentForm(false)}
@@ -748,8 +1156,15 @@ const StudentDashboard: React.FC = () => {
 
       {/* Grade Submission Form Modal */}
       {showGradeForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="compact-modal-overlay">
+          <div className="compact-modal-content">
+            <button 
+              className="modal-close-btn"
+              onClick={() => setShowGradeForm(false)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
             <GradeSubmissionForm
               onSubmissionSuccess={handleGradeSubmissionSuccess}
               onCancel={() => setShowGradeForm(false)}
