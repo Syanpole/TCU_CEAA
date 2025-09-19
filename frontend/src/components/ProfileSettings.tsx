@@ -25,6 +25,29 @@ interface ProfileUpdateData {
 }
 
 const ProfileSettings: React.FC = () => {
+  // Dynamically load Vanta and THREE scripts if missing
+  useEffect(() => {
+    const loadScript = (src: string) => {
+      return new Promise<void>((resolve, reject) => {
+        if (document.querySelector(`script[src='${src}']`)) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject();
+        document.body.appendChild(script);
+      });
+    };
+    Promise.all([
+      loadScript('/three.r134.min.js'),
+      loadScript('/vanta.net.min.js'),
+    ]).catch(() => {
+      console.warn('Vanta or THREE script failed to load');
+    });
+  }, []);
   const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const vantaRef = useRef<HTMLDivElement>(null);
@@ -89,53 +112,52 @@ const ProfileSettings: React.FC = () => {
   useEffect(() => {
     const initVanta = () => {
       if (window.VANTA && window.THREE && vantaRef.current) {
-        // Clean up existing effect
         if (vantaEffect.current) {
-          vantaEffect.current.destroy();
+          try {
+            vantaEffect.current.destroy();
+          } catch (error) {
+            console.warn('Error destroying previous Vanta effect:', error);
+          }
+          vantaEffect.current = null;
         }
-
-        // Use exactly the same configuration as StudentDashboard for consistency
-        const lightThemeConfig = {
-          color: 0xf20000,        // Exact same red as StudentDashboard
-          backgroundColor: 0xffffff, // White background
-          points: 10.00,          // Same as StudentDashboard
-          maxDistance: 20.00,     // Same as StudentDashboard
-          spacing: 15.00          // Same as StudentDashboard
-        };
-
-        const darkThemeConfig = {
-          color: 0xff4444,        // Same bright red as StudentDashboard
-          backgroundColor: 0x1a1a1a, // Same dark background as StudentDashboard
-          points: 10.00,          // Same as StudentDashboard
-          maxDistance: 20.00,     // Same as StudentDashboard
-          spacing: 15.00          // Same as StudentDashboard
-        };
-
-        const config = darkMode ? darkThemeConfig : lightThemeConfig;
-
-        // Initialize Vanta NET effect with exact same configuration as StudentDashboard
-        vantaEffect.current = window.VANTA.NET({
-          el: vantaRef.current,
-          mouseControls: true,
-          touchControls: true,
-          gyroControls: false,
-          minHeight: 200.00,
-          minWidth: 200.00,
-          scale: 1.00,
-          scaleMobile: 1.00,
-          showDots: true,  // Add this to match StudentDashboard
-          ...config
-        });
+        setTimeout(() => {
+          if (vantaRef.current && window.VANTA && window.THREE) {
+            try {
+              console.log('Initializing Vanta NET background...');
+              vantaEffect.current = window.VANTA.NET({
+                el: vantaRef.current,
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                scale: 1.00,
+                scaleMobile: 1.00,
+                color: darkMode ? 0xff4444 : 0xf20000,
+                backgroundColor: darkMode ? 0x1a1a1a : 0xffffff,
+                points: 10.00,
+                maxDistance: 20.00,
+                spacing: 15.00,
+                showDots: true
+              });
+            } catch (error) {
+              console.warn('Error initializing Vanta effect:', error);
+            }
+          }
+        }, 200);
+      } else {
+        console.log('VANTA or THREE not loaded yet');
       }
     };
-
-    // Delay initialization to ensure scripts are loaded
-    const timer = setTimeout(initVanta, 100);
-
+    const timer = setTimeout(initVanta, 400);
     return () => {
       clearTimeout(timer);
       if (vantaEffect.current) {
-        vantaEffect.current.destroy();
+        try {
+          vantaEffect.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying Vanta effect on cleanup:', error);
+        }
       }
     };
   }, [darkMode]);
@@ -396,9 +418,21 @@ const ProfileSettings: React.FC = () => {
 
   return (
     <div className={`profile-settings-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {/* Vanta.js animated background */}
-      <div ref={vantaRef} className="vanta-background" />
-      
+      {/* Vanta.js animated background - ensure first child for layering */}
+      <div
+        ref={vantaRef}
+        className={`vanta-background${darkMode ? ' dark-theme' : ' light-theme'}`}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: -1,
+          pointerEvents: 'none',
+        }}
+      />
+
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}
