@@ -18,7 +18,7 @@ const AppContent: React.FC = () => {
   const { user, loading, isAdmin } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
   const [showStudentRegistration, setShowStudentRegistration] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'profile'
+  const [currentView, setCurrentView] = useState('dashboard');
 
   const showStudentRegister = () => {
     setShowStudentRegistration(true);
