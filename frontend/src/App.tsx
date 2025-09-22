@@ -106,7 +106,7 @@ const AppContent: React.FC = () => {
       {currentView === 'dashboard' ? (
         isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
       ) : currentView === 'profile' ? (
-        <ProfileSettings />
+        <ProfileSettings onViewChange={setCurrentView} />
       ) : currentView === 'students' && isAdmin ? (
         <StudentsManagement onViewChange={setCurrentView} />
       ) : currentView === 'documents' && isAdmin ? (

@@ -24,7 +24,11 @@ interface ProfileUpdateData {
   confirm_password?: string;
 }
 
-const ProfileSettings: React.FC = () => {
+interface ProfileSettingsProps {
+  onViewChange: (view: string) => void;
+}
+
+const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
   // Dynamically load Vanta and THREE scripts if missing
   useEffect(() => {
     const loadScript = (src: string) => {
@@ -440,12 +444,46 @@ const ProfileSettings: React.FC = () => {
           onCancel={handleCropCancel}
         />
       )}
-      
+
       <div className="profile-settings-card">
         <div className="profile-header">
+          <button
+            type="button"
+            className="back-button"
+            onClick={() => onViewChange('dashboard')}
+            aria-label="Go back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="back-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              width="20"
+              height="20"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
           <h1>Profile Settings</h1>
-          <p>Update your account information and preferences</p>
         </div>
+        <p
+          style={{
+            textAlign: 'center',
+            marginTop: '0.5rem',
+            marginBottom: '1rem',
+            color: darkMode ? '#f5f5f5' : '#b22222', // light gray for dark, dark red for light
+            width: '100%',
+            fontWeight: 500,
+            fontSize: '1.05rem',
+            textShadow: darkMode ? '0 1px 4px #000' : '0 1px 2px #fff'
+          }}
+        >
+          Update your account information and preferences
+        </p>
 
         <form onSubmit={handleSubmit} className="profile-form">
           {message && (
