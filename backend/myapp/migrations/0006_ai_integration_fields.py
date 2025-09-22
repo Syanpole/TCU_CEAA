@@ -84,10 +84,5 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(choices=[('pending', 'Pending Review'), ('approved', 'Approved'), ('rejected', 'Rejected'), ('revision_needed', 'Revision Needed'), ('ai_processing', 'AI Processing')], default='pending', max_length=20),
         ),
-        migrations.DeleteModel(
-            name='ScholarshipApplication',
-        ),
-        migrations.DeleteModel(
-            name='ScholarshipDocument',
-        ),
+            # Removed DeleteModel for ScholarshipApplication and ScholarshipDocument (models no longer exist)
     ]
