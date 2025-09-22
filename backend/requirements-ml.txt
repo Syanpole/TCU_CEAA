@@ -1,0 +1,21 @@
+# Optional ML dependencies - install after core requirements
+# These packages may require compilation and should be installed separately
+
+# Install with: pip install -r requirements-ml.txt --prefer-binary
+
+# PDF processing (alternative to PyMuPDF)
+PyMuPDF>=1.23.0,<1.25.0  # Use range to allow compatible wheels
+
+# Scientific computing (may require OpenBLAS)
+scipy>=1.9.0,<2.0.0
+scikit-learn==1.5.2
+matplotlib>=3.5.0,<4.0.0
+
+# Text processing (requires data downloads)
+nltk==3.9.1
+textblob==0.18.0
+
+# Optional: Advanced ML (install only if needed)
+# tensorflow>=2.13.0
+# torch>=2.0.0
+# transformers>=4.30.0

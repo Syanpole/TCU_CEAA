@@ -1,28 +1,36 @@
+# CI/CD Optimized Requirements
+# This file prioritizes prebuilt wheels and faster installation for CI environments
+
 # Core Django dependencies - use exact versions for CI stability
 Django==5.2.5
 djangorestframework==3.15.2
 django-cors-headers==4.4.0
 psycopg[binary]==3.2.3
-
-# Image processing - ensure wheel availability
 Pillow==10.4.0
 
-# Document processing - lightweight versions for CI
+# AI Document Verification Dependencies - CI Optimized
 PyPDF2==3.0.1
+# PyMuPDF==1.24.10  # Commented out - causes build issues on Windows CI
 python-docx==1.1.2
-pdfplumber==0.9.0
+pdfplumber==0.9.0  # Alternative to PyMuPDF for PDF processing
 
-# AI/ML dependencies - using wheel-compatible versions
-numpy==1.26.4
-# scikit-learn==1.5.2  # Temporarily disabled - causes SciPy compilation issues in CI
+# Use headless OpenCV for CI environments (smaller, no GUI dependencies)
 opencv-python-headless==4.10.0.84
+
+# Scientific computing - using wheels when available
+# Install these individually to avoid build conflicts
+numpy>=1.21.0,<2.0.0
+
+# Text processing - core dependencies only
 pytesseract==0.3.13
 
-# Text processing - optional but useful
-# nltk==3.9.1          # Commented out - requires data downloads
-# textblob==0.18.0     # Commented out - requires NLTK data
-
-# Build tools for CI compatibility - ensure latest versions
+# Build tools (ensure wheels can be built if needed)
 setuptools>=75.1.0
 wheel>=0.44.0
 pip>=24.0
+
+# WSGI server for production
+gunicorn>=20.1.0
+
+# Note: scipy, scikit-learn, and PyMuPDF moved to separate installation step
+# to avoid compilation issues in CI environments
