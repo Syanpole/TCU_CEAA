@@ -5,6 +5,14 @@ import ImageCropper from './ImageCropper';
 import DefaultAvatar from './DefaultAvatar';
 import './ProfileSettings.css';
 
+// Declare VANTA global variable for TypeScript
+declare global {
+  interface Window {
+    VANTA?: any;
+    THREE?: any;
+  }
+}
+
 interface ProfileUpdateData {
   first_name: string;
   last_name: string;
@@ -16,9 +24,38 @@ interface ProfileUpdateData {
   confirm_password?: string;
 }
 
-const ProfileSettings: React.FC = () => {
+interface ProfileSettingsProps {
+  onViewChange: (view: string) => void;
+}
+
+const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
+  // Dynamically load Vanta and THREE scripts if missing
+  useEffect(() => {
+    const loadScript = (src: string) => {
+      return new Promise<void>((resolve, reject) => {
+        if (document.querySelector(`script[src='${src}']`)) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject();
+        document.body.appendChild(script);
+      });
+    };
+    Promise.all([
+      loadScript('/three.r134.min.js'),
+      loadScript('/vanta.net.min.js'),
+    ]).catch(() => {
+      console.warn('Vanta or THREE script failed to load');
+    });
+  }, []);
   const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const vantaRef = useRef<HTMLDivElement>(null);
+  const vantaEffect = useRef<any>(null);
   
   // Theme state - sync with StudentDashboard theme
   const [darkMode, setDarkMode] = useState(false);
@@ -72,6 +109,69 @@ const ProfileSettings: React.FC = () => {
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Initialize Vanta.js background effect
+  useEffect(() => {
+    const initVanta = () => {
+      if (window.VANTA && window.THREE && vantaRef.current) {
+        if (vantaEffect.current) {
+          try {
+            vantaEffect.current.destroy();
+          } catch (error) {
+            console.warn('Error destroying previous Vanta effect:', error);
+          }
+          vantaEffect.current = null;
+        }
+        setTimeout(() => {
+          if (vantaRef.current && window.VANTA && window.THREE) {
+            try {
+              console.log('Initializing Vanta NET background...');
+              vantaEffect.current = window.VANTA.NET({
+                el: vantaRef.current,
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                scale: 1.00,
+                scaleMobile: 1.00,
+                color: darkMode ? 0xff4444 : 0xf20000,
+                backgroundColor: darkMode ? 0x1a1a1a : 0xffffff,
+                points: 10.00,
+                maxDistance: 20.00,
+                spacing: 15.00,
+                showDots: true
+              });
+            } catch (error) {
+              console.warn('Error initializing Vanta effect:', error);
+            }
+          }
+        }, 200);
+      } else {
+        console.log('VANTA or THREE not loaded yet');
+      }
+    };
+    const timer = setTimeout(initVanta, 400);
+    return () => {
+      clearTimeout(timer);
+      if (vantaEffect.current) {
+        try {
+          vantaEffect.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying Vanta effect on cleanup:', error);
+        }
+      }
+    };
+  }, [darkMode]);
+
+  // Cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      if (vantaEffect.current) {
+        vantaEffect.current.destroy();
+      }
     };
   }, []);
 
@@ -314,14 +414,29 @@ const ProfileSettings: React.FC = () => {
     return (
       <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
         <div className="no-user-message">
-          <h2>Please log in to access profile settings</h2>
+          <h2>Please log in to access your profile</h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
+    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Vanta.js animated background - ensure first child for layering */}
+      <div
+        ref={vantaRef}
+        className={`vanta-background${darkMode ? ' dark-theme' : ' light-theme'}`}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: -1,
+          pointerEvents: 'none',
+        }}
+      />
+
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}
@@ -329,34 +444,57 @@ const ProfileSettings: React.FC = () => {
           onCancel={handleCropCancel}
         />
       )}
-      
+
       <div className="profile-settings-card">
         <div className="profile-header">
+          <button
+            type="button"
+            className="back-button"
+            onClick={() => onViewChange('dashboard')}
+            aria-label="Go back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="back-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              width="20"
+              height="20"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
           <h1>Profile Settings</h1>
-          <p>Manage your account information and preferences</p>
         </div>
+        <p
+          style={{
+            textAlign: 'center',
+            marginTop: '0.5rem',
+            marginBottom: '1rem',
+            color: darkMode ? '#f5f5f5' : '#b22222', // light gray for dark, dark red for light
+            width: '100%',
+            fontWeight: 500,
+            fontSize: '1.05rem',
+            textShadow: darkMode ? '0 1px 4px #000' : '0 1px 2px #fff'
+          }}
+        >
+          Update your account information and preferences
+        </p>
 
         <form onSubmit={handleSubmit} className="profile-form">
           {message && (
             <div className={`message ${message.type}`}>
-              <span className="message-icon">
-                {message.type === 'success' ? (
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </span>
               {message.text}
             </div>
           )}
 
           {/* Profile Image Section */}
           <div className="profile-image-section">
-            <h3>Profile Picture</h3>
+            <h3>Profile Photo</h3>
             <div className="image-upload-container">
               <div className="profile-image-wrapper" onClick={handleImageClick}>
                 {profileImage ? (
@@ -370,18 +508,12 @@ const ProfileSettings: React.FC = () => {
                       className="profile-image-default-avatar"
                     />
                     <div className="upload-prompt">
-                      <span className="image-icon">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                          <path d="M12 9a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path d="M6 18.5a6 6 0 1112 0H6z" />
-                        </svg>
-                      </span>
-                      <span>Click to upload photo</span>
+                      <span>Click to upload</span>
                     </div>
                   </div>
                 )}
                 <div className="image-overlay">
-                  <span>Change Photo</span>
+                  <span>Change Image</span>
                 </div>
               </div>
               <input
@@ -397,11 +529,11 @@ const ProfileSettings: React.FC = () => {
                   onClick={removeImage}
                   className="remove-image-button"
                 >
-                  Remove Photo
+                  Remove Image
                 </button>
               )}
               <p className="image-help-text">
-                Recommended: Square image, max 5MB. Supports JPG, PNG, GIF, WebP.
+                Max 5MB. Supports JPG, PNG, GIF, WebP.
               </p>
             </div>
           </div>
@@ -411,7 +543,7 @@ const ProfileSettings: React.FC = () => {
             <h3>Personal Information</h3>
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="first_name">First Name *</label>
+                <label htmlFor="first_name">First Name</label>
                 <input
                   type="text"
                   id="first_name"
@@ -420,11 +552,11 @@ const ProfileSettings: React.FC = () => {
                   onChange={handleInputChange}
                   required
                   className="form-input"
-                  placeholder="Enter your first name"
+                  placeholder="First name"
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="last_name">Last Name *</label>
+                <label htmlFor="last_name">Last Name</label>
                 <input
                   type="text"
                   id="last_name"
@@ -433,7 +565,7 @@ const ProfileSettings: React.FC = () => {
                   onChange={handleInputChange}
                   required
                   className="form-input"
-                  placeholder="Enter your last name"
+                  placeholder="Last name"
                 />
               </div>
             </div>
@@ -443,7 +575,7 @@ const ProfileSettings: React.FC = () => {
           <div className="form-section">
             <h3>Account Information</h3>
             <div className="form-group">
-              <label htmlFor="username">Username *</label>
+              <label htmlFor="username">Username</label>
               <input
                 type="text"
                 id="username"
@@ -452,11 +584,11 @@ const ProfileSettings: React.FC = () => {
                 onChange={handleInputChange}
                 required
                 className="form-input"
-                placeholder="Enter your username"
+                placeholder="Username"
               />
             </div>
             <div className="form-group">
-              <label htmlFor="email">Email Address *</label>
+              <label htmlFor="email">Email Address</label>
               <input
                 type="email"
                 id="email"
@@ -465,7 +597,7 @@ const ProfileSettings: React.FC = () => {
                 onChange={handleInputChange}
                 required
                 className="form-input"
-                placeholder="Enter your email address"
+                placeholder="Email address"
               />
             </div>
             {user.role === 'student' && (
@@ -478,7 +610,7 @@ const ProfileSettings: React.FC = () => {
                   value={formData.student_id}
                   onChange={handleInputChange}
                   className="form-input"
-                  placeholder="Enter your student ID"
+                  placeholder="Student ID"
                 />
               </div>
             )}
@@ -499,14 +631,14 @@ const ProfileSettings: React.FC = () => {
                 onClick={() => setShowPasswordSection(!showPasswordSection)}
                 className="toggle-password-section"
               >
-                {showPasswordSection ? 'Cancel Password Change' : 'Change Password'}
+                {showPasswordSection ? 'Cancel' : 'Change Password'}
               </button>
             </div>
 
             {showPasswordSection && (
               <div className="password-fields">
                 <div className="form-group">
-                  <label htmlFor="current_password">Current Password *</label>
+                  <label htmlFor="current_password">Current Password</label>
                   <div className="input-wrapper">
                     <input
                       type={showPasswords.current ? "text" : "password"}
@@ -516,7 +648,7 @@ const ProfileSettings: React.FC = () => {
                       onChange={handleInputChange}
                       required
                       className="form-input"
-                      placeholder="Enter your current password"
+                      placeholder="Current password"
                     />
                     <button
                       type="button"
@@ -524,27 +656,14 @@ const ProfileSettings: React.FC = () => {
                       onClick={() => togglePasswordVisibility('current')}
                       aria-label={showPasswords.current ? "Hide password" : "Show password"}
                     >
-                      {showPasswords.current ? (
-                        // Eye open icon
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                          <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      ) : (
-                        // Eye closed icon
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                      )}
+                      {showPasswords.current ? 'Hide' : 'Show'}
                     </button>
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="new_password">New Password *</label>
+                    <label htmlFor="new_password">New Password</label>
                     <div className="input-wrapper">
                       <input
                         type={showPasswords.new ? "text" : "password"}
@@ -554,7 +673,7 @@ const ProfileSettings: React.FC = () => {
                         onChange={handleInputChange}
                         required
                         className="form-input"
-                        placeholder="Enter new password"
+                        placeholder="New password"
                         minLength={6}
                       />
                       <button
@@ -563,25 +682,12 @@ const ProfileSettings: React.FC = () => {
                         onClick={() => togglePasswordVisibility('new')}
                         aria-label={showPasswords.new ? "Hide password" : "Show password"}
                       >
-                        {showPasswords.new ? (
-                          // Eye open icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                            <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                          </svg>
-                        ) : (
-                          // Eye closed icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          </svg>
-                        )}
+                        {showPasswords.new ? 'Hide' : 'Show'}
                       </button>
                     </div>
                   </div>
                   <div className="form-group">
-                    <label htmlFor="confirm_password">Confirm New Password *</label>
+                    <label htmlFor="confirm_password">Confirm Password</label>
                     <div className="input-wrapper">
                       <input
                         type={showPasswords.confirm ? "text" : "password"}
@@ -591,7 +697,7 @@ const ProfileSettings: React.FC = () => {
                         onChange={handleInputChange}
                         required
                         className="form-input"
-                        placeholder="Confirm new password"
+                        placeholder="Confirm password"
                         minLength={6}
                       />
                       <button
@@ -600,26 +706,13 @@ const ProfileSettings: React.FC = () => {
                         onClick={() => togglePasswordVisibility('confirm')}
                         aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
                       >
-                        {showPasswords.confirm ? (
-                          // Eye open icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                            <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                          </svg>
-                        ) : (
-                          // Eye closed icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          </svg>
-                        )}
+                        {showPasswords.confirm ? 'Hide' : 'Show'}
                       </button>
                     </div>
                   </div>
                 </div>
                 <p className="password-help-text">
-                  Password must be at least 6 characters long
+                  Minimum 6 characters required
                 </p>
               </div>
             )}
@@ -634,7 +727,7 @@ const ProfileSettings: React.FC = () => {
               {loading ? (
                 <>
                   <span className="loading-spinner"></span>
-                  Saving Changes...
+                  Saving...
                 </>
               ) : (
                 'Save Changes'

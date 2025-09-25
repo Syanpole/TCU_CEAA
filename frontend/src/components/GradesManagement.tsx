@@ -30,6 +30,8 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Helper function to safely format percentage values
   const safePercentage = (value: number | string): string => {
@@ -64,6 +66,16 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
     const matchesSemester = semesterFilter === '' || grade.semester === semesterFilter;
     return matchesSearch && matchesStatus && matchesSemester;
   });
+
+  const handleViewDetails = (grade: Grade) => {
+    setSelectedGrade(grade);
+    setShowDetailsModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowDetailsModal(false);
+    setSelectedGrade(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,7 +129,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   return (
     <div className="grades-management-container">
       <div className="grades-management-content">
-        {/* Header */}
         <div className="management-header">
           <div className="header-content">
             <h1>Grades Management</h1>
@@ -140,7 +151,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
           </div>
         </div>
 
-        {/* Search and Filters */}
         <div className="management-controls">
           <div className="search-section">
             <div className="search-input-container">
@@ -178,7 +188,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
           </div>
         </div>
 
-        {/* Grades List */}
         <div className="grades-list">
           {filteredGrades.length === 0 ? (
             <div className="empty-state">
@@ -257,9 +266,12 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                     Submitted: {formatDate(grade.submitted_at)}
                   </div>
                   <div className="grade-actions">
-                    <button className="action-btn view-btn">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => handleViewDetails(grade)}
+                    >
                       <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 616 0z" />
                         <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
                       </svg>
                       View Details
@@ -286,6 +298,124 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
             ))
           )}
         </div>
+
+        {showDetailsModal && selectedGrade && (
+          <div className="modal-overlay" onClick={handleCloseModal}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Grade Details</h2>
+                <button className="close-btn" onClick={handleCloseModal}>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="modal-body">
+                <div className="detail-section">
+                  <h3>Student Information</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Name:</label>
+                      <span>{selectedGrade.student_name}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Student ID:</label>
+                      <span>{selectedGrade.student_id}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Academic Year:</label>
+                      <span>{selectedGrade.academic_year}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Semester:</label>
+                      <span>{selectedGrade.semester_display}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h3>Academic Performance</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>General Weighted Average:</label>
+                      <span className="metric-highlight">{Number(selectedGrade.general_weighted_average).toFixed(2)}%</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Semestral Weighted Average:</label>
+                      <span className="metric-highlight">{Number(selectedGrade.semestral_weighted_average).toFixed(2)}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h3>Allowance Eligibility</h3>
+                  <div className="eligibility-details">
+                    <div className={`eligibility-detail ${selectedGrade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>
+                      <span className="eligibility-icon">
+                        {selectedGrade.qualifies_for_basic_allowance ? '✅' : '❌'}
+                      </span>
+                      <div className="eligibility-info">
+                        <strong>Basic Allowance</strong>
+                        <p>{selectedGrade.qualifies_for_basic_allowance ? 'Student qualifies for basic allowance' : 'Student does not qualify for basic allowance'}</p>
+                      </div>
+                    </div>
+                    <div className={`eligibility-detail ${selectedGrade.qualifies_for_merit_incentive ? 'eligible' : 'not-eligible'}`}>
+                      <span className="eligibility-icon">
+                        {selectedGrade.qualifies_for_merit_incentive ? '✅' : '❌'}
+                      </span>
+                      <div className="eligibility-info">
+                        <strong>Merit Incentive</strong>
+                        <p>{selectedGrade.qualifies_for_merit_incentive ? 'Student qualifies for merit incentive' : 'Student does not qualify for merit incentive'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h3>Submission Status</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Status:</label>
+                      <span 
+                        className="status-badge"
+                        style={{ backgroundColor: getStatusColor(selectedGrade.status) }}
+                      >
+                        {selectedGrade.status_display}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Submitted At:</label>
+                      <span>{formatDate(selectedGrade.submitted_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                {selectedGrade.status === 'pending' && (
+                  <div className="modal-actions">
+                    <button className="action-btn approve-btn">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Approve Grade
+                    </button>
+                    <button className="action-btn reject-btn">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Reject Grade
+                    </button>
+                  </div>
+                )}
+                <button className="close-modal-btn" onClick={handleCloseModal}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

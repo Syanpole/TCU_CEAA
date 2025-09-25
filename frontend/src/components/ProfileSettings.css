@@ -1,7 +1,89 @@
 /* Import Inter font for clean typography */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* CSS Custom Properties - TCU Red Theme */
+/* CSS Custom Properties - Light Theme (Default) */
+:root {
+  --primary-bg: transparent;
+  --secondary-bg: rgba(255, 255, 255, 0.95);
+  --surface-bg: rgba(255, 255, 255, 0.9);
+  --card-bg: rgba(248, 250, 252, 0.8);
+  --accent-blue: #c53030;
+  --accent-blue-hover: #a12727;
+  --gradient-primary: linear-gradient(135deg, #c53030, #a12727);
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --border-color: rgba(209, 213, 219, 0.6);
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+}
+
+/* Light Theme Overrides for Better Contrast */
+.profile-settings-container.light-theme {
+  --primary-bg: transparent;
+  --secondary-bg: rgba(255, 255, 255, 0.95);
+  --surface-bg: rgba(255, 255, 255, 0.9);
+  --card-bg: rgba(249, 250, 251, 0.8);
+  --gradient-primary: linear-gradient(135deg, #c53030, #a12727);
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --border-color: rgba(229, 231, 235, 0.6);
+}
+
+/* Light theme specific styles for enhanced white appearance */
+.profile-settings-container.light-theme .profile-settings-card {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.profile-settings-container.light-theme .form-input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #d1d5db;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.profile-settings-container.light-theme .form-input:focus {
+  background: #ffffff;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.08);
+}
+
+.profile-settings-container.light-theme .profile-image-placeholder {
+  background: linear-gradient(135deg, #f9fafb, #ffffff);
+}
+
+/* Dark theme specific enhancement */
+.profile-settings-container.dark-theme .profile-settings-card {
+  background: rgba(30, 41, 59, 0.95);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(71, 85, 105, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.profile-settings-container.dark-theme .form-input {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(71, 85, 105, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.profile-settings-container.dark-theme {
+  --primary-bg: transparent;
+  --secondary-bg: rgba(30, 41, 59, 0.95);
+  --surface-bg: rgba(51, 65, 85, 0.8);
+  --card-bg: rgba(71, 85, 105, 0.7);
+  --gradient-primary: linear-gradient(135deg, #dc2626, #b91c1c);
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #cbd5e1;
+  --border-color: rgba(71, 85, 105, 0.6);
+}
 :root {
   /* Light Theme Variables */
   --primary-bg: #ffffff;
@@ -43,20 +125,62 @@
 .profile-settings-container {
   min-height: 100vh;
   background: var(--primary-bg);
-  padding: 20px;
+  padding: 15px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Vanta.js background container with enhanced red NET visibility matching StudentDashboard */
+.vanta-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Enhanced red color filters matching StudentDashboard exactly */
+.vanta-background canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
+}
+
+/* Light theme enhanced red visibility - same as StudentDashboard */
+.profile-settings-container.light-theme .vanta-background canvas {
+  opacity: 1.0 !important;
+  filter: contrast(1.8) saturate(2.5) brightness(0.8) hue-rotate(-10deg) !important;
+}
+
+/* Dark theme enhanced red visibility - same as StudentDashboard */
+.profile-settings-container.dark-theme .vanta-background canvas {
+  opacity: 0.9 !important;
+  filter: contrast(1.4) saturate(2.0) brightness(1.1) hue-rotate(-5deg) !important;
 }
 
 .profile-settings-card {
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 650px;
+  width: 100%;
   background: var(--secondary-bg);
-  border-radius: 20px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   animation: slideUp 0.6s ease-out;
   border: 1px solid var(--border-color);
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 @keyframes slideUp {
@@ -73,33 +197,123 @@
 .profile-header {
   background: var(--gradient-primary);
   color: white;
-  padding: 40px;
+  padding: 25px 30px;
   text-align: center;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border: none;
+  color: var(--primary-color, #f20000);
+  font-weight: 600;
+  font-size: 0;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  box-shadow: 0 2px 6px rgba(242, 0, 0, 0.3);
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.back-button:hover,
+.back-button:focus {
+  background-color: var(--primary-color, #f20000);
+  color: white;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(242, 0, 0, 0.6);
+}
+
+.back-icon {
+  stroke: currentColor;
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.back-button:hover .back-icon,
+.back-button:focus .back-icon {
+  transform: translateX(-3px);
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border: none;
+  color: var(--primary-color, #f20000);
+  font-weight: 600;
+  font-size: 0;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  box-shadow: 0 2px 6px rgba(242, 0, 0, 0.3);
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.back-button:hover,
+.back-button:focus {
+  background-color: var(--primary-color, #f20000);
+  color: white;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(242, 0, 0, 0.6);
+}
+
+.back-icon {
+  stroke: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.back-button:hover .back-icon,
+.back-button:focus .back-icon {
+  transform: translateX(-3px);
 }
 
 .profile-header h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 700;
+  margin: 0 0 6px 0;
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .profile-header p {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   opacity: 0.9;
 }
 
 .profile-form {
-  padding: 40px;
+  padding: 25px 30px;
+  position: relative;
+  z-index: 2;
 }
 
 .message {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  margin-bottom: 25px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
   font-size: 14px;
   font-weight: 500;
   animation: slideIn 0.3s ease-out;
@@ -119,22 +333,18 @@
 .message.success {
   background: rgba(16, 185, 129, 0.1);
   color: var(--success);
-  border: 2px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .message.error {
   background: rgba(239, 68, 68, 0.1);
   color: var(--error);
-  border: 2px solid rgba(239, 68, 68, 0.3);
-}
-
-.message-icon {
-  font-size: 16px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .form-section {
-  margin-bottom: 35px;
-  padding-bottom: 25px;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -145,18 +355,18 @@
 
 .form-section h3 {
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  margin: 0 0 20px 0;
+  margin: 0 0 15px 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .form-section h3::before {
   content: '';
-  width: 4px;
-  height: 20px;
+  width: 3px;
+  height: 16px;
   background: var(--gradient-primary);
   border-radius: 2px;
 }
@@ -164,13 +374,13 @@
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 15px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .form-group label {
@@ -188,6 +398,10 @@
 
 .form-input {
   width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
   padding: 14px 16px;
   border: 2px solid var(--input-border);
   border-radius: 12px;
@@ -202,6 +416,7 @@
   outline: none;
   border-color: var(--input-border-focus);
   background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.1);
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
   transform: translateY(-1px);
 }
@@ -212,18 +427,19 @@
 
 .password-toggle-button {
   position: absolute;
-  right: 12px;
+  right: 8px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 12px;
   color: var(--text-muted);
   transition: color 0.3s ease;
-  padding: 4px;
+  padding: 4px 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
+  font-weight: 500;
 }
 
 .password-toggle-button:hover {
@@ -237,7 +453,7 @@
 
 /* Profile Image Section */
 .profile-image-section {
-  margin-bottom: 35px;
+  margin-bottom: 25px;
   text-align: center;
 }
 
@@ -245,23 +461,23 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
 .profile-image-wrapper {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .profile-image-wrapper:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .profile-image {
@@ -287,23 +503,18 @@
 
 .upload-prompt {
   position: absolute;
-  bottom: 8px;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 11px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   backdrop-filter: blur(4px);
-}
-
-.image-icon {
-  font-size: 16px;
-  opacity: 0.9;
 }
 
 .image-overlay {
@@ -317,7 +528,7 @@
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -432,9 +643,9 @@
 
 /* Form Actions */
 .form-actions {
-  margin-top: 40px;
+  margin-top: 25px;
   text-align: center;
-  padding-top: 25px;
+  padding-top: 20px;
   border-top: 1px solid var(--border-color);
 }
 
@@ -442,18 +653,18 @@
   background: var(--gradient-primary);
   color: white;
   border: none;
-  padding: 16px 32px;
-  border-radius: 12px;
-  font-size: 16px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0 auto;
-  min-width: 200px;
+  min-width: 160px;
 }
 
 .save-button:hover:not(:disabled) {
@@ -501,28 +712,31 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .profile-settings-container {
-    padding: 15px;
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 20px;
   }
   
   .profile-settings-card {
     margin: 0;
-    border-radius: 16px;
+    border-radius: 12px;
+    max-width: none;
   }
   
   .profile-header {
-    padding: 30px 20px;
+    padding: 20px 20px;
   }
   
   .profile-header h1 {
-    font-size: 24px;
+    font-size: 20px;
   }
   
   .profile-header p {
-    font-size: 14px;
+    font-size: 13px;
   }
   
   .profile-form {
-    padding: 30px 20px;
+    padding: 20px;
   }
   
   .form-row {
@@ -532,7 +746,7 @@
   
   .password-section-header {
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     align-items: flex-start;
   }
   
@@ -542,12 +756,8 @@
   }
   
   .profile-image-wrapper {
-    width: 120px;
-    height: 120px;
-  }
-  
-  .image-icon {
-    font-size: 24px;
+    width: 100px;
+    height: 100px;
   }
   
   .form-input {
@@ -557,16 +767,16 @@
 
 @media (max-width: 480px) {
   .profile-header {
-    padding: 25px 15px;
+    padding: 20px 15px;
   }
   
   .profile-form {
-    padding: 25px 15px;
+    padding: 20px 15px;
   }
   
   .profile-image-wrapper {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
   }
   
   .save-button {

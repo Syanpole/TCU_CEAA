@@ -225,23 +225,41 @@ class DocumentTypeDetector:
             content_analysis = self._analyze_document_content(uploaded_file)
             verification_result['extracted_features'] = content_analysis
             
-            # Step 3: Verify document type against declared type
+            # Step 3: Analyze filename for potential mismatches
+            filename_analysis = self._analyze_filename_patterns(uploaded_file.name, declared_type)
+            verification_result['filename_analysis'] = filename_analysis
+            
+            # Step 4: Verify document type against declared type
             type_verification = self._verify_against_declared_type(
                 declared_type, content_analysis, uploaded_file
             )
             verification_result.update(type_verification)
             
-            # Step 4: Fraud detection
+            # Step 5: Cross-verify filename with content analysis
+            filename_content_crosscheck = self._crosscheck_filename_content(
+                filename_analysis, content_analysis, declared_type
+            )
+            verification_result.update(filename_content_crosscheck)
+            
+            # Step 6: Fraud detection
             fraud_analysis = self._detect_fraud_indicators(
                 declared_type, content_analysis, uploaded_file
             )
+            
+            # Merge crosscheck warnings into fraud indicators
+            crosscheck_warnings = filename_content_crosscheck.get('crosscheck_warnings', [])
+            for warning in crosscheck_warnings:
+                fraud_analysis['fraud_indicators'].append(warning['description'])
+                severity_multiplier = {'high': 0.8, 'medium': 0.4, 'low': 0.2}.get(warning.get('severity', 'medium'), 0.4)
+                fraud_analysis['fraud_risk_score'] += severity_multiplier
+            
             verification_result.update(fraud_analysis)
             
-            # Step 5: Quality assessment
+            # Step 7: Quality assessment
             quality_analysis = self._assess_document_quality(uploaded_file)
             verification_result.update(quality_analysis)
             
-            # Step 6: Final decision
+            # Step 8: Final decision
             final_decision = self._make_final_decision(verification_result, declared_type)
             verification_result.update(final_decision)
             
@@ -890,16 +908,8 @@ class DocumentTypeDetector:
                 fraud_analysis['fraud_indicators'].append("Insufficient text content for a valid document")
                 fraud_analysis['fraud_risk_score'] += 0.6
             
-            # Check 3: Wrong document type keywords
-            if declared_type in self.document_signatures:
-                forbidden_keywords = self.document_signatures[declared_type].get('forbidden_keywords', [])
-                forbidden_found = [kw for kw in forbidden_keywords if kw in extracted_text.lower()]
-                
-                if forbidden_found:
-                    fraud_analysis['fraud_indicators'].append(
-                        f"Contains keywords from other document types: {', '.join(forbidden_found)}"
-                    )
-                    fraud_analysis['fraud_risk_score'] += len(forbidden_found) * 0.3
+            # Check 3: Wrong document type keywords (moved to crosscheck)
+            # This is now handled in the crosscheck method
             
             # Check 4: Image quality issues that suggest screenshots or digital manipulation
             if visual_features:
@@ -923,8 +933,8 @@ class DocumentTypeDetector:
                 fraud_analysis['fraud_indicators'].append(f"OCR confidence too low: {text_confidence}%")
                 fraud_analysis['fraud_risk_score'] += 0.4
             
-            # Determine if likely fraud
-            fraud_analysis['is_likely_fraud'] = fraud_analysis['fraud_risk_score'] >= 0.7
+            # Check 6: Filename-content mismatch (HIGH PRIORITY)
+            # This will be added by the calling function from crosscheck results
             
         except Exception as e:
             fraud_analysis['fraud_indicators'].append(f"Fraud detection error: {str(e)}")
@@ -994,7 +1004,7 @@ class DocumentTypeDetector:
         return quality_analysis
 
     def _make_final_decision(self, verification_result: Dict, declared_type: str) -> Dict[str, Any]:
-        """Make final decision on document verification (more lenient approach)"""
+        """Make final decision on document verification with enhanced fraud detection"""
         decision = {
             'recommendation': 'auto_approve',  # Default to approval unless clear fraud
             'final_confidence': 0.0,
@@ -1006,12 +1016,34 @@ class DocumentTypeDetector:
             fraud_risk = verification_result.get('fraud_risk_score', 0.0)
             is_acceptable_quality = verification_result.get('is_acceptable_quality', True)
             document_type_match = verification_result.get('document_type_match', False)
+            filename_content_consistency = verification_result.get('filename_content_consistency', 'unknown')
+            mismatch_severity = verification_result.get('mismatch_severity', 'low')
             
             # Calculate final confidence considering fraud risk
             final_confidence = max(0.0, confidence_score - (fraud_risk * 0.5))  # Reduce fraud penalty
             decision['final_confidence'] = final_confidence
             
-            # More lenient decision logic - focus on preventing obvious fraud only
+            # CRITICAL: Filename-content mismatch is a strong rejection signal
+            if filename_content_consistency == 'mismatch_high_risk':
+                decision.update({
+                    'recommendation': 'reject',
+                    'final_confidence': 0.0
+                })
+                decision['decision_reasoning'].append("🚨 CRITICAL: Filename suggests different document type than content - HIGH FRAUD RISK")
+                decision['decision_reasoning'].append("Document filename and content do not match the declared type")
+                return decision  # Immediate rejection for high-risk mismatches
+            
+            # HIGH PRIORITY: Filename misleading but content doesn't match either
+            if filename_content_consistency == 'filename_misleading' and confidence_score < 0.2:
+                decision.update({
+                    'recommendation': 'reject',
+                    'final_confidence': 0.0
+                })
+                decision['decision_reasoning'].append("🚨 HIGH RISK: Misleading filename with no document content match")
+                decision['decision_reasoning'].append("Filename appears designed to deceive verification system")
+                return decision
+            
+            # More lenient decision logic for other cases - focus on preventing obvious fraud only
             if fraud_risk >= 0.8:  # Only reject very high fraud risk (was 0.7)
                 decision['recommendation'] = 'reject'
                 decision['decision_reasoning'].append("Very high fraud risk detected")
@@ -1042,6 +1074,171 @@ class DocumentTypeDetector:
             decision['decision_reasoning'].append(f"Decision error - defaulting to approval: {str(e)}")
         
         return decision
+
+    def _analyze_filename_patterns(self, filename: str, declared_type: str) -> Dict[str, Any]:
+        """Analyze filename for patterns that indicate document type"""
+        filename_lower = filename.lower()
+        
+        # Remove file extension for analysis
+        name_without_ext = filename_lower.rsplit('.', 1)[0] if '.' in filename_lower else filename_lower
+        
+        analysis = {
+            'filename': filename,
+            'name_without_extension': name_without_ext,
+            'detected_type_indicators': [],
+            'mismatch_warnings': [],
+            'confidence_indicators': []
+        }
+        
+        # Document type keywords that commonly appear in filenames
+        type_keywords = {
+            'birth_certificate': ['birth', 'certificate', 'civil', 'registry', 'psa', 'nso', 'baptismal'],
+            'school_id': ['id', 'identification', 'student', 'school', 'university', 'college', 'tcu', 'card'],
+            'report_card': ['report', 'card', 'grade', 'transcript', 'academic', 'grades', 'gwa', 'swa'],
+            'enrollment_certificate': ['enrollment', 'certificate', 'enrolled', 'coe', 'confirmation', 'enrolment'],
+            'barangay_clearance': ['barangay', 'clearance', 'certificate', 'clearance', 'brgy', 'barangay'],
+            'parents_id': ['parent', 'father', 'mother', 'guardian', 'id', 'identification'],
+            'voter_certification': ['voter', 'voting', 'certification', 'certificate', 'comelec', 'precinct']
+        }
+        
+        # Check for keywords from each document type
+        for doc_type, keywords in type_keywords.items():
+            found_keywords = [kw for kw in keywords if kw in name_without_ext]
+            if found_keywords:
+                analysis['detected_type_indicators'].append({
+                    'document_type': doc_type,
+                    'found_keywords': found_keywords,
+                    'keyword_count': len(found_keywords)
+                })
+        
+        # Sort by keyword count (most relevant first)
+        analysis['detected_type_indicators'].sort(key=lambda x: x['keyword_count'], reverse=True)
+        
+        # Check for obvious mismatches
+        if declared_type in type_keywords:
+            declared_keywords = type_keywords[declared_type]
+            declared_found = [kw for kw in declared_keywords if kw in name_without_ext]
+            
+            # If filename has keywords from other document types but not the declared one
+            other_types_found = [ind for ind in analysis['detected_type_indicators'] 
+                               if ind['document_type'] != declared_type and ind['keyword_count'] > 0]
+            
+            if other_types_found and len(declared_found) == 0:
+                # Filename suggests different document type
+                top_mismatch = other_types_found[0]
+                analysis['mismatch_warnings'].append({
+                    'type': 'filename_suggests_different_type',
+                    'suggested_type': top_mismatch['document_type'],
+                    'evidence': f"Filename contains '{', '.join(top_mismatch['found_keywords'])}' but declared as {declared_type}",
+                    'severity': 'high' if top_mismatch['keyword_count'] >= 2 else 'medium'
+                })
+            
+            elif len(declared_found) > 0:
+                analysis['confidence_indicators'].append({
+                    'type': 'filename_matches_declared_type',
+                    'evidence': f"Filename contains '{', '.join(declared_found)}' matching {declared_type}",
+                    'strength': 'strong' if len(declared_found) >= 2 else 'weak'
+                })
+        
+        # Check for suspicious patterns
+        suspicious_patterns = ['fake', 'sample', 'test', 'dummy', 'copy', 'scan', 'photo', 'pic', 'img']
+        suspicious_found = [pat for pat in suspicious_patterns if pat in name_without_ext]
+        if suspicious_found:
+            analysis['mismatch_warnings'].append({
+                'type': 'suspicious_filename_pattern',
+                'evidence': f"Filename contains suspicious words: {', '.join(suspicious_found)}",
+                'severity': 'medium'
+            })
+        
+        return analysis
+
+    def _crosscheck_filename_content(self, filename_analysis: Dict, content_analysis: Dict, declared_type: str) -> Dict[str, Any]:
+        """Cross-check filename analysis with content analysis for fraud detection"""
+        crosscheck = {
+            'filename_content_consistency': 'unknown',
+            'crosscheck_warnings': [],
+            'consistency_score': 0.5,  # Neutral starting point
+            'mismatch_severity': 'low'
+        }
+        
+        extracted_text = content_analysis.get('extracted_text', '').lower()
+        filename_indicators = filename_analysis.get('detected_type_indicators', [])
+        mismatch_warnings = filename_analysis.get('mismatch_warnings', [])
+        
+        # If filename suggests a different document type than declared
+        if mismatch_warnings:
+            for warning in mismatch_warnings:
+                if warning['type'] == 'filename_suggests_different_type':
+                    suggested_type = warning['suggested_type']
+                    
+                    # Check if content actually matches the suggested type
+                    if suggested_type in self.document_signatures:
+                        signature = self.document_signatures[suggested_type]
+                        suggested_keywords = signature['required_keywords']['primary'] + signature['required_keywords']['supporting']
+                        suggested_found = [kw for kw in suggested_keywords if kw in extracted_text]
+                        
+                        if suggested_found:
+                            # Content matches filename suggestion, not declared type - HIGH FRAUD RISK
+                            crosscheck['filename_content_consistency'] = 'mismatch_high_risk'
+                            crosscheck['crosscheck_warnings'].append({
+                                'type': 'filename_content_mismatch',
+                                'description': f"Filename suggests {suggested_type} and content contains '{', '.join(suggested_found[:3])}', but declared as {declared_type}",
+                                'severity': 'high',
+                                'evidence': {
+                                    'filename_suggests': suggested_type,
+                                    'content_matches': suggested_found,
+                                    'declared_type': declared_type
+                                }
+                            })
+                            crosscheck['consistency_score'] = 0.1
+                            crosscheck['mismatch_severity'] = 'high'
+                        else:
+                            # Filename misleading but content doesn't match either - MEDIUM RISK
+                            crosscheck['filename_content_consistency'] = 'filename_misleading'
+                            crosscheck['crosscheck_warnings'].append({
+                                'type': 'misleading_filename',
+                                'description': f"Filename suggests {suggested_type} but content doesn't match any document type properly",
+                                'severity': 'medium'
+                            })
+                            crosscheck['consistency_score'] = 0.3
+                            crosscheck['mismatch_severity'] = 'medium'
+        
+        # If filename matches declared type, check if content also matches
+        confidence_indicators = filename_analysis.get('confidence_indicators', [])
+        if confidence_indicators:
+            for indicator in confidence_indicators:
+                if indicator['type'] == 'filename_matches_declared_type':
+                    # Filename supports declared type - check content consistency
+                    if declared_type in self.document_signatures:
+                        signature = self.document_signatures[declared_type]
+                        primary_keywords = signature['required_keywords']['primary']
+                        primary_found = [kw for kw in primary_keywords if kw in extracted_text]
+                        
+                        if primary_found:
+                            # Both filename and content match - GOOD CONSISTENCY
+                            crosscheck['filename_content_consistency'] = 'consistent'
+                            crosscheck['consistency_score'] = 0.9
+                            crosscheck['mismatch_severity'] = 'none'
+                        else:
+                            # Filename matches but content doesn't - MEDIUM RISK
+                            crosscheck['filename_content_consistency'] = 'partial_mismatch'
+                            crosscheck['crosscheck_warnings'].append({
+                                'type': 'filename_content_partial_mismatch',
+                                'description': f"Filename suggests {declared_type} but content lacks primary keywords",
+                                'severity': 'medium'
+                            })
+                            crosscheck['consistency_score'] = 0.4
+                            crosscheck['mismatch_severity'] = 'medium'
+        
+        # Check for suspicious filename patterns
+        suspicious_warnings = [w for w in mismatch_warnings if w['type'] == 'suspicious_filename_pattern']
+        if suspicious_warnings:
+            crosscheck['crosscheck_warnings'].extend(suspicious_warnings)
+            crosscheck['consistency_score'] = min(crosscheck['consistency_score'], 0.2)
+            if crosscheck['mismatch_severity'] == 'low':
+                crosscheck['mismatch_severity'] = 'medium'
+        
+        return crosscheck
 
 
 # Global instance

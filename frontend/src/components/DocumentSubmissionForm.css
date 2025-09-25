@@ -2,8 +2,8 @@
 .document-submission-form {
   background: transparent;
   border-radius: 20px;
-  padding: 28px;
-  max-width: 580px;
+  padding: 20px;
+  max-width: 480px;
   margin: 0 auto;
   position: relative;
   overflow: visible;
@@ -11,16 +11,88 @@
   box-shadow: none;
 }
 
+/* Compact version for modal usage */
+.compact-modal-content .document-submission-form {
+  padding: 16px;
+  max-width: 100%;
+  border-radius: 16px;
+}
+
+/* Improved text visibility for compact modals */
+.compact-modal-content .form-group label {
+  color: #1e293b !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.compact-modal-content .form-header h3 {
+  color: #1e293b !important;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.compact-modal-content .form-header p {
+  color: #334155 !important;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+/* Better input styling for visibility */
+.compact-modal-content input,
+.compact-modal-content select,
+.compact-modal-content textarea {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(30, 41, 59, 0.2) !important;
+  color: #1e293b !important;
+  font-weight: 500;
+}
+
+.compact-modal-content input:focus,
+.compact-modal-content select:focus,
+.compact-modal-content textarea:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Dark theme text visibility improvements */
+.student-dashboard-container.dark-theme .compact-modal-content .form-group label {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content .form-header h3 {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content .form-header p {
+  color: #cbd5e1 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content input,
+.student-dashboard-container.dark-theme .compact-modal-content select,
+.student-dashboard-container.dark-theme .compact-modal-content textarea {
+  background: rgba(51, 65, 85, 0.8) !important;
+  border: 2px solid rgba(100, 116, 139, 0.3) !important;
+  color: #f1f5f9 !important;
+}
+
 .form-header {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   text-align: center;
   position: relative;
 }
 
+/* Compact header */
+.compact-modal-content .form-header {
+  margin-bottom: 14px;
+}
+
 .form-header h3 {
   color: #0f172a !important;
-  margin: 0 0 8px 0;
-  font-size: 24px;
+  margin: 0 0 6px 0;
+  font-size: 22px;
   font-weight: 700;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -28,11 +100,22 @@
   background-clip: text;
 }
 
+/* Compact title */
+.compact-modal-content .form-header h3 {
+  font-size: 20px;
+  margin: 0 0 4px 0;
+}
+
 .form-header p {
   color: #64748b !important;
   margin: 0;
   font-size: 14px;
   font-weight: 500;
+}
+
+/* Compact description */
+.compact-modal-content .form-header p {
+  font-size: 13px;
 }
 
 .error-alert {
@@ -66,6 +149,12 @@
   gap: 8px;
 }
 
+/* Compact form groups */
+.compact-modal-content .form-group {
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
 .form-group label {
   font-weight: 600;
   color: #0f172a;
@@ -75,9 +164,20 @@
   gap: 6px;
 }
 
+/* Compact labels */
+.compact-modal-content .form-group label {
+  font-size: 13px;
+  gap: 4px;
+}
+
 .form-group label::before {
   content: '📄';
   font-size: 16px;
+}
+
+/* Compact icons */
+.compact-modal-content .form-group label::before {
+  font-size: 14px;
 }
 
 .form-group:nth-child(2) label::before {
@@ -226,6 +326,13 @@
   border-top: 1px solid rgba(226, 232, 240, 0.5);
 }
 
+/* Compact form actions */
+.compact-modal-content .form-actions {
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+}
+
 .btn-primary,
 .btn-secondary {
   padding: 12px 24px;
@@ -311,6 +418,23 @@
   100% { 
     transform: rotate(360deg);
   }
+}
+
+/* Compact button styles */
+.compact-modal-content .btn-primary,
+.compact-modal-content .btn-secondary {
+  padding: 10px 20px;
+  font-size: 13px;
+  border-radius: 10px;
+  gap: 6px;
+}
+
+.compact-modal-content .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.compact-modal-content .btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 /* Responsive design */

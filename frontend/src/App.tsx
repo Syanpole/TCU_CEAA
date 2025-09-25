@@ -12,6 +12,7 @@ import StudentsManagement from './components/StudentsManagement';
 import DocumentsManagement from './components/DocumentsManagement';
 import GradesManagement from './components/GradesManagement';
 import ApplicationsManagement from './components/ApplicationsManagement';
+import Analytics from './components/Analytics';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -19,7 +20,7 @@ const AppContent: React.FC = () => {
   const [showLanding, setShowLanding] = useState(true);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showStudentRegistration, setShowStudentRegistration] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'profile'
+  const [currentView, setCurrentView] = useState('dashboard');
 
   const showStudentRegister = () => {
     setShowStudentRegistration(true);
@@ -46,15 +47,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleLoginClick = () => {
-    setShowLanding(false);
-    setShowStudentRegistration(false);
-    setShowPrivacy(false);
+    // Login is now handled by modal, no state change needed
   };
 
   const handleRegisterClick = () => {
-    setShowLanding(false);
-    setShowStudentRegistration(true);
-    setShowPrivacy(false);
+    // Registration is now handled by modal, no state change needed
   };
 
   const handleBackToLanding = () => {
@@ -90,10 +87,12 @@ const AppContent: React.FC = () => {
     if (showStudentRegistration) {
       return <StudentRegistration onBack={backToLanding} onGoToLogin={goToLogin} />;
     }
+
     return (
-      <Login 
-        onStudentRegister={showStudentRegister}
-        onBackToLanding={handleBackToLanding}
+      <LandingPage 
+        onLoginClick={handleLoginClick}
+        onRegisterClick={handleRegisterClick}
+        onPrivacyClick={showPrivacyPage}
       />
     );
   }
@@ -107,7 +106,7 @@ const AppContent: React.FC = () => {
       {currentView === 'dashboard' ? (
         isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
       ) : currentView === 'profile' ? (
-        <ProfileSettings />
+        <ProfileSettings onViewChange={setCurrentView} />
       ) : currentView === 'students' && isAdmin ? (
         <StudentsManagement onViewChange={setCurrentView} />
       ) : currentView === 'documents' && isAdmin ? (
@@ -116,6 +115,8 @@ const AppContent: React.FC = () => {
         <GradesManagement onViewChange={setCurrentView} />
       ) : currentView === 'applications' && isAdmin ? (
         <ApplicationsManagement onViewChange={setCurrentView} />
+      ) : currentView === 'analytics' && isAdmin ? (
+        <Analytics onViewChange={setCurrentView} />
       ) : (
         isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
       )}

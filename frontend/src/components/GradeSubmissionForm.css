@@ -48,10 +48,82 @@
   box-shadow: none;
 }
 
+/* Compact version for modal usage */
+.compact-modal-content .grade-submission-form {
+  padding: 16px;
+  max-width: 100%;
+  border-radius: 14px;
+}
+
+/* Improved text visibility for compact modals */
+.compact-modal-content .form-group label {
+  color: #1e293b !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.compact-modal-content .form-header h3 {
+  color: #1e293b !important;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.compact-modal-content .form-header p {
+  color: #334155 !important;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+/* Better input styling for visibility */
+.compact-modal-content input,
+.compact-modal-content select,
+.compact-modal-content textarea {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(30, 41, 59, 0.2) !important;
+  color: #1e293b !important;
+  font-weight: 500;
+}
+
+.compact-modal-content input:focus,
+.compact-modal-content select:focus,
+.compact-modal-content textarea:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Dark theme text visibility improvements */
+.student-dashboard-container.dark-theme .compact-modal-content .form-group label {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content .form-header h3 {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content .form-header p {
+  color: #cbd5e1 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+
+.student-dashboard-container.dark-theme .compact-modal-content input,
+.student-dashboard-container.dark-theme .compact-modal-content select,
+.student-dashboard-container.dark-theme .compact-modal-content textarea {
+  background: rgba(51, 65, 85, 0.8) !important;
+  border: 2px solid rgba(100, 116, 139, 0.3) !important;
+  color: #f1f5f9 !important;
+}
+
 .form-header {
   margin-bottom: 16px;
   text-align: center;
   position: relative;
+}
+
+/* Compact header */
+.compact-modal-content .form-header {
+  margin-bottom: 12px;
 }
 
 .form-header h3 {
@@ -109,6 +181,12 @@
   gap: 6px;
 }
 
+/* Compact form groups */
+.compact-modal-content .form-group {
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
 .form-group label {
   font-weight: 600;
   color: #0f172a;
@@ -116,6 +194,81 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Compact labels */
+.compact-modal-content .form-group label {
+  font-size: 12px;
+}
+
+/* Comprehensive icon removal for grade submission form */
+.grade-submission-form *::before,
+.grade-submission-form *::after {
+  content: none !important;
+}
+
+/* Allow only specific elements to have ::before content */
+.file-info small::before {
+  content: '💡' !important;
+  font-size: 14px;
+}
+
+.ai-processing-info::before {
+  content: '' !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #6366f1 0%, #5c5ff6 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.btn-primary::before {
+  content: '' !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transition: all 0.4s ease;
+  transform: translate(-50%, -50%);
+}
+
+.document-status-section::before {
+  content: '' !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #4b52a2 100%);
+  border-radius: 16px 16px 0 0;
+}
+.checkbox-group label {
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+}
+
+/* Remove any icons from checkbox group labels */
+.checkbox-group label::before,
+.checkbox-group label::after {
+  content: none !important;
+  display: none !important;
+}
+
+.checkbox-label::before,
+.checkbox-label::after {
+  content: none !important;
+  display: none !important;
+}
+.form-group label::before,
+.form-group label::after {
+  content: none !important;
+  display: none !important;
 }
 
 .grade-hint {
@@ -132,29 +285,29 @@
 .form-select,
 .form-textarea,
 .form-file {
-  padding: 12px 16px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  border-radius: 12px;
-  font-size: 13px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px) saturate(120%);
-  color: #7a7a7a;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgb(125, 125, 125);
+  padding: 12px 16px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: #ffffff !important;
+  backdrop-filter: blur(16px) saturate(120%) !important;
+  color: #374151 !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus,
 .form-file:focus {
-  outline: none;
-  border-color: rgb(129, 129, 129);
+  outline: none !important;
+  border-color: #e53e3e !important;
   box-shadow: 
-    0 0 0 3px rgb(62, 62, 62),
-    0 4px 12px rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateY(-1px);
+    0 0 0 3px rgba(229, 62, 62, 0.1),
+    0 4px 12px rgba(229, 62, 62, 0.15) !important;
+  background: #ffffff !important;
+  transform: translateY(-1px) !important;
 }
 
 .form-textarea {
@@ -177,8 +330,8 @@
 }
 
 .checkbox-group {
-  background: rgba(168, 85, 247, 0.05);
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: rgba(229, 62, 62, 0.05);
+  border: 1px solid rgba(229, 62, 62, 0.2);
   border-radius: 12px;
   padding: 16px;
   backdrop-filter: blur(8px);
@@ -192,24 +345,28 @@
   align-items: center;
   gap: 10px;
   margin: 0;
-  padding: 8px;
+  padding: 12px;
   border-radius: 8px;
   transition: background 0.2s ease;
   cursor: pointer;
   font-weight: 500;
-  color: #334155;
+  color: #374151;
   font-size: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(229, 62, 62, 0.1);
 }
 
 .checkbox-label:hover {
-  background: rgba(168, 85, 247, 0.05);
+  background: rgba(229, 62, 62, 0.08);
+  border-color: rgba(229, 62, 62, 0.2);
 }
 
 .form-checkbox {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #557bf7;
+  accent-color: #e53e3e;
+  transform: scale(1.1);
 }
 
 .form-group small {
@@ -241,7 +398,8 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #557bf7;
+  accent-color: #e53e3e;
+  transform: scale(1.1);
 }
 
 .checkbox-item label {
@@ -367,6 +525,13 @@
   border-top: 1px solid rgba(226, 232, 240, 0.5);
 }
 
+/* Compact form actions */
+.compact-modal-content .form-actions {
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+}
+
 .btn-primary,
 .btn-secondary {
   padding: 12px 24px;
@@ -452,6 +617,23 @@
   100% { 
     transform: rotate(360deg);
   }
+}
+
+/* Compact button styles */
+.compact-modal-content .btn-primary,
+.compact-modal-content .btn-secondary {
+  padding: 10px 20px;
+  font-size: 13px;
+  border-radius: 10px;
+  gap: 6px;
+}
+
+.compact-modal-content .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.compact-modal-content .btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 /* Document Status Section */
