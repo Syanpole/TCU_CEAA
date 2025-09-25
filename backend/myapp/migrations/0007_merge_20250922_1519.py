@@ -7,7 +7,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('myapp', '0006_ai_integration_fields'),
-        ('myapp', '0006_remove_scholarshipdocument_application_and_more'),
     ]
 
     operations = [
