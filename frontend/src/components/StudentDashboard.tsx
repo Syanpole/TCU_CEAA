@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import { formatCurrency } from '../utils/numberUtils';
@@ -9,14 +9,6 @@ import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
 import FastDocumentUploadSimple from './FastDocumentUploadSimple';
 import './StudentDashboard.css';
-
-// Declare VANTA for TypeScript
-declare global {
-  interface Window {
-    VANTA?: any;
-    THREE?: any;
-  }
-}
 
 interface Assignment {
   id: number;
@@ -100,10 +92,6 @@ const StudentDashboard: React.FC = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   
-  // Vanta.js reference
-  const vantaRef = useRef<HTMLDivElement>(null);
-  const vantaEffect = useRef<any>(null);
-
   // Enhanced smooth theme toggle function
   const toggleTheme = () => {
     // Add a transitioning class for extra smooth effects
@@ -131,180 +119,6 @@ const StudentDashboard: React.FC = () => {
       setDarkMode(false); // Explicitly set to false for light mode
     }
   }, []);
-
-  // Initialize Vanta.js NET background effect with improved navigation handling
-  useEffect(() => {
-    const initVanta = () => {
-      if (vantaRef.current && window.VANTA && window.THREE) {
-        // Clean up existing effect thoroughly
-        if (vantaEffect.current) {
-          try {
-            vantaEffect.current.destroy();
-          } catch (error) {
-            console.warn('Error destroying previous Vanta effect:', error);
-          }
-          vantaEffect.current = null;
-        }
-
-        // Wait a bit to ensure cleanup is complete before reinitializing
-        setTimeout(() => {
-          if (vantaRef.current && window.VANTA && window.THREE) {
-            try {
-              // Initialize new effect with original red theme
-              vantaEffect.current = window.VANTA.NET({
-                el: vantaRef.current,
-                mouseControls: true,
-                touchControls: true,
-                gyroControls: false,
-                minHeight: 200.00,
-                minWidth: 200.00,
-                scale: 1.00,
-                scaleMobile: 1.00,
-                color: darkMode ? 0xff4444 : 0xf20000, // Original red colors
-                backgroundColor: darkMode ? 0x1a1a1a : 0xffffff, // Original background colors
-                points: 10.00,
-                maxDistance: 20.00,
-                spacing: 15.00,
-                showDots: true
-              });
-            } catch (error) {
-              console.warn('Error initializing Vanta effect:', error);
-            }
-          }
-        }, 200);
-      }
-    };
-
-    // Try to initialize immediately
-    initVanta();
-
-    // If VANTA is not loaded yet, wait a bit and try again
-    if (!window.VANTA || !window.THREE) {
-      const timer = setTimeout(() => {
-        initVanta();
-      }, 300);
-      
-      return () => {
-        clearTimeout(timer);
-        if (vantaEffect.current) {
-          try {
-            vantaEffect.current.destroy();
-          } catch (error) {
-            console.warn('Error destroying Vanta effect on cleanup:', error);
-          }
-          vantaEffect.current = null;
-        }
-      };
-    }
-
-    // Cleanup function
-    return () => {
-      if (vantaEffect.current) {
-        try {
-          vantaEffect.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying Vanta effect on cleanup:', error);
-        }
-        vantaEffect.current = null;
-      }
-    };
-  }, [darkMode]); // Re-run when theme changes
-
-  // Additional effect to handle component remounting (e.g., when navigating back from Profile Settings)
-  useEffect(() => {
-    const handlePageShow = () => {
-      // Read current theme from localStorage to ensure consistency
-      const savedTheme = localStorage.getItem('studentDashboardTheme');
-      const currentDarkMode = savedTheme === 'dark';
-      
-      // Reinitialize Vanta when coming back to this page
-      setTimeout(() => {
-        if (vantaRef.current && window.VANTA && window.THREE && !vantaEffect.current) {
-          try {
-            vantaEffect.current = window.VANTA.NET({
-              el: vantaRef.current,
-              mouseControls: true,
-              touchControls: true,
-              gyroControls: false,
-              minHeight: 200.00,
-              minWidth: 200.00,
-              scale: 1.00,
-              scaleMobile: 1.00,
-              color: currentDarkMode ? 0xff4444 : 0xf20000,
-              backgroundColor: currentDarkMode ? 0x1a1a1a : 0xffffff,
-              points: 10.00,
-              maxDistance: 20.00,
-              spacing: 15.00,
-              showDots: true
-            });
-          } catch (error) {
-            console.warn('Error reinitializing Vanta effect:', error);
-          }
-        }
-      }, 100);
-    };
-
-    // Listen for page visibility changes
-    document.addEventListener('visibilitychange', handlePageShow);
-    window.addEventListener('pageshow', handlePageShow);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handlePageShow);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [darkMode]);
-
-  // Ensure Vanta initializes when component mounts (especially after navigation)
-  useEffect(() => {
-    const mountTimer = setTimeout(() => {
-      if (vantaRef.current && window.VANTA && window.THREE && !vantaEffect.current) {
-        // Read current theme from localStorage to ensure consistency
-        const savedTheme = localStorage.getItem('studentDashboardTheme');
-        const currentDarkMode = savedTheme === 'dark';
-        
-        try {
-          vantaEffect.current = window.VANTA.NET({
-            el: vantaRef.current,
-            mouseControls: true,
-            touchControls: true,
-            gyroControls: false,
-            minHeight: 200.00,
-            minWidth: 200.00,
-            scale: 1.00,
-            scaleMobile: 1.00,
-            color: currentDarkMode ? 0xff4444 : 0xf20000,
-            backgroundColor: currentDarkMode ? 0x1a1a1a : 0xffffff,
-            points: 10.00,
-            maxDistance: 20.00,
-            spacing: 15.00,
-            showDots: true
-          });
-        } catch (error) {
-          console.warn('Error initializing Vanta on mount:', error);
-        }
-      }
-    }, 500); // Longer delay to ensure everything is ready
-
-    return () => clearTimeout(mountTimer);
-  }, []); // Run only on mount
-
-  // Sync theme state when component becomes visible (in case ProfileSettings changed it)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        // Page became visible, sync theme from localStorage
-        const savedTheme = localStorage.getItem('studentDashboardTheme');
-        const shouldBeDark = savedTheme === 'dark';
-        
-        if (shouldBeDark !== darkMode) {
-          setDarkMode(shouldBeDark);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [darkMode]);
 
   // Simple date/time update
   useEffect(() => {
@@ -603,8 +417,6 @@ const StudentDashboard: React.FC = () => {
 
   return (
     <div className={`student-dashboard-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {/* Vanta.js NET Background */}
-      <div ref={vantaRef} className="vanta-background"></div>
       
       
       <div className="student-dashboard-content">
