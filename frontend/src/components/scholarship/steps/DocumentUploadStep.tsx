@@ -2,7 +2,10 @@ import React, { useState, useCallback, useRef } from 'react';
 import { 
   ScholarshipApplication, 
   DocumentSubmission,
-  SubmissionStatus 
+  DocumentSubmissions,
+  VerificationResults,
+  SubmissionStatus,
+  StepStatus
 } from '../../../types/scholarshipTypes';
 import { useAIVerification } from '../../../hooks/useAIVerification';
 import { useScholarshipApplication } from '../../../hooks/useScholarshipApplication';
@@ -80,7 +83,7 @@ const DocumentUploadStep: React.FC<DocumentUploadStepProps> = ({
       };
 
       // Update application state
-      updateDocumentSubmission(documentType, submission);
+      updateDocumentSubmission(documentType as keyof DocumentSubmissions, submission);
       
       // Start AI verification
       setUploadProgress(25);
@@ -96,7 +99,7 @@ const DocumentUploadStep: React.FC<DocumentUploadStepProps> = ({
       setUploadProgress(100);
 
       // Update verification results
-      updateVerificationResult(documentType, verificationResult);
+      updateVerificationResult(documentType as keyof VerificationResults, verificationResult);
 
       // Update submission with verification status
       const updatedSubmission = {
@@ -109,11 +112,11 @@ const DocumentUploadStep: React.FC<DocumentUploadStepProps> = ({
         aiVerification: verificationResult
       };
 
-      updateDocumentSubmission(documentType, updatedSubmission);
+      updateDocumentSubmission(documentType as keyof DocumentSubmissions, updatedSubmission);
 
       // Mark step as completed if verified
       if (verificationResult.status === 'verified') {
-        updateStepStatus(application.currentStep, 'completed');
+        updateStepStatus(application.currentStep, StepStatus.COMPLETED);
       }
 
     } catch (error) {

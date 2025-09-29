@@ -20,7 +20,12 @@ interface FormErrors {
   [key: string]: string;
 }
 
-const StudentRegistration: React.FC = () => {
+interface StudentRegistrationProps {
+  onBack?: () => void;
+  onGoToLogin?: () => void;
+}
+
+const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoToLogin }) => {
   const [formData, setFormData] = useState<StudentData>({
     first_name: '',
     last_name: '',
@@ -189,7 +194,7 @@ const StudentRegistration: React.FC = () => {
             <p>Your account has been created successfully. Please check your email for verification instructions.</p>
             <button 
               className="login-redirect-btn"
-              onClick={() => window.location.href = '/login'}
+              onClick={() => onGoToLogin ? onGoToLogin() : window.location.href = '/login'}
             >
               Go to Login
             </button>
@@ -442,9 +447,19 @@ const StudentRegistration: React.FC = () => {
           <div className="form-footer">
             <p>
               Already have an account?{' '}
-              <a href="/login" className="login-link">
-                Sign in here
-              </a>
+              {onGoToLogin ? (
+                <button 
+                  type="button" 
+                  className="login-link login-link-button" 
+                  onClick={onGoToLogin}
+                >
+                  Sign in here
+                </button>
+              ) : (
+                <a href="/login" className="login-link">
+                  Sign in here
+                </a>
+              )}
             </p>
           </div>
         </form>
