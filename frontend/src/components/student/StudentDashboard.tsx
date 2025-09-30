@@ -9,6 +9,7 @@ import DefaultAvatar from '../DefaultAvatar';
 import NotificationModal from '../NotificationModal';
 import FastDocumentUploadSimple from '../FastDocumentUploadSimple';
 import './StudentDashboard.css';
+import './StudentDashboard.modern.css';
 
 interface Assignment {
   id: number;
@@ -90,11 +91,14 @@ const StudentDashboard: React.FC = () => {
   const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'error' | 'info'>('info');
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('studentDashboardTheme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
   
-  // Enhanced smooth theme toggle function
+  // Enhanced smooth theme toggle function with modern transitions
   const toggleTheme = () => {
-    // Add a transitioning class for extra smooth effects
+    // Add transition classes for smooth animations
     const container = document.querySelector('.student-dashboard-container');
     if (container) {
       container.classList.add('theme-transitioning');
@@ -102,23 +106,33 @@ const StudentDashboard: React.FC = () => {
       // Remove the transitioning class after animation completes
       setTimeout(() => {
         container.classList.remove('theme-transitioning');
-      }, 600); // Match CSS transition duration
+      }, 300); // Faster transition for better UX
     }
     
-    setDarkMode(!darkMode);
-    // Save preference to localStorage
-    localStorage.setItem('studentDashboardTheme', !darkMode ? 'dark' : 'light');
+    setDarkMode(prevMode => {
+      const newMode = !prevMode;
+      localStorage.setItem('studentDashboardTheme', newMode ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
+      return newMode;
+    });
   };
 
-  // Load saved theme preference
+  // Initialize theme on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('studentDashboardTheme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-    } else {
-      setDarkMode(false); // Explicitly set to false for light mode
-    }
-  }, []);
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('studentDashboardTheme')) {
+        setDarkMode(e.matches);
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [darkMode]);
 
   // Simple date/time update
   useEffect(() => {
@@ -416,7 +430,7 @@ const StudentDashboard: React.FC = () => {
   const completedAssignments = assignments.filter(a => a.submitted);
 
   return (
-    <div className={`student-dashboard-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+    <div className={`student-dashboard-container modern-student-dashboard ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       
       
       <div className="student-dashboard-content">
@@ -424,7 +438,7 @@ const StudentDashboard: React.FC = () => {
         <div className="welcome-section">
           <div className="welcome-header">
             <div className="student-info-group">
-              <div className="student-avatar">
+              <div className="student-avatar user-avatar">
                 {user?.profile_image_url ? (
                   <img 
                     src={user.profile_image_url} 
@@ -439,30 +453,35 @@ const StudentDashboard: React.FC = () => {
                     className="student-avatar-default"
                   />
                 )}
+                <div className="online-indicator" title="Online"></div>
               </div>
               <div className="welcome-text">
-                <h2>{getGreeting()}, {user?.first_name}!</h2>
-                <p>Ready to continue your TCU-CEAA journey?</p>
+                <h2 className="gradient-text">{getGreeting()}, {user?.first_name}! 👋</h2>
+                <p className="welcome-subtitle">Ready to continue your TCU-CEAA journey?</p>
                 <div className="student-info">
-                  <span className="student-id">👨‍🎓 ID: {user?.student_id || 'Not assigned'}</span>
-                  <span className="student-email">📧 {user?.email}</span>
+                  <span className="student-id info-chip">👨‍🎓 ID: {user?.student_id || 'Not assigned'}</span>
+                  <span className="student-email info-chip">📧 {user?.email}</span>
                 </div>
               </div>
             </div>
             <div className="header-controls">
               <div className="real-time-indicator">
-                <div className="live-dot"></div>
-                <span>Live Dashboard</span>
-                <div className="last-update">
-                  {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
+                <div className="live-dot pulse-animation"></div>
+                <div className="indicator-content">
+                  <span className="live-label">Live Dashboard</span>
+                  <div className="last-update">
+                    📅 {currentDateTime.toLocaleDateString()} • ⏰ {currentDateTime.toLocaleTimeString()}
+                  </div>
                 </div>
               </div>
               <button 
-                className="theme-toggle-btn"
+                className="theme-toggle-btn theme-toggle"
                 onClick={toggleTheme}
                 title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
-                {darkMode ? '☀️' : '🌙'}
+                <span className="theme-icon">{darkMode ? '☀️' : '🌙'}</span>
+                <span className="theme-label">{darkMode ? 'Light' : 'Dark'}</span>
               </button>
             </div>
           </div>
