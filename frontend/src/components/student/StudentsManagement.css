@@ -478,10 +478,298 @@
   transform: translateY(-1px);
 }
 
+/* Student Dashboard Styles */
+.scholarship-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.apply-scholarship-btn {
+  background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.apply-scholarship-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.apply-scholarship-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.student-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-welcome {
+  margin-bottom: 2rem;
+}
+
+.welcome-card {
+  background: linear-gradient(135deg, var(--secondary-bg), var(--card-bg));
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-blue), #2563eb);
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.welcome-info h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.welcome-info p {
+  color: var(--text-secondary);
+  margin: 0.25rem 0;
+  font-size: 1rem;
+}
+
+.scholarship-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+}
+
+.scholarship-options {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.scholarship-card {
+  background: var(--secondary-bg);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.scholarship-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.scholarship-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-orange);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+
+.card-icon.merit {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.card-icon svg {
+  width: 24px;
+  height: 24px;
+  color: white;
+}
+
+.card-header h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.scholarship-card p {
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem 0;
+}
+
+.features-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.features-list li::before {
+  content: '✓';
+  color: var(--accent-green);
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.scholarship-apply-btn {
+  background: linear-gradient(135deg, var(--accent-orange), #d97706);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.scholarship-apply-btn:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
+.scholarship-apply-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.info-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+.info-card h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+}
+
+.info-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-card li {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.info-card li::before {
+  content: '•';
+  color: var(--accent-blue);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .scholarship-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-cards {
+    flex-direction: row;
+  }
+}
+
 @media (max-width: 768px) {
   .students-management-container {
     padding: 1rem;
+  }
+  
+  .welcome-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .scholarship-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-cards {
+    flex-direction: column;
+  }
+  
+  .apply-scholarship-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
   }
   
   .management-header {
@@ -624,7 +912,7 @@
   border: 1px solid #6b7280;
   border-radius: 8px;
   font-size: 0.95rem;
-  min-height: auto;
+  min-height: 0;
   color: #f7fafc;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -1014,4 +1302,26 @@
   .modal-actions button {
     flex: 1;
   }
+}
+
+/* Image loading states */
+.image-hidden {
+  display: none !important;
+}
+
+.image-visible {
+  display: block !important;
+}
+
+/* Modal view mode styling */
+.modal-title-view {
+  color: #ffffff !important;
+}
+
+.modal-title-edit {
+  color: inherit;
+}
+
+.modal-close-view {
+  color: #ffffff !important;
 }

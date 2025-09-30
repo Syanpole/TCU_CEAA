@@ -79,6 +79,46 @@
       "file_size": 47627,
       "success": true,
       "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-30T02:30:47.352542",
+      "processing_time": 0.04714012145996094,
+      "document_type": "test_document",
+      "file_size": 2527,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-30T02:30:47.371604",
+      "processing_time": 0.012671947479248047,
+      "document_type": "test_document",
+      "file_size": 8227,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-30T02:30:47.410833",
+      "processing_time": 0.023200511932373047,
+      "document_type": "test_document",
+      "file_size": 17727,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-30T02:30:47.427195",
+      "processing_time": 0.011839151382446289,
+      "document_type": "test_document",
+      "file_size": 1147,
+      "success": true,
+      "performance_rating": "excellent"
+    },
+    {
+      "timestamp": "2025-09-30T02:30:47.489780",
+      "processing_time": 0.038672685623168945,
+      "document_type": "test_document",
+      "file_size": 47627,
+      "success": true,
+      "performance_rating": "excellent"
     }
   ],
   "daily_stats": {
@@ -109,8 +149,22 @@
         "slow": 0,
         "timeout": 0
       }
+    },
+    "2025-09-30": {
+      "total_processed": 5,
+      "average_time": 0.026704883575439452,
+      "fastest_time": 0.011839151382446289,
+      "slowest_time": 0.04714012145996094,
+      "success_rate": 1.0,
+      "performance_distribution": {
+        "excellent": 5,
+        "good": 0,
+        "acceptable": 0,
+        "slow": 0,
+        "timeout": 0
+      }
     }
   },
   "optimization_suggestions": [],
-  "last_updated": "2025-09-16T22:01:35.428152"
+  "last_updated": "2025-09-30T02:30:47.489780"
 }

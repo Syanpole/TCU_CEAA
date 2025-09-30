@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../services/authService';
+import { apiClient } from '../../services/authService';
+import ScholarshipApplicationForm from '../scholarship/ScholarshipApplicationForm';
 import './StudentsManagement.css';
 
 interface Student {
@@ -54,10 +55,9 @@ const ProfileImage: React.FC<ProfileImageProps> = ({ src, alt, initials, classNa
           <img 
             src={src} 
             alt={alt}
-            className={size === 'large' ? 'profile-img' : 'avatar-image'}
+            className={`${size === 'large' ? 'profile-img' : 'avatar-image'} ${loading ? 'image-hidden' : 'image-visible'}`}
             onLoad={handleLoad}
             onError={handleError}
-            style={{ display: loading ? 'none' : 'block' }}
           />
         </>
       ) : (
@@ -135,8 +135,8 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
     <div className="modal-overlay">
       <div className={`modal-content ${mode === 'view' ? 'modal-content-compact modal-content-dark' : ''}`}>
         <div className="modal-header">
-          <h3 style={{ color: mode === 'view' ? '#ffffff' : '' }}>{mode === 'view' ? 'View Profile' : 'Edit Profile'}</h3>
-          <button className="modal-close" onClick={onClose} style={{ color: mode === 'view' ? '#ffffff' : '' }}>
+          <h3 className={mode === 'view' ? 'modal-title-view' : 'modal-title-edit'}>{mode === 'view' ? 'View Profile' : 'Edit Profile'}</h3>
+          <button className={`modal-close ${mode === 'view' ? 'modal-close-view' : ''}`} onClick={onClose} title="Close modal">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 6l12 12m0-12L6 18" />
             </svg>
@@ -201,52 +201,62 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
             ) : (
               <>
                 <div className="form-group">
-                  <label>First Name</label>
+                  <label htmlFor="edit-first-name">First Name</label>
                   <input
+                    id="edit-first-name"
                     type="text"
                     value={editedStudent.first_name}
                     onChange={(e) => setEditedStudent({...editedStudent, first_name: e.target.value})}
                     className="form-input"
+                    placeholder="Enter first name"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Last Name</label>
+                  <label htmlFor="edit-last-name">Last Name</label>
                   <input
+                    id="edit-last-name"
                     type="text"
                     value={editedStudent.last_name}
                     onChange={(e) => setEditedStudent({...editedStudent, last_name: e.target.value})}
                     className="form-input"
+                    placeholder="Enter last name"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Email</label>
+                  <label htmlFor="edit-email">Email</label>
                   <input
+                    id="edit-email"
                     type="email"
                     value={editedStudent.email}
                     onChange={(e) => setEditedStudent({...editedStudent, email: e.target.value})}
                     className="form-input"
+                    placeholder="Enter email address"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Student ID</label>
+                  <label htmlFor="edit-student-id">Student ID</label>
                   <input
+                    id="edit-student-id"
                     type="text"
                     value={editedStudent.student_id}
                     onChange={(e) => setEditedStudent({...editedStudent, student_id: e.target.value})}
                     className="form-input"
+                    placeholder="Enter student ID"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Username</label>
+                  <label htmlFor="edit-username">Username</label>
                   <input
+                    id="edit-username"
                     type="text"
                     value={editedStudent.username}
                     onChange={(e) => setEditedStudent({...editedStudent, username: e.target.value})}
                     className="form-input"
+                    placeholder="Enter username"
                   />
                 </div>
 
@@ -346,23 +356,32 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [showModal, setShowModal] = useState(false);
+  const [showScholarshipForm, setShowScholarshipForm] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Student | null>(null);
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await apiClient.get<Student[]>('/students/');
-        setStudents(response.data);
+        
+        // Fetch current user info and students list
+        const [userResponse, studentsResponse] = await Promise.all([
+          apiClient.get<Student>('/auth/me/'),
+          apiClient.get<Student[]>('/students/')
+        ]);
+        
+        setCurrentUser(userResponse.data);
+        setStudents(studentsResponse.data);
       } catch (err) {
-        console.error('Error fetching students:', err);
-        setError('Failed to load students. Please try again later.');
+        console.error('Error fetching data:', err);
+        setError('Failed to load data. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStudents();
+    fetchData();
   }, []);
 
   const filteredStudents = students.filter(student =>
@@ -397,12 +416,41 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
     setSelectedStudent(null);
   };
 
+  const handleStartScholarshipApplication = () => {
+    setShowScholarshipForm(true);
+  };
+
+  const handleScholarshipComplete = () => {
+    setShowScholarshipForm(false);
+    // Could show success message or refresh applications
+  };
+
+  const handleScholarshipCancel = () => {
+    setShowScholarshipForm(false);
+  };
+
+  // Show scholarship form if user is a student and form is active
+  if (showScholarshipForm && currentUser && currentUser.role === 'student') {
+    return (
+      <ScholarshipApplicationForm
+        studentInfo={{
+          studentId: currentUser.student_id,
+          studentName: `${currentUser.first_name} ${currentUser.last_name}`,
+          yearLevel: 'College', // You might want to add this to the Student interface
+          program: 'Computer Science' // You might want to add this to the Student interface
+        }}
+        onComplete={handleScholarshipComplete}
+        onCancel={handleScholarshipCancel}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
         <div className="loading-content">
           <div className="loading-spinner"></div>
-          <h2 className="loading-title">Loading Students</h2>
+          <h2 className="loading-title">Loading Dashboard</h2>
           <p className="loading-text">Please wait...</p>
         </div>
       </div>
@@ -433,19 +481,40 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
         {/* Header */}
         <div className="management-header">
           <div className="header-content">
-            <h1>Students Management</h1>
-            <p>View and manage all registered students in the TCU-CEAA system</p>
+            <h1>{currentUser?.role === 'student' ? 'Student Dashboard' : 'Students Management'}</h1>
+            <p>
+              {currentUser?.role === 'student' 
+                ? 'Welcome to your student dashboard. Apply for scholarships and manage your applications.'
+                : 'View and manage all registered students in the TCU-CEAA system'
+              }
+            </p>
           </div>
           
           <div className="header-stats">
-            <div className="stat-item">
-              <div className="stat-number">{students.length}</div>
-              <div className="stat-label">Total Students</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-number">{filteredStudents.length}</div>
-              <div className="stat-label">Filtered Results</div>
-            </div>
+            {currentUser?.role === 'student' ? (
+              <div className="scholarship-actions">
+                <button 
+                  className="apply-scholarship-btn"
+                  onClick={handleStartScholarshipApplication}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  Apply for Scholarship
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="stat-item">
+                  <div className="stat-number">{students.length}</div>
+                  <div className="stat-label">Total Students</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-number">{filteredStudents.length}</div>
+                  <div className="stat-label">Filtered Results</div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -467,87 +536,169 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
           </div>
         </div>
 
-        {/* Students List */}
-        <div className="students-grid">
-          {filteredStudents.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">👥</div>
-              <h3>No Students Found</h3>
-              <p>
-                {searchTerm 
-                  ? `No students match your search "${searchTerm}"`
-                  : 'No students are registered in the system yet.'
-                }
-              </p>
-              {searchTerm && (
-                <button 
-                  className="clear-search-btn"
-                  onClick={() => setSearchTerm('')}
-                >
-                  Clear Search
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredStudents.map((student) => (
-              <div key={student.id} className="student-card">
-                <div className="student-header">
+        {/* Main Content */}
+        {currentUser?.role === 'student' ? (
+          /* Student Dashboard Content */
+          <div className="student-dashboard">
+            <div className="dashboard-welcome">
+              <div className="welcome-card">
+                <div className="welcome-header">
                   <ProfileImage
-                    src={student.profile_image_url}
-                    alt={`${student.first_name} ${student.last_name}`}
-                    initials={`${student.first_name[0]}${student.last_name[0]}`}
-                    size="small"
+                    src={currentUser.profile_image_url}
+                    alt={`${currentUser.first_name} ${currentUser.last_name}`}
+                    initials={`${currentUser.first_name[0]}${currentUser.last_name[0]}`}
+                    size="large"
                   />
-                  <div className="student-info">
-                    <h3 className="student-name">
-                      {student.first_name} {student.last_name}
-                    </h3>
-                    <p className="student-id">ID: {student.student_id}</p>
+                  <div className="welcome-info">
+                    <h2>Welcome, {currentUser.first_name}!</h2>
+                    <p>Student ID: {currentUser.student_id}</p>
+                    <p>Email: {currentUser.email}</p>
                   </div>
-                </div>
-                
-                <div className="student-details">
-                  <div className="detail-row">
-                    <span className="detail-label">Email:</span>
-                    <span className="detail-value">{student.email}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Joined:</span>
-                    <span className="detail-value">
-                      {new Date(student.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="student-actions">
-                  <button 
-                    className="action-btn view-btn"
-                    onClick={() => handleViewProfile(student)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
-                    </svg>
-                    View Profile
-                  </button>
-                  <button 
-                    className="action-btn edit-btn"
-                    onClick={() => handleEditProfile(student)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                    </svg>
-                    Edit
-                  </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+
+            <div className="scholarship-section">
+              <h3>Scholarship Applications</h3>
+              <div className="scholarship-options">
+                <div className="scholarship-card">
+                  <div className="card-header">
+                    <div className="card-icon merit">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    </div>
+                    <h4>Apply for Scholarship</h4>
+                  </div>
+                  <p>Start your scholarship application with AI-powered document verification</p>
+                  <ul className="features-list">
+                    <li>Merit-based and regular scholarships available</li>
+                    <li>AI verification with 95% confidence</li>
+                    <li>Real-time document processing</li>
+                    <li>Face verification with liveness detection</li>
+                    <li>Automatic grade verification</li>
+                  </ul>
+                  <button 
+                    className="scholarship-apply-btn"
+                    onClick={handleStartScholarshipApplication}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 6v6l4 2" />
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    Start Application
+                  </button>
+                </div>
+
+                <div className="info-cards">
+                  <div className="info-card">
+                    <h5>Quick Facts</h5>
+                    <ul>
+                      <li>Processing time: 1-3 business days</li>
+                      <li>AI confidence threshold: 95%</li>
+                      <li>Merit GWA requirement: 1.75 (85%)</li>
+                      <li>All documents verified automatically</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="info-card">
+                    <h5>Required Documents</h5>
+                    <ul>
+                      <li>School ID</li>
+                      <li>Birth Certificate (NSO/PSA)</li>
+                      <li>Certificate of Enrollment</li>
+                      <li>Voter Certificates (Student & Parent)</li>
+                      <li>Face verification + Photo with ID</li>
+                      <li>Grades (Merit applicants only)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Admin Students List */
+          <div className="students-grid">
+            {filteredStudents.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">👥</div>
+                <h3>No Students Found</h3>
+                <p>
+                  {searchTerm 
+                    ? `No students match your search "${searchTerm}"`
+                    : 'No students are registered in the system yet.'
+                  }
+                </p>
+                {searchTerm && (
+                  <button 
+                    className="clear-search-btn"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    Clear Search
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredStudents.map((student) => (
+                <div key={student.id} className="student-card">
+                  <div className="student-header">
+                    <ProfileImage
+                      src={student.profile_image_url}
+                      alt={`${student.first_name} ${student.last_name}`}
+                      initials={`${student.first_name[0]}${student.last_name[0]}`}
+                      size="small"
+                    />
+                    <div className="student-info">
+                      <h3 className="student-name">
+                        {student.first_name} {student.last_name}
+                      </h3>
+                      <p className="student-id">ID: {student.student_id}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="student-details">
+                    <div className="detail-row">
+                      <span className="detail-label">Email:</span>
+                      <span className="detail-value">{student.email}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Joined:</span>
+                      <span className="detail-value">
+                        {new Date(student.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="student-actions">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => handleViewProfile(student)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
+                      </svg>
+                      View Profile
+                    </button>
+                    <button 
+                      className="action-btn edit-btn"
+                      onClick={() => handleEditProfile(student)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Student Modal */}
         <StudentModal

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../services/authService';
-import { formatCurrency } from '../utils/numberUtils';
-import DocumentSubmissionForm from './DocumentSubmissionForm';
-import GradeSubmissionForm from './GradeSubmissionForm';
-import AllowanceApplicationForm from './AllowanceApplicationForm';
-import DefaultAvatar from './DefaultAvatar';
-import NotificationModal from './NotificationModal';
-import FastDocumentUploadSimple from './FastDocumentUploadSimple';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiClient } from '../../services/authService';
+import { formatCurrency } from '../../utils/numberUtils';
+import DocumentSubmissionForm from '../DocumentSubmissionForm';
+import GradeSubmissionForm from '../GradeSubmissionForm';
+import AllowanceApplicationForm from '../AllowanceApplicationForm';
+import DefaultAvatar from '../DefaultAvatar';
+import NotificationModal from '../NotificationModal';
+import FastDocumentUploadSimple from '../FastDocumentUploadSimple';
 import './StudentDashboard.css';
 
 interface Assignment {
@@ -714,8 +714,7 @@ const StudentDashboard: React.FC = () => {
                       <div className="submission-header">
                         <h4>📄 {doc.document_type_display}</h4>
                         <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(doc.status) }}
+                          className={`status-badge status-${doc.status}`}
                         >
                           {doc.status_display}
                         </span>
@@ -820,8 +819,7 @@ const StudentDashboard: React.FC = () => {
                         <div className="submission-header">
                           <h4>🎓 {grade.academic_year} - {grade.semester_display}</h4>
                           <span 
-                            className="status-badge"
-                            style={{ backgroundColor: getStatusColor(grade.status) }}
+                            className={`status-badge status-${grade.status}`}
                           >
                             {grade.status_display}
                           </span>
@@ -928,8 +926,7 @@ const StudentDashboard: React.FC = () => {
                       <div className="submission-header">
                         <h4>💰 {app.application_type_display}</h4>
                         <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(app.status) }}
+                          className={`status-badge status-${app.status}`}
                         >
                           {app.status_display}
                         </span>
