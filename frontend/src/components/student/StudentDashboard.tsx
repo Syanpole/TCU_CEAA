@@ -457,13 +457,6 @@ const StudentDashboard: React.FC = () => {
                   {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
                 </div>
               </div>
-              <button 
-                className="theme-toggle-btn"
-                onClick={toggleTheme}
-                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {darkMode ? '☀️' : '🌙'}
-              </button>
             </div>
           </div>
         </div>
@@ -1153,6 +1146,21 @@ const StudentDashboard: React.FC = () => {
         autoClose={notificationType === 'success'}
         duration={5000}
       />
+
+      {/* Fixed Theme Toggle */}
+      <div className="theme-toggle-fixed">
+        <label className="theme-switch">
+          <input 
+            type="checkbox" 
+            checked={darkMode} 
+            onChange={toggleTheme} 
+          />
+          <span className="slider">
+            <span className="slider-icon">☀️</span>
+            <span className="slider-icon">🌙</span>
+          </span>
+        </label>
+      </div>
     </div>
   );
 };

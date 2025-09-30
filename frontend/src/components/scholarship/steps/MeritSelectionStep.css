@@ -70,6 +70,7 @@
 .form-group textarea:focus {
   outline: none;
   border-color: var(--primary-color);
+  width: 580px;
 }
 
 .submit-button {

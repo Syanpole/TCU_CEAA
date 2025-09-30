@@ -85,7 +85,25 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
     confirm: false,
   });
 
-  // Load saved theme preference from StudentDashboard
+  // Enhanced smooth theme toggle function
+  const toggleTheme = () => {
+    // Add a transitioning class for extra smooth effects
+    const container = document.querySelector('.profile-settings-container');
+    if (container) {
+      container.classList.add('theme-transitioning');
+      
+      // Remove the transitioning class after animation completes
+      setTimeout(() => {
+        container.classList.remove('theme-transitioning');
+      }, 600); // Match CSS transition duration
+    }
+    
+    setDarkMode(!darkMode);
+    // Save preference to localStorage
+    localStorage.setItem('studentDashboardTheme', !darkMode ? 'dark' : 'light');
+  };
+
+  // Load saved theme preference
   useEffect(() => {
     const savedTheme = localStorage.getItem('studentDashboardTheme');
     if (savedTheme === 'dark') {
@@ -93,23 +111,6 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
     } else {
       setDarkMode(false); // Explicitly set to false for light mode
     }
-
-    // Listen for theme changes from other components
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'studentDashboardTheme') {
-        if (e.newValue === 'dark') {
-          setDarkMode(true);
-        } else {
-          setDarkMode(false);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, []);
 
   // Initialize Vanta.js background effect
