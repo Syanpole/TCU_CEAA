@@ -7,7 +7,6 @@ import GradeSubmissionForm from '../GradeSubmissionForm';
 import AllowanceApplicationForm from '../AllowanceApplicationForm';
 import DefaultAvatar from '../DefaultAvatar';
 import NotificationModal from '../NotificationModal';
-import FastDocumentUploadSimple from '../FastDocumentUploadSimple';
 import './StudentDashboard.css';
 
 interface Assignment {
@@ -25,12 +24,6 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
-}
-
-interface UploadResult {
-  success: boolean;
-  message?: string;
-  data?: any;
 }
 
 interface GradeSubmission {
@@ -129,12 +122,6 @@ const StudentDashboard: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Real-time update handler (removed complex logic)
-  const handleRealTimeUpdate = () => {
-    // Simplified - just update timestamp
-    setCurrentDateTime(new Date());
-  };
-
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
@@ -225,18 +212,7 @@ const StudentDashboard: React.FC = () => {
     }, 300000); // 5 minutes instead of 30 seconds
 
     return () => clearInterval(interval);
-  }, []);
-
-  // Function to refresh documents after upload
-  const refreshDocuments = async () => {
-    try {
-      const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] }));
-      const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
-      setDocuments(fetchedDocuments);
-    } catch (error) {
-      console.error('Error refreshing documents:', error);
-    }
-  };
+  }, [showDocumentForm, showGradeForm, showAllowanceForm, showNotification]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -246,16 +222,6 @@ const StudentDashboard: React.FC = () => {
   };
 
 
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return '#22c55e';
-      case 'rejected': return '#ef4444';
-      case 'pending': return '#f59e0b';
-      case 'revision_needed': return '#8b5cf6';
-      default: return '#6b7280';
-    }
-  };
 
   const handleDocumentSubmissionSuccess = () => {
     setShowDocumentForm(false);
@@ -411,9 +377,6 @@ const StudentDashboard: React.FC = () => {
   // Check if allowance application is available
   const hasApprovedGrades = grades.some(g => g.status === 'approved' && (g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive));
   const canApplyForAllowance = hasApprovedGrades;
-
-  const pendingAssignments = assignments.filter(a => !a.submitted);
-  const completedAssignments = assignments.filter(a => a.submitted);
 
   return (
     <div className={`student-dashboard-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
