@@ -8,6 +8,7 @@ import AllowanceApplicationForm from '../AllowanceApplicationForm';
 import DefaultAvatar from '../DefaultAvatar';
 import NotificationModal from '../NotificationModal';
 import './StudentDashboard.css';
+import './StudentDashboard.deployment.css';
 
 interface Assignment {
   id: number;
