@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import { formatCurrency } from '../utils/numberUtils';
+import Sidebar from './Sidebar';
+import DocumentsPage from './DocumentsPage';
+import GradesPage from './GradesPage';
+import ApplicationDetailsPage from './ApplicationDetailsPage';
+import ProfileSettings from './ProfileSettings';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
 import GradeSubmissionForm from './GradeSubmissionForm';
 import AllowanceApplicationForm from './AllowanceApplicationForm';
 import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
 import FastDocumentUploadSimple from './FastDocumentUploadSimple';
+import DocumentRequirements from './DocumentRequirements';
+import { StudentIcon, EmailIcon, MoneyIcon, DocumentIcon, ChartIcon, WarningIcon, CheckIcon, GradeIcon, ApplicationIcon } from './Icons';
 import './StudentDashboard.css';
 
 interface Assignment {
@@ -81,7 +88,6 @@ const StudentDashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
   const [currentDateTime, setCurrentDateTime] = useState<Date>(new Date());
   const [showDocumentForm, setShowDocumentForm] = useState(false);
   const [showGradeForm, setShowGradeForm] = useState(false);
@@ -91,12 +97,29 @@ const StudentDashboard: React.FC = () => {
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  const [activeSection, setActiveSection] = useState('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Theme toggle function
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    // Save preference to localStorage
-    localStorage.setItem('studentDashboardTheme', !darkMode ? 'dark' : 'light');
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('studentDashboardTheme', newDarkMode ? 'dark' : 'light');
+    
+    window.dispatchEvent(new CustomEvent('themeChange', {
+      detail: { darkMode: newDarkMode }
+    }));
+  };
+
+  // Mobile menu toggle function
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Handle section change and close mobile menu
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
+    setIsMobileMenuOpen(false);
   };
 
   // Load saved theme preference
@@ -105,7 +128,7 @@ const StudentDashboard: React.FC = () => {
     if (savedTheme === 'dark') {
       setDarkMode(true);
     } else {
-      setDarkMode(false); // Explicitly set to false for light mode
+      setDarkMode(false);
     }
   }, []);
 
@@ -113,91 +136,58 @@ const StudentDashboard: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDateTime(new Date());
-    }, 1000); // Update every second
+    }, 1000);
 
     return () => clearInterval(timer);
   }, []);
-
-  // Real-time update handler (removed complex logic)
-  const handleRealTimeUpdate = () => {
-    // Simplified - just update timestamp
-    setCurrentDateTime(new Date());
-  };
 
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
         setLoading(true);
+        setError('');
         
-        // Initialize default empty arrays
-        let fetchedDocuments: DocumentSubmission[] = [];
-        let fetchedGrades: GradeSubmission[] = [];
-        let fetchedApplications: AllowanceApplication[] = [];
+        console.log('Starting to fetch student data...');
+        console.log('Current user:', user);
+        console.log('Auth token:', localStorage.getItem('token'));
+
+        const [
+          assignmentsResponse,
+          documentsResponse,
+          gradesResponse,
+          applicationsResponse,
+          dashboardResponse
+        ] = await Promise.all([
+          apiClient.get('/tasks/'),
+          apiClient.get('/documents/'),
+          apiClient.get('/grades/'),
+          apiClient.get('/applications/'),
+          apiClient.get('/dashboard/student/')
+        ]);
+
+        setAssignments((assignmentsResponse.data as Assignment[]) || []);
+        setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
+        setGrades((gradesResponse.data as GradeSubmission[]) || []);
+        setApplications((applicationsResponse.data as AllowanceApplication[]) || []);
         
-        // Try to fetch real data first
-        try {
-          const [documentsRes, gradesRes, applicationsRes, dashboardRes] = await Promise.all([
-            apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] })),
-            apiClient.get<GradeSubmission[]>('/grades/').catch(() => ({ data: [] as GradeSubmission[] })),
-            apiClient.get<AllowanceApplication[]>('/applications/').catch(() => ({ data: [] as AllowanceApplication[] })),
-            apiClient.get<StudentDashboardData>('/dashboard/student/').catch(() => ({ data: {} as StudentDashboardData }))
-          ]);
-
-          fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
-          fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
-          fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
-
-          setDocuments(fetchedDocuments);
-          setGrades(fetchedGrades);
-          setApplications(fetchedApplications);
-
-          if (dashboardRes.data && dashboardRes.data.stats) {
-            setStats(dashboardRes.data.stats);
-          } else {
-            // Calculate stats from fetched data
-            setStats({
-              total_documents: fetchedDocuments.length,
-              approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length,
-              total_applications: fetchedApplications.length,
-              approved_applications: fetchedApplications.filter(a => a.status === 'approved' || a.status === 'disbursed').length
-            });
-          }
-        } catch (apiError) {
-          // Use demo/sample data for development
+        const dashboardData = dashboardResponse.data as StudentDashboardData;
+        if (dashboardData?.stats) {
+          setStats(dashboardData.stats);
         }
 
-        // Calculate approved documents count for assignments
-        const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
-
-        // Always show these sample assignments for students to know what to do
-        setAssignments([
-          {
-            id: 1,
-            title: 'Submit Required Documents',
-            description: 'Upload all required documents for TCU-CEAA verification (Birth Certificate, Report Card, etc.)',
-            due_date: '',
-            submitted: fetchedDocuments.length > 0
-          },
-          {
-            id: 2,
-            title: 'Submit Grade Records',
-            description: `Upload your latest semester grades for allowance evaluation and eligibility check. Requires 2+ approved documents (Currently: ${currentApprovedDocuments}/2 approved)`,
-            due_date: '',
-            submitted: fetchedGrades.length > 0
-          },
-          {
-            id: 3,
-            title: 'Complete Allowance Application',
-            description: 'Apply for your educational assistance allowance once requirements are met',
-            due_date: '',
-            submitted: fetchedApplications.length > 0
-          }
-        ]);
-        
-        setError('');
-      } catch (error: any) {
-        console.error('Error fetching student data:', error);
-        setError('Unable to load some information. Please check your connection and try again.');
+      } catch (err: any) {
+        console.error('Error fetching student data:', err);
+        if (err.response) {
+          console.error('Response status:', err.response.status);
+          console.error('Response data:', err.response.data);
+          setError(`API Error ${err.response.status}: ${err.response.data?.detail || 'Failed to load dashboard data'}`);
+        } else if (err.request) {
+          console.error('Request failed:', err.request);
+          setError('Network error: Unable to connect to server. Please check if the backend is running.');
+        } else {
+          console.error('Error:', err.message);
+          setError(`Error: ${err.message}`);
+        }
       } finally {
         setLoading(false);
       }
@@ -205,190 +195,86 @@ const StudentDashboard: React.FC = () => {
 
     fetchStudentData();
     
-    // Set up interval to refresh data every 5 minutes (less frequent and less disruptive)
-    const interval = setInterval(() => {
-      // Only refresh if user is not currently interacting with modals
-      if (!showDocumentForm && !showGradeForm && !showAllowanceForm && !showNotification) {
-        fetchStudentData();
-      }
-    }, 300000); // 5 minutes instead of 30 seconds
-
-    return () => clearInterval(interval);
+    const intervalId = setInterval(fetchStudentData, 300000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Function to refresh documents after upload
   const refreshDocuments = async () => {
     try {
-      const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] }));
-      const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
-      setDocuments(fetchedDocuments);
-    } catch (error) {
-      console.error('Error refreshing documents:', error);
+      const response = await apiClient.get('/documents/');
+      setDocuments((response.data as DocumentSubmission[]) || []);
+    } catch (err) {
+      console.error('Error refreshing documents:', err);
     }
   };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   };
-
-
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return '#22c55e';
-      case 'rejected': return '#ef4444';
+      case 'approved': return '#10b981';
       case 'pending': return '#f59e0b';
-      case 'revision_needed': return '#8b5cf6';
+      case 'rejected': return '#ef4444';
       default: return '#6b7280';
     }
   };
 
   const handleDocumentSubmissionSuccess = () => {
     setShowDocumentForm(false);
-    // Show dashboard notification
-    setNotificationType('success');
-    setNotificationTitle('Document Uploaded Successfully!');
-    setNotificationMessage('Your document has been submitted and analyzed by our AI system. It has been instantly approved and processed automatically!');
-    setShowNotification(true);
+    refreshDocuments();
     
-    // Refresh documents data to update the count
-    setTimeout(async () => {
-      try {
-        const documentsRes = await apiClient.get<DocumentSubmission[]>('/documents/');
-        const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
-        setDocuments(fetchedDocuments);
-        
-        // Update stats
-        setStats(prevStats => ({
-          ...prevStats,
-          total_documents: fetchedDocuments.length,
-          approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length
-        }));
-
-        // Update assignments with new document count
-        const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
-        setAssignments(prevAssignments => 
-          prevAssignments.map((assignment, index) => {
-            if (index === 0) {
-              return { ...assignment, submitted: fetchedDocuments.length > 0 };
-            } else if (index === 1) {
-              return { 
-                ...assignment, 
-                description: `Upload your latest semester grades for allowance evaluation and eligibility check. Requires 2+ approved documents (Currently: ${currentApprovedDocuments}/2 approved)`
-              };
-            }
-            return assignment;
-          })
-        );
-      } catch (error) {
-        console.log('Could not refresh documents:', error);
-      }
-    }, 1000);
+    setNotificationType('success');
+    setNotificationTitle('Document Submitted Successfully');
+    setNotificationMessage('Your document has been submitted and is now under review.');
+    setShowNotification(true);
   };
 
   const handleGradeSubmissionSuccess = () => {
     setShowGradeForm(false);
-    // Show dashboard notification  
-    setNotificationType('success');
-    setNotificationTitle('Grades Submitted Successfully!');
-    setNotificationMessage('Your grades have been submitted and analyzed by AI. They have been instantly approved and you can now apply for allowances!');
-    setShowNotification(true);
     
-    // Refresh data to update counts
-    setTimeout(async () => {
-      try {
-        const [gradesRes, applicationsRes] = await Promise.all([
-          apiClient.get<GradeSubmission[]>('/grades/').catch(() => ({ data: [] as GradeSubmission[] })),
-          apiClient.get<AllowanceApplication[]>('/applications/').catch(() => ({ data: [] as AllowanceApplication[] }))
-        ]);
-
-        const fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
-        const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
-        
-        setGrades(fetchedGrades);
-        setApplications(fetchedApplications);
-        
-        // Update assignments to show grade submission is complete
-        setAssignments(prevAssignments => 
-          prevAssignments.map((assignment, index) => {
-            if (index === 1) {
-              return { ...assignment, submitted: fetchedGrades.length > 0 };
-            }
-            return assignment;
-          })
-        );
-      } catch (error) {
-        console.log('Could not refresh data:', error);
-      }
-    }, 1000);
+    setNotificationType('success');
+    setNotificationTitle('Grades Submitted Successfully');
+    setNotificationMessage('Your academic records have been submitted and are being processed.');
+    setShowNotification(true);
   };
 
   const handleAllowanceApplicationSuccess = () => {
     setShowAllowanceForm(false);
-    // Show dashboard notification  
-    setNotificationType('success');
-    setNotificationTitle('Allowance Application Submitted!');
-    setNotificationMessage('Your allowance application has been submitted successfully. It will be reviewed by admin within 3-5 business days. You will receive email updates on the status.');
-    setShowNotification(true);
     
-    // Refresh applications data
-    setTimeout(async () => {
-      try {
-        const applicationsRes = await apiClient.get<AllowanceApplication[]>('/applications/');
-        const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
-        setApplications(fetchedApplications);
-        
-        // Update stats
-        setStats(prevStats => ({
-          ...prevStats,
-          total_applications: fetchedApplications.length,
-          approved_applications: fetchedApplications.filter(a => a.status === 'approved' || a.status === 'disbursed').length
-        }));
-
-        // Update assignments to show application is complete
-        setAssignments(prevAssignments => 
-          prevAssignments.map((assignment, index) => {
-            if (index === 2) {
-              return { ...assignment, submitted: fetchedApplications.length > 0 };
-            }
-            return assignment;
-          })
-        );
-      } catch (error) {
-        console.log('Could not refresh applications:', error);
-      }
-    }, 1000);
+    setNotificationType('success');
+    setNotificationTitle('Application Submitted Successfully');
+    setNotificationMessage('Your allowance application has been submitted and is under review.');
+    setShowNotification(true);
   };
 
   if (loading) {
     return (
-      <div className="student-dashboard-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">Loading your dashboard...</div>
-        </div>
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Loading your dashboard...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="student-dashboard-container">
-        <div className="error-container">
-          <div className="error-message">
-            <h3>Error Loading Dashboard</h3>
-            <p>{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="retry-button"
-            >
-              Retry
-            </button>
-          </div>
+      <div className="error-container">
+        <div className="error-icon">
+          <WarningIcon size={48} />
         </div>
+        <h3>Unable to Load Dashboard</h3>
+        <p>{error}</p>
+        <button 
+          className="retry-button"
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -401,537 +287,317 @@ const StudentDashboard: React.FC = () => {
   const hasApprovedGrades = grades.some(g => g.status === 'approved' && (g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive));
   const canApplyForAllowance = hasApprovedGrades;
 
-  const pendingAssignments = assignments.filter(a => !a.submitted);
-  const completedAssignments = assignments.filter(a => a.submitted);
+  // Calculate step completion status
+  const isDocumentsComplete = approvedDocuments >= 2;
+  const isGradesComplete = grades.some(g => g.status === 'approved');
+  const isApplicationComplete = applications.some(a => a.status === 'pending' || a.status === 'approved' || a.status === 'disbursed');
+  const isReviewComplete = applications.some(a => a.status === 'approved' || a.status === 'disbursed');
+
+  // Calculate accurate application progress
+  const calculateApplicationProgress = (): number => {
+    let completedSteps = 0;
+    const totalSteps = 4;
+
+    if (isDocumentsComplete) completedSteps += 1;
+    if (isGradesComplete) completedSteps += 1;
+    if (isApplicationComplete) completedSteps += 1;
+    if (isReviewComplete) completedSteps += 1;
+
+    return Math.round((completedSteps / totalSteps) * 100);
+  };
+
+  const applicationProgress = calculateApplicationProgress();
+
+  // Calculate individual card progress
+  const documentsProgress = approvedDocuments >= 2 ? 100 : Math.round((approvedDocuments / 2) * 100);
+  const gradesProgress = grades.length === 0 ? 0 : grades.some(g => g.status === 'approved') ? 100 : Math.round((grades.filter(g => g.status === 'pending' || g.status === 'approved').length / Math.max(grades.length, 1)) * 100);
+  const applicationDetailsProgress = applications.length === 0 ? 0 : applications.some(a => a.status === 'approved' || a.status === 'disbursed') ? 100 : Math.round((applications.filter(a => a.status !== 'rejected').length / Math.max(applications.length, 1)) * 100);
+
+  // Determine current step (the first incomplete step, or the last step if all complete)
+  const getCurrentStep = (): number => {
+    if (!isDocumentsComplete) return 1;
+    if (!isGradesComplete) return 2;
+    if (!isApplicationComplete) return 3;
+    if (!isReviewComplete) return 4;
+    return 4; // All complete
+  };
+
+  const currentStep = getCurrentStep();
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'requirements':
+        return (
+          <DocumentRequirements darkMode={darkMode} />
+        );
+      case 'documents':
+        return (
+          <DocumentsPage
+            documents={documents}
+            darkMode={darkMode}
+            onDocumentSubmissionSuccess={handleDocumentSubmissionSuccess}
+          />
+        );
+      case 'grades':
+        return (
+          <GradesPage
+            grades={grades}
+            darkMode={darkMode}
+            canSubmitGrades={canSubmitGrades}
+            onGradeSubmissionSuccess={handleGradeSubmissionSuccess}
+          />
+        );
+      case 'application-details':
+        return (
+          <ApplicationDetailsPage
+            applications={applications}
+            darkMode={darkMode}
+            canApplyForAllowance={canApplyForAllowance}
+            onAllowanceApplicationSuccess={handleAllowanceApplicationSuccess}
+          />
+        );
+      case 'profile':
+        return <ProfileSettings />;
+      case 'overview':
+      default:
+        return (
+          <div className="overview-page">
+            <div className="page-header">
+              <h1>Student Dashboard</h1>
+              <p>Track your application progress and complete required steps</p>
+            </div>
+
+            {/* Welcome Section */}
+            <div className="welcome-card">
+              <div className="welcome-content">
+                <div className="student-info-group">
+                  <div className="student-avatar">
+                    {user?.profile_image_url ? (
+                      <img 
+                        src={user.profile_image_url} 
+                        alt="Profile" 
+                        className="student-avatar-image"
+                      />
+                    ) : (
+                      <DefaultAvatar 
+                        firstName={user?.first_name}
+                        lastName={user?.last_name}
+                        size={80}
+                        className="student-avatar-default"
+                      />
+                    )}
+                  </div>
+                  <div className="welcome-text">
+                    <h2>{getGreeting()}, {user?.first_name}!</h2>
+                    <p>Track your application progress and complete required steps</p>
+                    <div className="student-info">
+                      <span className="student-id">
+                        <StudentIcon size={14} /> ID: {user?.student_id || 'Not assigned'}
+                      </span>
+                      <span className="student-email">
+                        <EmailIcon size={14} /> {user?.email}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="real-time-indicator">
+                  <div className="live-dot"></div>
+                  <span>Live Dashboard</span>
+                  <div className="last-update">
+                    {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Application Progress */}
+            <div className="progress-section">
+              <div className="progress-header">
+                <h3>Application Progress</h3>
+                <div className="overall-completion">
+                  <span className="completion-text">Overall Completion</span>
+                  <span className="completion-percentage">{applicationProgress}%</span>
+                </div>
+              </div>
+              
+              <div className="progress-bar-container">
+                <div className="progress-bar-fill" style={{ width: `${applicationProgress}%` }}></div>
+              </div>
+
+              <div className="progress-steps">
+                <div className={`progress-step ${isDocumentsComplete ? 'completed' : currentStep === 1 ? 'current' : ''}`}>
+                  <div className="step-circle">
+                    {isDocumentsComplete ? <CheckIcon size={16} /> : <span className="step-number">1</span>}
+                  </div>
+                  <div className="step-info">
+                    <h4>Documents</h4>
+                  </div>
+                </div>
+                
+                <div className={`step-connector ${isDocumentsComplete ? 'completed' : ''}`}></div>
+                
+                <div className={`progress-step ${isGradesComplete ? 'completed' : currentStep === 2 ? 'current' : ''}`}>
+                  <div className="step-circle">
+                    {isGradesComplete ? <CheckIcon size={16} /> : <span className="step-number">2</span>}
+                  </div>
+                  <div className="step-info">
+                    <h4>Grades</h4>
+                  </div>
+                </div>
+                
+                <div className={`step-connector ${isGradesComplete ? 'completed' : ''}`}></div>
+                
+                <div className={`progress-step ${isApplicationComplete ? 'completed' : currentStep === 3 ? 'current' : ''}`}>
+                  <div className="step-circle">
+                    {isApplicationComplete ? <CheckIcon size={16} /> : <span className="step-number">3</span>}
+                  </div>
+                  <div className="step-info">
+                    <h4>Application</h4>
+                  </div>
+                </div>
+                
+                <div className={`step-connector ${isApplicationComplete ? 'completed' : ''}`}></div>
+                
+                <div className={`progress-step ${isReviewComplete ? 'completed' : currentStep === 4 ? 'current' : ''}`}>
+                  <div className="step-circle">
+                    {isReviewComplete ? <CheckIcon size={16} /> : <span className="step-number">4</span>}
+                  </div>
+                  <div className="step-info">
+                    <h4>Review</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="stats-grid">
+              <div className="stat-card documents">
+                <div className="stat-icon">
+                  <DocumentIcon size={24} />
+                </div>
+                <div className="stat-content">
+                  <div className="stat-number">{stats.total_documents}</div>
+                  <div className="stat-label">Documents</div>
+                  <div className="stat-sub">✅ {stats.approved_documents} approved</div>
+                </div>
+              </div>
+              <div className="stat-card grades">
+                <div className="stat-icon">
+                  <ChartIcon size={24} />
+                </div>
+                <div className="stat-content">
+                  <div className="stat-number">{grades.length}</div>
+                  <div className="stat-label">Grade Reports</div>
+                  <div className="stat-sub">
+                    {grades.filter(g => g.qualifies_for_basic_allowance).length} qualify
+                  </div>
+                </div>
+              </div>
+              <div className="stat-card applications">
+                <div className="stat-icon">
+                  <MoneyIcon size={24} />
+                </div>
+                <div className="stat-content">
+                  <div className="stat-number">{stats.total_applications}</div>
+                  <div className="stat-label">Applications</div>
+                  <div className="stat-sub">✅ {stats.approved_applications} processed</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Action Cards */}
+            <div className="action-cards-grid">
+              <div className="action-card" onClick={() => setActiveSection('documents')}>
+                <div className="card-icon">
+                  <DocumentIcon size={48} />
+                </div>
+                <h3>Documents</h3>
+                <p>Upload required documents</p>
+                <div className="card-progress">{documentsProgress}% Complete</div>
+              </div>
+              
+              <div className="action-card" onClick={() => setActiveSection('grades')}>
+                <div className="card-icon">
+                  <GradeIcon size={48} />
+                </div>
+                <h3>Submit Grades</h3>
+                <p>Submit your grades</p>
+                <div className="card-progress">{gradesProgress}% Complete</div>
+              </div>
+              
+              <div className="action-card" onClick={() => setActiveSection('application-details')}>
+                <div className="card-icon">
+                  <ApplicationIcon size={48} />
+                </div>
+                <h3>Application Details</h3>
+                <p>Complete your application</p>
+                <div className="card-progress">{applicationDetailsProgress}% Complete</div>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className={`student-dashboard-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      <div className="student-dashboard-content">
-        {/* Welcome Section with Enhanced Greeting */}
-        <div className="welcome-section">
-          <div className="welcome-header">
-            <div className="student-info-group">
-              <div className="student-avatar">
-                {user?.profile_image_url ? (
-                  <img 
-                    src={user.profile_image_url} 
-                    alt="Profile" 
-                    className="student-avatar-image"
-                  />
-                ) : (
-                  <DefaultAvatar 
-                    firstName={user?.first_name}
-                    lastName={user?.last_name}
-                    size={100}
-                    className="student-avatar-default"
-                  />
-                )}
-              </div>
-              <div className="welcome-text">
-                <h2>{getGreeting()}, {user?.first_name}!</h2>
-                <p>Ready to continue your TCU-CEAA journey?</p>
-                <div className="student-info">
-                  <span className="student-id">👨‍🎓 ID: {user?.student_id || 'Not assigned'}</span>
-                  <span className="student-email">📧 {user?.email}</span>
-                </div>
-              </div>
-            </div>
-            <div className="header-controls">
-              <div className="real-time-indicator">
-                <div className="live-dot"></div>
-                <span>Live Dashboard</span>
-                <div className="last-update">
-                  {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
-                </div>
-              </div>
-              <button 
-                className="theme-toggle-btn"
-                onClick={toggleTheme}
-                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {darkMode ? '☀️' : '🌙'}
-              </button>
-            </div>
+      {/* Sidebar */}
+      <Sidebar 
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+        darkMode={darkMode}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onMobileMenuToggle={toggleMobileMenu}
+      />
+      
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button 
+          className="mobile-menu-toggle"
+          onClick={toggleMobileMenu}
+          aria-label="Toggle Menu"
+        >
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+        </button>
+        <div className="mobile-logo">
+          <span className="mobile-logo-text">TCU-CEAA</span>
+        </div>
+        <div className="mobile-user">
+          <div className="mobile-user-avatar">
+            {user?.first_name ? user.first_name.charAt(0) : 'U'}
           </div>
         </div>
-
-        {/* Enhanced Quick Stats */}
-        <div className="stats-grid">
-          <div className="stat-card documents">
-            <div className="stat-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-number">{stats.total_documents}</div>
-              <div className="stat-label">Documents</div>
-              <div className="stat-sub">✅ {stats.approved_documents} approved</div>
-            </div>
-          </div>
-          <div className="stat-card grades">
-            <div className="stat-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
-                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-number">{grades.length}</div>
-              <div className="stat-label">Grade Reports</div>
-              <div className="stat-sub">
-                {grades.filter(g => g.qualifies_for_basic_allowance).length} qualify
-              </div>
-            </div>
-          </div>
-          <div className="stat-card applications">
-            <div className="stat-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
-                <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-number">{stats.total_applications}</div>
-              <div className="stat-label">Applications</div>
-              <div className="stat-sub">✅ {stats.approved_applications} processed</div>
-            </div>
-          </div>
-          <div className="stat-card allowance">
-            <div className="stat-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
-                <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-number">{formatCurrency(applications.filter(a => a.status === 'approved' || a.status === 'disbursed').reduce((sum, app) => sum + Number(app.amount), 0))}</div>
-              <div className="stat-label">Total Received</div>
-              <div className="stat-sub">
-                {applications.filter(a => a.status === 'pending').length} pending
-              </div>
-            </div>
-          </div>
-        </div>        {/* Enhanced Navigation Tabs */}
-        <div className="dashboard-tabs">
-          <button 
-            className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            Overview
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'documents' ? 'active' : ''}`}
-            onClick={() => setActiveTab('documents')}
-          >
-            Documents
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'grades' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grades')}
-          >
-            Grades
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'applications' ? 'active' : ''}`}
-            onClick={() => setActiveTab('applications')}
-          >
-            Applications
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <>
-            {/* Enhanced Progress Section */}
-            <div className="progress-section">
-              <div className="student-dashboard-section-header">
-                <h3>Your Educational Journey</h3>
-                <p>Complete these steps to unlock your full TCU-CEAA benefits!</p>
-              </div>
-              <div className="progress-steps">
-                {assignments.map((assignment, index) => {
-                  return (
-                    <div key={assignment.id} className={`progress-step ${assignment.submitted ? 'completed' : ''}`}>
-                      <div className="student-dashboard step-number">
-                        {assignment.submitted ? '✅' : index + 1}
-                      </div>
-                      <div className="student-dashboard-step-content">
-                        <h4>{assignment.title}</h4>
-                        <p>{assignment.description}</p>
-                        <div className="student-dashboard-step-meta">
-                          {assignment.submitted ? (
-                            <span className="status-completed">🎉 Completed! Great job!</span>
-                          ) : (
-                            <span>⏳ Ready to complete</span>
-                          )}
-                        </div>
-                      </div>
-                      {!assignment.submitted && (
-                        <div className="student-dashboard-step-action">
-                          {index === 0 && (
-                            <button 
-                              className="quick-action-btn"
-                              onClick={() => setShowDocumentForm(true)}
-                            >
-                              Upload Now
-                            </button>
-                          )}
-                          {index === 1 && (
-                            <div>
-                              {canSubmitGrades ? (
-                                <button 
-                                  className="quick-action-btn"
-                                  onClick={() => setShowGradeForm(true)}
-                                >
-                                  Submit Grades
-                                </button>
-                              ) : (
-                                <div className="requirement-warning">
-                                  <p className="requirement-text">
-                                    📋 Need {2 - approvedDocuments} more approved document{2 - approvedDocuments > 1 ? 's' : ''}
-                                  </p>
-                                  <button 
-                                    className="quick-action-btn disabled"
-                                    disabled
-                                    title={`You need ${2 - approvedDocuments} more approved documents to submit grades`}
-                                  >
-                                    Submit Grades (Locked)
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {index === 2 && (
-                            <div>
-                              {canApplyForAllowance ? (
-                                <button 
-                                  className="quick-action-btn"
-                                  onClick={() => setShowAllowanceForm(true)}
-                                >
-                                  Apply Now
-                                </button>
-                              ) : (
-                                <div className="requirement-warning">
-                                  <p className="requirement-text">
-                                    📊 Need approved grades that qualify for allowances
-                                  </p>
-                                  <button 
-                                    className="quick-action-btn disabled"
-                                    disabled
-                                    title="You need approved grades that qualify for allowances to apply"
-                                  >
-                                    Apply Now (Requirements not met)
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}        {activeTab === 'documents' && (
-          <div className="content-card">
-            <div className="card-header">
-              <h3>📋 Document Submissions</h3>
-              <button 
-                className="add-button"
-                onClick={() => setShowDocumentForm(true)}
-              >
-                📤 Upload Document
-              </button>
-            </div>
-        
-            <div className="card-content">
-              {documents.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="60" height="60">
-                      <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <p>🎯 Ready to start? Upload your first document to begin your TCU-CEAA journey!</p>
-                  <button 
-                    className="action-button"
-                    onClick={() => setShowDocumentForm(true)}
-                  >
-                    📤 Upload First Document
-                  </button>
-                </div>
-              ) : (
-                <div className="submissions-list">
-                  {documents.map((doc) => (
-                    <div key={doc.id} className="submission-item">
-                      <div className="submission-header">
-                        <h4>📄 {doc.document_type_display}</h4>
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(doc.status) }}
-                        >
-                          {doc.status_display}
-                        </span>
-                      </div>
-                      <div className="submission-date">
-                        📅 Submitted: {new Date(doc.submitted_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'grades' && (
-          <div className="content-card">
-            <div className="card-header">
-              <h3>📈 Grade Submissions</h3>
-              {canSubmitGrades ? (
-                <button 
-                  className="add-button"
-                  onClick={() => setShowGradeForm(true)}
-                >
-                  📊 Submit Grades
-                </button>
-              ) : (
-                <button 
-                  className="add-button disabled"
-                  disabled
-                  title={`You need ${2 - approvedDocuments} more approved documents to submit grades`}
-                >
-                  📊 Submit Grades (Requires {2 - approvedDocuments} more approved docs)
-                </button>
-              )}
-            </div>
-            <div className="card-content">
-              {!canSubmitGrades && (
-                <div className="requirement-notice">
-                  <div className="notice-icon">🔒</div>
-                  <div className="notice-content">
-                    <h4>Grade Submission Requirements</h4>
-                    <p>
-                      You need at least <strong>2 approved documents</strong> before you can submit your grades.
-                    </p>
-                    <div className="requirement-status">
-                      <span className="status-item">
-                        📄 Documents: {documents.length} submitted, {approvedDocuments} approved
-                      </span>
-                      <span className="status-item">
-                        {approvedDocuments >= 2 ? '✅' : '❌'} Requirements: {approvedDocuments}/2 approved documents
-                      </span>
-                    </div>
-                    <p className="help-text">
-                      Submit more documents or wait for admin approval to unlock grade submission.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {grades.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="60" height="60">
-                      <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <p>🎓 Time to show off your academic achievements! Submit your grades to unlock allowance opportunities.</p>
-                  {canSubmitGrades ? (
-                    <button 
-                      className="action-button"
-                      onClick={() => setShowGradeForm(true)}
-                    >
-                      📊 Submit First Grades
-                    </button>
-                  ) : (
-                    <button 
-                      className="action-button disabled"
-                      disabled
-                      title="Complete document requirements first"
-                    >
-                      📊 Submit First Grades (Requirements not met)
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grades-scroll-container">
-                  <div className="submissions-list">
-                    {grades.map((grade) => (
-                      <div key={grade.id} className="submission-item">
-                        <div className="submission-header">
-                          <h4>🎓 {grade.academic_year} - {grade.semester_display}</h4>
-                          <span 
-                            className="status-badge"
-                            style={{ backgroundColor: getStatusColor(grade.status) }}
-                          >
-                            {grade.status_display}
-                          </span>
-                        </div>
-                        <div className="grade-details">
-                          <div className="grade-row">
-                            <span>📈 GWA: {Number(grade.general_weighted_average).toFixed(2)}%</span>
-                            <span>📊 SWA: {Number(grade.semestral_weighted_average).toFixed(2)}%</span>
-                          </div>
-                          <div className="eligibility-indicators">
-                            <span className={`eligibility ${grade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>
-                              {grade.qualifies_for_basic_allowance ? '✅' : '❌'} Basic Allowance
-                            </span>
-                            <span className={`eligibility ${grade.qualifies_for_merit_incentive ? 'eligible' : 'not-eligible'}`}>
-                              {grade.qualifies_for_merit_incentive ? '🌟' : '❌'} Merit Incentive
-                            </span>
-                          </div>
-                        </div>
-                        <div className="submission-date">
-                          📅 Submitted: {new Date(grade.submitted_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'applications' && (
-          <div className="content-card">
-            <div className="card-header">
-              <h3>💸 Allowance Applications</h3>
-              {canApplyForAllowance ? (
-                <button 
-                  className="add-button"
-                  onClick={() => setShowAllowanceForm(true)}
-                >
-                  💰 New Application
-                </button>
-              ) : (
-                <button 
-                  className="add-button disabled"
-                  disabled
-                  title="You need approved grades that qualify for allowances to apply"
-                >
-                  💰 New Application (Requirements not met)
-                </button>
-              )}
-            </div>
-            <div className="card-content">
-              {!canApplyForAllowance && (
-                <div className="requirement-notice">
-                  <div className="notice-icon">🔒</div>
-                  <div className="notice-content">
-                    <h4>Allowance Application Requirements</h4>
-                    <p>
-                      You need <strong>approved grades that qualify for allowances</strong> before you can apply.
-                    </p>
-                    <div className="requirement-status">
-                      <span className="status-item">
-                        📊 Grades: {grades.length} submitted, {grades.filter(g => g.status === 'approved').length} approved
-                      </span>
-                      <span className="status-item">
-                        {hasApprovedGrades ? '✅' : '❌'} Qualification: {hasApprovedGrades ? 'Eligible for allowances' : 'Need qualifying grades'}
-                      </span>
-                    </div>
-                    <p className="help-text">
-                      Submit grades with good academic performance to unlock allowance applications.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {applications.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="60" height="60">
-                      <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <p>🚀 Ready to apply for your allowance? Once your documents and grades are approved, you can submit your application!</p>
-                  {canApplyForAllowance ? (
-                    <button 
-                      className="action-button"
-                      onClick={() => setShowAllowanceForm(true)}
-                    >
-                      💰 Apply for Allowance
-                    </button>
-                  ) : (
-                    <button 
-                      className="action-button disabled"
-                      disabled
-                      title="Complete requirements first"
-                    >
-                      💰 Apply for Allowance (Requirements not met)
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="submissions-list">
-                  {applications.map((app) => (
-                    <div key={app.id} className="submission-item">
-                      <div className="submission-header">
-                        <h4>💰 {app.application_type_display}</h4>
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(app.status) }}
-                        >
-                          {app.status_display}
-                        </span>
-                      </div>
-                      <div className="application-amount">
-                        💵 Amount: {formatCurrency(app.amount)}
-                      </div>
-                      <div className="submission-date">
-                        📅 Applied: {new Date(app.applied_at).toLocaleDateString()}
-                      </div>
-                      {app.status === 'pending' && (
-                        <div className="application-timeline">
-                          ⏰ Expected processing: 3-5 business days
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Document Submission Form Modal */}
-      {showDocumentForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <DocumentSubmissionForm
-              onSubmissionSuccess={handleDocumentSubmissionSuccess}
-              onCancel={() => setShowDocumentForm(false)}
-            />
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="mobile-overlay"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
+      {/* Main Content */}
+      <div className="main-content">
+        {renderContent()}
+      </div>
+
+      {/* Theme Toggle - Fixed Bottom Right */}
+      <div className="theme-toggle-container">
+        <div className="theme-toggle-switch" onClick={toggleTheme}>
+          <div className="theme-toggle-track">
+            <div className={`theme-toggle-thumb ${darkMode ? 'dark' : 'light'}`}>
+              <span className="theme-icon">
+                {darkMode ? '🌙' : '☀️'}
+              </span>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Grade Submission Form Modal */}
-      {showGradeForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <GradeSubmissionForm
-              onSubmissionSuccess={handleGradeSubmissionSuccess}
-              onCancel={() => setShowGradeForm(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Allowance Application Form Modal */}
-      {showAllowanceForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <AllowanceApplicationForm
-              onSubmissionSuccess={handleAllowanceApplicationSuccess}
-              onCancel={() => setShowAllowanceForm(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Dashboard Notification Modal */}
+      {/* Notification Modal */}
       <NotificationModal
         isOpen={showNotification}
         onClose={() => setShowNotification(false)}

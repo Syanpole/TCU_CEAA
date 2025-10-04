@@ -1,0 +1,588 @@
+/* Registration Modal Styles */
+.registration-modal-container {
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  position: relative;
+  transform: translateZ(0);
+}
+
+.registration-modal-content, .success-modal-content {
+  padding: 2.2rem 2.2rem 2.2rem 2.2rem;
+  background: transparent;
+  border-radius: 20px;
+  position: relative;
+}
+
+.registration-modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.tcu-logo-modal {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.logo-circle-modal {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.22);
+  position: relative;
+  overflow: hidden;
+  border: 2.5px solid #dc2626;
+}
+
+.logo-circle-modal::before {
+  display: none;
+}
+
+.tcu-logo-img-modal {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  z-index: 2;
+  border-radius: 50%;
+}
+
+.registration-modal-header h1 {
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0.5rem 0 0.25rem 0;
+  letter-spacing: -0.4px;
+}
+
+.registration-modal-header h2 {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.2px;
+}
+
+.registration-modal-header p {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.registration-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.error-message-modal {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.error-icon-modal {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.form-group-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-group-modal label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}
+
+.form-row-modal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.input-wrapper-modal {
+  position: relative;
+}
+
+.form-input-modal {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #ffffff;
+  box-sizing: border-box;
+  font-weight: 400;
+  color: #1f2937;
+}
+
+.form-input-modal[data-has-toggle="true"] {
+  padding-right: 3.2rem;
+}
+
+.form-input-modal:focus {
+  outline: none;
+  border-color: #dc2626;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+  transform: translateY(-1px);
+}
+
+.form-input-modal::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.form-hint-modal {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.password-toggle-button-modal {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 3px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle-button-modal:hover {
+  color: #374151;
+  background-color: rgba(243, 244, 246, 0.8);
+}
+
+.terms-section-modal {
+  margin: 10px 0;
+}
+
+.terms-text-modal {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.register-button-modal {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  letter-spacing: 0.015em;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.register-button-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  transition: left 0.5s;
+}
+
+.register-button-modal:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+}
+
+.register-button-modal:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.register-button-modal:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.register-button-modal:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner-modal {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.form-footer-modal {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.back-button-modal {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.back-button-modal:hover {
+  color: #374151;
+  background-color: rgba(243, 244, 246, 0.8);
+}
+
+/* Success Modal Styles */
+.success-celebration {
+  position: relative;
+  text-align: center;
+  padding: 20px;
+}
+
+.celebration-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #4CAF50;
+  border-radius: 50%;
+  animation: float 3s ease-in-out infinite;
+}
+
+.particle-1 { top: 20%; left: 10%; animation-delay: 0s; }
+.particle-2 { top: 30%; right: 15%; animation-delay: 0.5s; }
+.particle-3 { top: 50%; left: 20%; animation-delay: 1s; }
+.particle-4 { top: 40%; right: 25%; animation-delay: 1.5s; }
+.particle-5 { top: 60%; left: 80%; animation-delay: 2s; }
+.particle-6 { top: 70%; right: 70%; animation-delay: 2.5s; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+  50% { transform: translateY(-20px) rotate(180deg); opacity: 0.7; }
+}
+
+.success-header-modal {
+  margin-bottom: 20px;
+}
+
+.tcu-logo-success-modal {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.logo-circle-success-modal {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.25);
+  border: 2.5px solid #4CAF50;
+}
+
+.tcu-logo-img-success-modal {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.university-name-success-modal {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 8px 0;
+  letter-spacing: -0.3px;
+}
+
+.success-content-wrapper-modal {
+  margin-top: 15px;
+}
+
+.success-icon-wrapper-modal {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.success-checkmark-modal {
+  animation: checkmarkPop 0.6s ease-out;
+}
+
+@keyframes checkmarkPop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.success-message-content-modal {
+  text-align: center;
+}
+
+.success-title-modal {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #4CAF50;
+  margin: 10px 0 5px 0;
+  letter-spacing: -0.2px;
+}
+
+.success-subtitle-modal {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 15px 0;
+  font-weight: 400;
+}
+
+.success-details-modal {
+  background: rgba(240, 253, 244, 0.6);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 15px 0;
+  border: 1px solid rgba(76, 175, 80, 0.15);
+}
+
+.success-detail-item-modal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #374151;
+  margin: 6px 0;
+  font-weight: 400;
+}
+
+.detail-icon-modal {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-actions-modal {
+  margin-top: 20px;
+}
+
+.success-primary-button-modal {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+  letter-spacing: 0.015em;
+}
+
+.success-primary-button-modal:hover {
+  background: linear-gradient(135deg, #45a049, #388e3c);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
+}
+
+.success-primary-button-modal:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .registration-modal-container {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+  
+  .form-row-modal {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  
+  .registration-modal-content, .success-modal-content {
+    padding: 3rem 2rem 2rem 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .registration-modal-content, .success-modal-content {
+    padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .registration-modal-header {
+    margin-bottom: 1.5rem;
+  }
+  
+  .logo-circle-modal {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .tcu-logo-img-modal {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .registration-modal-header h1 {
+    font-size: 1.6rem;
+  }
+  
+  .registration-modal-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .form-input-modal {
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .register-button-modal {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .registration-modal-content, .success-modal-content {
+    padding: 2rem 1.25rem 1.25rem 1.25rem;
+  }
+  
+  .registration-modal-header {
+    margin-bottom: 1.25rem;
+  }
+  
+  .logo-circle-modal {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .tcu-logo-img-modal {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .registration-modal-header h1 {
+    font-size: 1.4rem;
+  }
+  
+  .registration-modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .registration-modal-header p {
+    font-size: 0.9rem;
+  }
+  
+  .registration-modal-form {
+    gap: 1.25rem;
+  }
+  
+  .form-input-modal {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9rem;
+  }
+  
+  .form-input-modal[data-has-toggle="true"] {
+    padding-right: 3rem;
+  }
+  
+  .password-toggle-button-modal {
+    right: 0.75rem;
+  }
+  
+  .register-button-modal {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+  
+  .success-title-modal {
+    font-size: 1.15rem;
+  }
+  
+  .university-name-success-modal {
+    font-size: 1.05rem;
+  }
+  
+  .success-detail-item-modal {
+    font-size: 0.75rem;
+  }
+  
+  .success-primary-button-modal {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+  }
+}

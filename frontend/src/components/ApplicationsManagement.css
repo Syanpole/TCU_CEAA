@@ -592,9 +592,9 @@
 
 .info-section h3 {
   margin: 0 0 1rem 0;
-  font-size: 1.125rem;
+  font-size: 2rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: 0f172a;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.5rem;
 }

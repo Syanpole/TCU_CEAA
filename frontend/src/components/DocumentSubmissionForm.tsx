@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/authService';
+import { RequirementsIcon, WarningIcon } from './Icons';
 import NotificationModal from './NotificationModal';
 import './DocumentSubmissionForm.css';
 
@@ -30,25 +31,24 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
   const [instantApproval, setInstantApproval] = useState(false);
 
   const documentTypes = [
+    // Separated document types
     'birth_certificate',
-    'school_id', 
-    'report_card',
-    'enrollment_certificate',
-    'barangay_clearance',
-    'parents_id',
-    'voter_certification',
-    'other'
+    'school_id',
+    'certificate_of_enrollment',
+    'grade_10_report_card',
+    'grade_12_report_card',
+    'diploma',
+    'others'
   ];
 
   const documentTypeLabels: { [key: string]: string } = {
-    birth_certificate: 'Birth Certificate',
+    birth_certificate: 'Birth Certificate / PSA',
     school_id: 'School ID',
-    report_card: 'Report Card/Grades', 
-    enrollment_certificate: 'Certificate of Enrollment',
-    barangay_clearance: 'Barangay Clearance',
-    parents_id: 'Parent\'s Valid ID',
-    voter_certification: 'Voter\'s Certification',
-    other: 'Other Document'
+    certificate_of_enrollment: 'Certificate of Enrollment',
+    grade_10_report_card: 'Grade 10 Report Card',
+    grade_12_report_card: 'Grade 12 Report Card',
+    diploma: 'Diploma',
+    others: 'Others'
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -194,8 +194,21 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
   return (
     <div className="document-submission-form">
       <div className="form-header">
-        <h3>Submit Document</h3>
-        <p>Upload required documents for your TCU-CEAA application</p>
+        <h3>Submit Required Documents</h3>
+        <p>Upload required documents for TCU-CEAA scholarship application</p>
+        <div className="requirement-note">
+          <strong>Required Documents:</strong>
+          <ul>
+            <li>Birth Certificate (PSA/NSO)</li>
+            <li>School ID</li>
+            <li>Certificate of Enrollment</li>
+            <li>Grade 10 or Grade 12 Report Card</li>
+            <li>Diploma (if applicable)</li>
+          </ul>
+          <div className="important-note">
+            <strong>Important:</strong> Please submit clear, readable copies of your documents. Prepare TWO (2) SETS: SET 1 (photocopies) and SET 2 (original copies) for verification.
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -292,13 +305,18 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
               </div>
             )}
             <div className="file-tips">
-              <strong>💡 Tips for better AI analysis:</strong>
+              <strong>Document Submission Guidelines:</strong>
               <ul>
-                <li>📝 Name your file clearly (e.g., "john_birth_certificate.pdf")</li>
-                <li>📷 Ensure text is clear and readable</li>
-                <li>🖼️ For images, use good lighting and avoid shadows</li>
-                <li>📄 PDF format is preferred for official documents</li>
+                <li>Name your file clearly (e.g., "lastname_birth_certificate.pdf")</li>
+                <li>Ensure text is clear and readable with good lighting</li>
+                <li>PDF format is preferred for official documents</li>
+                <li>Arrange documents in the required order as per announcement</li>
+                <li>Submit high-quality scans or photos for better AI processing</li>
+                <li>For IDs: Submit photocopied back-to-back on a single page</li>
               </ul>
+              <div className="document-order-note">
+                <strong>Important:</strong> Please arrange documents in the order specified in the official announcement for faster processing.
+              </div>
             </div>
           </div>
         </div>

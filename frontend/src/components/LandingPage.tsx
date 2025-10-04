@@ -9,6 +9,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick, onPrivacyClick }) => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Scroll animation observer
@@ -49,6 +50,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             top: targetPosition,
             behavior: 'smooth'
           });
+          // Close mobile menu after navigation
+          setMobileMenuOpen(false);
         }
       }
     };
@@ -76,6 +79,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
       behavior: 'smooth'
     });
   };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleLoginClick = () => {
+    setMobileMenuOpen(false);
+    onLoginClick();
+  };
+
+  const handleRegisterClick = () => {
+    setMobileMenuOpen(false);
+    onRegisterClick();
+  };
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -93,13 +110,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
             </h1>
           </div>
 
-          <nav className="nav-menu">
+          <nav className={`nav-menu ${mobileMenuOpen ? 'mobile-open' : ''}`}>
             <a href="#about">About</a>
             <a href="#features">Features</a>
             <a href="#process">Process</a>
             <a href="#contact">Contact</a>
+            
+            {/* Mobile auth buttons inside menu */}
+            <div className="mobile-auth-buttons">
+              <button className="signin-btn" onClick={handleLoginClick}>
+                Sign In
+              </button>
+              <button className="register-btn" onClick={handleRegisterClick}>
+                Student Registration
+              </button>
+            </div>
           </nav>
 
+          {/* Desktop auth buttons */}
           <div className="auth-buttons">
             <button className="signin-btn" onClick={onLoginClick}>
               Sign In
@@ -108,6 +136,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               Student Registration
             </button>
           </div>
+
+          {/* Mobile menu toggle */}
+          <button 
+            className="mobile-menu-toggle" 
+            onClick={toggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
@@ -116,11 +161,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         <section className="hero animate-section">
           <div className="hero-content">
             <div className="hero-text">
-              <h2>City Educational Assistance Allowance</h2>
+              <h2>Educational Assistance Portal</h2>
               <p>
-                Welcome to the official portal of TCU City Educational Assistance Allowance. 
-                Experience seamless academic management, student services, and administrative 
-                excellence powered by modern technology and AI-driven insights.
+                Get financial support for your education at Taguig City University. 
+                Apply for allowances and manage your academic journey with ease.
               </p>
               <div className="hero-buttons">
                 <button className="cta-primary" onClick={onRegisterClick}>
@@ -145,31 +189,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
                 </div>
               </div>
             </div>
-            <div className="hero-visual">
-              <div className="hero-stats-visual">
-                <div className="visual-stat">
-                  <div className="stat-icon">📚</div>
-                  <div className="stat-info">
-                    <span className="big-number">15K+</span>
-                    <span className="stat-desc">Students Helped</span>
-                  </div>
-                </div>
-                <div className="visual-stat">
-                  <div className="stat-icon">💎</div>
-                  <div className="stat-info">
-                    <span className="big-number">₱50M</span>
-                    <span className="stat-desc">Total Assistance</span>
-                  </div>
-                </div>
-                <div className="visual-stat">
-                  <div className="stat-icon">⭐</div>
-                  <div className="stat-info">
-                    <span className="big-number">4.9/5</span>
-                    <span className="stat-desc">Student Rating</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -187,45 +206,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="about" className="info-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>About TCU-CEAA</h3>
-            <p>Supporting TCU students with educational financial assistance</p>
+            <h3>About CEAA</h3>
+            <p>Financial assistance for TCU students</p>
           </div>
           <div className="info-grid">
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/financial-assistance.png" alt="Financial Assistance" />
               </div>
-              <h4>Financial Assistance</h4>
-              <p>Get the financial support you need to continue your education and achieve your academic goals.</p>
+              <h4>Financial Support</h4>
+              <p>Get financial help to continue your studies at TCU.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/easy-application.png" alt="Easy Application" />
               </div>
               <h4>Easy Application</h4>
-              <p>Simple online application process - upload your documents and submit your grades easily.</p>
+              <p>Simple online process to apply for your allowance.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/quick-processing.png" alt="Quick Processing" />
               </div>
               <h4>Quick Processing</h4>
-              <p>Fast evaluation of your application so you can get your allowance as soon as possible.</p>
+              <p>Fast review of your application and quick approval.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/track-status.png" alt="Track Status" />
               </div>
               <h4>Track Status</h4>
-              <p>Check your application status anytime, anywhere through your student dashboard.</p>
+              <p>Check your application status anytime through your dashboard.</p>
             </div>
           </div>
         </section>
 
         <section id="features" className="features-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>What You Can Do</h3>
-            <p>Everything you need to apply for and manage your educational allowance</p>
+            <h3>Features</h3>
+            <p>Simple tools to manage your allowance application</p>
           </div>
           <div className="features-grid">
             <div className="feature-category">
@@ -253,8 +272,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="process" className="landing-process-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>How to Apply</h3>
-            <p>Simple steps to get your educational allowance</p>
+            <h3>How It Works</h3>
+            <p>Four simple steps to get your allowance</p>
           </div>
           <div className="landing-process-steps">
             <div className="landing-step">
@@ -293,8 +312,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section className="cta-section animate-section">
           <div className="cta-content">
-            <h3>Need Financial Support for Your Studies?</h3>
-            <p>Join thousands of TCU students who are getting educational assistance through our program</p>
+            <h3>Ready to Apply?</h3>
+            <p>Join thousands of TCU students getting financial assistance</p>
             <div className="cta-buttons-large">
               <button className="cta-primary-large" onClick={onRegisterClick}>
                 Apply for Allowance
@@ -311,7 +330,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         <div className="footer-content">
           <div className="footer-section">
             <h4>TCU-CEAA Portal</h4>
-            <p>Taguig City University - City Educational Assistance Allowance - Supporting students through financial assistance and academic excellence.</p>
+            <p>Taguig City University educational assistance program for students.</p>
             <div className="social-links">
               <a 
                 href="https://www.facebook.com/TaguigCityUniversity" 
@@ -362,7 +381,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
           <div className="footer-section">
             <h4>Contact Info</h4>
-            <p>📍 Gen. Santos Ave. Central Bicutan<br />Taguig City, Philippines</p>
+            <p>📍 Gen. Santos Ave. Central Bicutan, Taguig City</p>
             <p>📞 (817) 257-TCU1 (8281)</p>
             <p>✉️ ceaa@tcu.edu</p>
           </div>
@@ -378,7 +397,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         </div>
         <div className="footer-bottom">
           <p>&copy; {new Date().getFullYear()} Taguig City University CEAA Portal. All rights reserved.</p>
-          <p>Powered by Modern Technology | Made with ❤️ for TCU Community</p>
+          <p>Made for TCU Community</p>
         </div>
       </footer>
 

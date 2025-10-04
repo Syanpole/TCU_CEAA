@@ -22,6 +22,7 @@ const ProfileSettings: React.FC = () => {
   
   // Theme state - sync with StudentDashboard theme
   const [darkMode, setDarkMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'password'>('personal');
   
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
@@ -48,32 +49,62 @@ const ProfileSettings: React.FC = () => {
     confirm: false,
   });
 
-  // Load saved theme preference from StudentDashboard
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('studentDashboardTheme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-    } else {
-      setDarkMode(false); // Explicitly set to false for light mode
-    }
+  // Utility function for consistent input styling
+  const getInputStyle = () => ({
+    backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+    color: darkMode ? '#f8fafc' : '#0f172a',
+    border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+    WebkitTextFillColor: darkMode ? '#f8fafc' : '#0f172a'
+  });
 
-    // Listen for theme changes from other components
+  // Load saved theme preference and sync with StudentDashboard
+  useEffect(() => {
+    const loadTheme = () => {
+      const savedTheme = localStorage.getItem('studentDashboardTheme');
+      const isDark = savedTheme === 'dark';
+      setDarkMode(isDark);
+      
+      // Debug log to verify theme loading
+      console.log('ProfileSettings theme loaded:', isDark ? 'dark' : 'light');
+    };
+
+    // Load initial theme
+    loadTheme();
+
+    // Listen for localStorage changes (cross-tab)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'studentDashboardTheme') {
-        if (e.newValue === 'dark') {
-          setDarkMode(true);
-        } else {
-          setDarkMode(false);
-        }
+        const isDark = e.newValue === 'dark';
+        setDarkMode(isDark);
+        console.log('ProfileSettings theme changed via storage:', isDark ? 'dark' : 'light');
       }
     };
 
+    // Listen for custom theme change events (same-tab)
+    const handleThemeChange = (e: CustomEvent) => {
+      setDarkMode(e.detail.darkMode);
+      console.log('ProfileSettings theme changed via event:', e.detail.darkMode ? 'dark' : 'light');
+    };
+
+    // Periodic theme check as fallback
+    const themeChecker = setInterval(() => {
+      const currentTheme = localStorage.getItem('studentDashboardTheme');
+      const shouldBeDark = currentTheme === 'dark';
+      if (shouldBeDark !== darkMode) {
+        setDarkMode(shouldBeDark);
+        console.log('ProfileSettings theme synced via interval:', shouldBeDark ? 'dark' : 'light');
+      }
+    }, 500); // Check every 500ms for immediate response
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('themeChange', handleThemeChange as EventListener);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('themeChange', handleThemeChange as EventListener);
+      clearInterval(themeChecker);
     };
-  }, []);
+  }, [darkMode]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -330,35 +361,25 @@ const ProfileSettings: React.FC = () => {
         />
       )}
       
-      <div className="profile-settings-card">
-        <div className="profile-header">
+      <div className="profile-settings-wrapper">
+        <div className="profile-settings-title">
           <h1>Profile Settings</h1>
-          <p>Manage your account information and preferences</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="profile-form">
-          {message && (
-            <div className={`message ${message.type}`}>
-              <span className="message-icon">
-                {message.type === 'success' ? (
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </span>
-              {message.text}
-            </div>
-          )}
-
-          {/* Profile Image Section */}
-          <div className="profile-image-section">
-            <h3>Profile Picture</h3>
-            <div className="image-upload-container">
-              <div className="profile-image-wrapper" onClick={handleImageClick}>
+        <div 
+          className="profile-settings-card"
+          style={{
+            backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+            color: darkMode ? '#f8fafc' : '#0f172a'
+          }}
+        >
+          {/* Profile Photo Section */}
+          <div className="profile-photo-section">
+            <h2>Profile Photo</h2>
+            <p className="section-subtitle">Upload your profile picture</p>
+            
+            <div className="photo-upload-wrapper">
+              <div className="profile-image-container" onClick={handleImageClick}>
                 {profileImage ? (
                   <img src={profileImage} alt="Profile" className="profile-image" />
                 ) : (
@@ -366,282 +387,303 @@ const ProfileSettings: React.FC = () => {
                     <DefaultAvatar 
                       firstName={formData.first_name}
                       lastName={formData.last_name}
-                      size={120}
+                      size={100}
                       className="profile-image-default-avatar"
                     />
-                    <div className="upload-prompt">
-                      <span className="image-icon">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                          <path d="M12 9a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path d="M6 18.5a6 6 0 1112 0H6z" />
-                        </svg>
-                      </span>
-                      <span>Click to upload photo</span>
-                    </div>
                   </div>
                 )}
                 <div className="image-overlay">
                   <span>Change Photo</span>
                 </div>
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden-file-input"
-              />
-              {profileImage && (
+              
+              <div className="photo-actions">
                 <button
                   type="button"
-                  onClick={removeImage}
-                  className="remove-image-button"
+                  onClick={handleImageClick}
+                  className="upload-photo-button"
                 >
-                  Remove Photo
+                  Upload Photo
                 </button>
-              )}
-              <p className="image-help-text">
-                Recommended: Square image, max 5MB. Supports JPG, PNG, GIF, WebP.
-              </p>
-            </div>
-          </div>
-
-          {/* Personal Information */}
-          <div className="form-section">
-            <h3>Personal Information</h3>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="first_name">First Name *</label>
-                <input
-                  type="text"
-                  id="first_name"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Enter your first name"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="last_name">Last Name *</label>
-                <input
-                  type="text"
-                  id="last_name"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Enter your last name"
-                />
+                <p className="photo-help-text">JPG, PNG or GIF. Max 5MB.</p>
               </div>
             </div>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/*"
+              className="hidden-file-input"
+            />
           </div>
 
-          {/* Account Information */}
-          <div className="form-section">
-            <h3>Account Information</h3>
-            <div className="form-group">
-              <label htmlFor="username">Username *</label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                placeholder="Enter your username"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="email">Email Address *</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                placeholder="Enter your email address"
-              />
-            </div>
-            {user.role === 'student' && (
-              <div className="form-group">
-                <label htmlFor="student_id">Student ID</label>
-                <input
-                  type="text"
-                  id="student_id"
-                  name="student_id"
-                  value={formData.student_id}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  placeholder="Enter your student ID"
-                />
+          {/* Tab Navigation */}
+          <div className="tab-navigation">
+            <button
+              className={`tab-button ${activeTab === 'personal' ? 'active' : ''}`}
+              onClick={() => setActiveTab('personal')}
+              type="button"
+            >
+              Personal Info
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'account' ? 'active' : ''}`}
+              onClick={() => setActiveTab('account')}
+              type="button"
+            >
+              Account Info
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'password' ? 'active' : ''}`}
+              onClick={() => setActiveTab('password')}
+              type="button"
+            >
+              Password
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="profile-form">
+            {message && (
+              <div className={`message ${message.type}`}>
+                {message.text}
               </div>
             )}
-            <div className="role-display">
-              <label>Role</label>
-              <div className="role-badge">
-                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-              </div>
-            </div>
-          </div>
 
-          {/* Password Section */}
-          <div className="form-section">
-            <div className="password-section-header">
-              <h3>Password</h3>
-              <button
-                type="button"
-                onClick={() => setShowPasswordSection(!showPasswordSection)}
-                className="toggle-password-section"
-              >
-                {showPasswordSection ? 'Cancel Password Change' : 'Change Password'}
-              </button>
-            </div>
-
-            {showPasswordSection && (
-              <div className="password-fields">
-                <div className="form-group">
-                  <label htmlFor="current_password">Current Password *</label>
-                  <div className="input-wrapper">
-                    <input
-                      type={showPasswords.current ? "text" : "password"}
-                      id="current_password"
-                      name="current_password"
-                      value={formData.current_password}
-                      onChange={handleInputChange}
-                      required
-                      className="form-input"
-                      placeholder="Enter your current password"
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle-button"
-                      onClick={() => togglePasswordVisibility('current')}
-                      aria-label={showPasswords.current ? "Hide password" : "Show password"}
-                    >
-                      {showPasswords.current ? (
-                        // Eye open icon
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                          <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      ) : (
-                        // Eye closed icon
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+            {/* Personal Info Tab */}
+            {activeTab === 'personal' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Personal Information</h3>
+                  <p className="tab-subtitle">Update your personal details</p>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="new_password">New Password *</label>
-                    <div className="input-wrapper">
-                      <input
-                        type={showPasswords.new ? "text" : "password"}
-                        id="new_password"
-                        name="new_password"
-                        value={formData.new_password}
-                        onChange={handleInputChange}
-                        required
-                        className="form-input"
-                        placeholder="Enter new password"
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-button"
-                        onClick={() => togglePasswordVisibility('new')}
-                        aria-label={showPasswords.new ? "Hide password" : "Show password"}
-                      >
-                        {showPasswords.new ? (
-                          // Eye open icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                            <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                          </svg>
-                        ) : (
-                          // Eye closed icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                    <label htmlFor="first_name">First Name</label>
+                    <input
+                      type="text"
+                      id="first_name"
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input"
+                      placeholder="Enter your first name"
+                      style={getInputStyle()}
+                    />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="confirm_password">Confirm New Password *</label>
-                    <div className="input-wrapper">
-                      <input
-                        type={showPasswords.confirm ? "text" : "password"}
-                        id="confirm_password"
-                        name="confirm_password"
-                        value={formData.confirm_password}
-                        onChange={handleInputChange}
-                        required
-                        className="form-input"
-                        placeholder="Confirm new password"
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-button"
-                        onClick={() => togglePasswordVisibility('confirm')}
-                        aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
-                      >
-                        {showPasswords.confirm ? (
-                          // Eye open icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" strokeWidth="2"/>
-                            <path d="M2.45801 12.3051C2.31292 12.1136 2.31292 11.8864 2.45801 11.6949C4.41421 9.13734 8.02319 6 12 6C15.9768 6 19.5858 9.13734 21.542 11.6949C21.6871 11.8864 21.6871 12.1136 21.542 12.3051C19.5858 14.8627 15.9768 18 12 18C8.02319 18 4.41421 14.8627 2.45801 12.3051Z" stroke="currentColor" strokeWidth="2"/>
-                          </svg>
-                        ) : (
-                          // Eye closed icon
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.87292 6.87292L17.1271 17.1271" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M12 5C8.02319 5 4.41421 8.13734 2.45801 10.6949C2.31292 10.8864 2.31292 11.1136 2.45801 11.3051C3.73228 12.8737 5.88258 15.0583 8.5 16.1547M12 19C15.9768 19 19.5858 15.8627 21.542 13.3051C21.6871 13.1136 21.6871 12.8864 21.542 12.6949C20.2677 11.1263 18.1174 8.94167 15.5 7.84533" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M9.87868 9.87868C9.33579 10.4216 9 11.1716 9 12C9 13.6569 10.3431 15 12 15C12.8284 15 13.5784 14.6642 14.1213 14.1213" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                    <label htmlFor="last_name">Last Name</label>
+                    <input
+                      type="text"
+                      id="last_name"
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input"
+                      placeholder="Enter your last name"
+                      style={getInputStyle()}
+                    />
                   </div>
                 </div>
-                <p className="password-help-text">
-                  Password must be at least 6 characters long
-                </p>
+
+                {user.role === 'student' && (
+                  <div className="form-group">
+                    <label htmlFor="student_id">Student ID</label>
+                    <input
+                      type="text"
+                      id="student_id"
+                      name="student_id"
+                      value={formData.student_id}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="Enter your student ID"
+                      style={getInputStyle()}
+                    />
+                  </div>
+                )}
               </div>
             )}
-          </div>
 
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="save-button"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="loading-spinner"></span>
-                  Saving Changes...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </button>
-          </div>
-        </form>
+            {/* Account Info Tab */}
+            {activeTab === 'account' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Account Information</h3>
+                  <p className="tab-subtitle">Manage your account details</p>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="username">Username</label>
+                  <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    required
+                    className="form-input"
+                    placeholder="Enter your username"
+                    style={getInputStyle()}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email">Email Address</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    className="form-input"
+                    placeholder="Enter your email address"
+                    style={getInputStyle()}
+                  />
+                </div>
+
+                <div className="role-display">
+                  <label>Role</label>
+                  <div className="role-badge">
+                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Password Tab */}
+            {activeTab === 'password' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Change Password</h3>
+                  <p className="tab-subtitle">Update your password</p>
+                </div>
+
+                {!showPasswordSection ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordSection(true)}
+                    className="change-password-button"
+                  >
+                    Change Password
+                  </button>
+                ) : (
+                  <div className="password-fields">
+                    <div className="form-group">
+                      <label htmlFor="current_password">Current Password</label>
+                      <div className="input-wrapper">
+                        <input
+                          type={showPasswords.current ? "text" : "password"}
+                          id="current_password"
+                          name="current_password"
+                          value={formData.current_password}
+                          onChange={handleInputChange}
+                          required
+                          className="form-input"
+                          placeholder="Enter your current password"
+                          style={getInputStyle()}
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-button"
+                          onClick={() => togglePasswordVisibility('current')}
+                          aria-label={showPasswords.current ? "Hide password" : "Show password"}
+                        >
+                          {showPasswords.current ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="new_password">New Password</label>
+                        <div className="input-wrapper">
+                          <input
+                            type={showPasswords.new ? "text" : "password"}
+                            id="new_password"
+                            name="new_password"
+                            value={formData.new_password}
+                            onChange={handleInputChange}
+                            required
+                            className="form-input"
+                            placeholder="Enter new password"
+                            minLength={6}
+                            style={getInputStyle()}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-button"
+                            onClick={() => togglePasswordVisibility('new')}
+                            aria-label={showPasswords.new ? "Hide password" : "Show password"}
+                          >
+                            {showPasswords.new ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="confirm_password">Confirm New Password</label>
+                        <div className="input-wrapper">
+                          <input
+                            type={showPasswords.confirm ? "text" : "password"}
+                            id="confirm_password"
+                            name="confirm_password"
+                            value={formData.confirm_password}
+                            onChange={handleInputChange}
+                            required
+                            className="form-input"
+                            placeholder="Confirm new password"
+                            minLength={6}
+                            style={getInputStyle()}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-button"
+                            onClick={() => togglePasswordVisibility('confirm')}
+                            aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
+                          >
+                            {showPasswords.confirm ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="password-help-text">
+                      Password must be at least 6 characters long
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordSection(false);
+                        setFormData(prev => ({
+                          ...prev,
+                          current_password: '',
+                          new_password: '',
+                          confirm_password: '',
+                        }));
+                      }}
+                      className="cancel-password-button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="save-button"
+                disabled={loading}
+              >
+                {loading ? 'Saving Changes...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

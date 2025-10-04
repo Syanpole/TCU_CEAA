@@ -80,8 +80,39 @@ class Student(models.Model):
 
 class DocumentSubmission(models.Model):
     DOCUMENT_TYPES = [
-        ('birth_certificate', 'Birth Certificate'),
-        ('school_id', 'School ID'),
+        # Simplified Required Documents (New System)
+        ('academic_records', 'Academic Records (Grade 10/12 Report Card, Certificate, or Diploma)'),
+        ('valid_id', 'Valid ID (School ID, Birth Certificate, or Government-issued ID)'),
+        ('certificate_of_enrollment', 'Certificate of Enrollment'),
+        
+        # Required Documents (New Applicants)
+        ('junior_hs_certificate', 'Junior High School Certificate/Grade 10 Report Card/Certification from Principal'),
+        ('senior_hs_diploma', 'Senior High School Diploma/Grade 12 Report Card/Certification from Principal'),
+        ('school_id', 'School ID or Valid Government-issued ID'),
+        ('birth_certificate', 'Birth Certificate (issued by PSA/NSO/Civil Registry Office)'),
+        
+        # Other Necessary Documents
+        ('form_137', 'Certified True Copy of Elementary and/or High School Form 137'),
+        ('als_certificate', 'ALS Certificate (if ALS Graduate)'),
+        ('death_certificate', 'Death Certificate (Parents, if claimed to be deceased, issued by PSA/NSO/Civil Registry Office)'),
+        ('work_contract_visa', 'Work Contract/VISA/Passport (if any of both parents are OFWs)'),
+        ('comelec_stub', 'Original copy and one (1) photocopy of Comelec Stub (issued after May 2022 Elections)'),
+        
+        # Valid Government-issued IDs
+        ('umid_card', 'UMID Card'),
+        ('drivers_license', 'Driver\'s License'),
+        ('passport', 'Passport'),
+        ('sss_id', 'SSS ID'),
+        ('voters_id', 'Voter\'s ID'),
+        ('bir_tin_id', 'BIR (TIN) ID'),
+        ('pag_ibig_id', 'Pag-IBIG ID'),
+        ('company_id', 'Company ID'),
+        ('postal_id', 'Postal ID'),
+        ('philhealth_id', 'PhilHealth ID'),
+        ('philsys_id', 'Philippine Identification (PhilID/PhilSys) National ID'),
+        ('afp_beneficiary_id', 'AFP Beneficiary/Dependent\'s ID'),
+        
+        # Legacy and Other
         ('report_card', 'Report Card/Grades'),
         ('enrollment_certificate', 'Certificate of Enrollment'),
         ('barangay_clearance', 'Barangay Clearance'),
@@ -330,6 +361,11 @@ class AllowanceApplication(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     processed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='processed_applications', limit_choices_to={'role': 'admin'})
+    
+    # Email notification tracking
+    email_sent = models.BooleanField(default=False)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    notification_error = models.TextField(blank=True, null=True)
     
     class Meta:
         ordering = ['-applied_at']

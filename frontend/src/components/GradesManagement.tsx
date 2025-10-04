@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import { safePercentage } from '../utils/numberUtils';
+import GradeDetailsModal from './GradeDetailsModal';
 import './GradesManagement.css';
 
 interface Grade {
@@ -10,13 +11,27 @@ interface Grade {
   academic_year: string;
   semester: string;
   semester_display: string;
+  total_units: number;
   general_weighted_average: number | string;
   semestral_weighted_average: number | string;
+  grade_sheet: string;
+  has_failing_grades: boolean;
+  has_incomplete_grades: boolean;
+  has_dropped_subjects: boolean;
+  ai_evaluation_completed: boolean;
+  ai_evaluation_notes: string;
+  ai_confidence_score: number;
+  ai_extracted_grades: any;
+  ai_grade_validation: any;
+  ai_recommendations: string[];
   qualifies_for_basic_allowance: boolean;
   qualifies_for_merit_incentive: boolean;
   status: string;
   status_display: string;
+  admin_notes: string;
   submitted_at: string;
+  reviewed_at: string;
+  reviewed_by_name: string;
 }
 
 interface GradesManagementProps {
@@ -30,6 +45,8 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Helper function to safely format percentage values
   const safePercentage = (value: number | string): string => {
@@ -82,6 +99,23 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleViewDetails = async (gradeId: number) => {
+    try {
+      setLoadingDetails(true);
+      const response = await apiClient.get<Grade>(`/grades/${gradeId}/`);
+      setSelectedGrade(response.data);
+    } catch (err) {
+      console.error('Error fetching grade details:', err);
+      alert('Failed to load grade details. Please try again.');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedGrade(null);
   };
 
   if (loading) {
@@ -257,12 +291,16 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                     Submitted: {formatDate(grade.submitted_at)}
                   </div>
                   <div className="grade-actions">
-                    <button className="action-btn view-btn">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => handleViewDetails(grade.id)}
+                      disabled={loadingDetails}
+                    >
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
                       </svg>
-                      View Details
+                      {loadingDetails ? 'Loading...' : 'View Details'}
                     </button>
                     {grade.status === 'pending' && (
                       <>
@@ -287,6 +325,14 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
           )}
         </div>
       </div>
+
+      {/* Grade Details Modal */}
+      {selectedGrade && (
+        <GradeDetailsModal 
+          grade={selectedGrade} 
+          onClose={handleCloseDetails}
+        />
+      )}
     </div>
   );
 };

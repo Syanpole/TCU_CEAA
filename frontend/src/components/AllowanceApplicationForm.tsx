@@ -15,6 +15,13 @@ interface GradeSubmission {
   submitted_at: string;
 }
 
+interface AllowanceApplication {
+  id: number;
+  grade_submission: number;
+  application_type: string;
+  status: string;
+}
+
 interface AllowanceApplicationFormProps {
   onSubmissionSuccess: () => void;
   onCancel: () => void;
@@ -25,6 +32,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   onCancel
 }) => {
   const [gradeSubmissions, setGradeSubmissions] = useState<GradeSubmission[]>([]);
+  const [existingApplications, setExistingApplications] = useState<AllowanceApplication[]>([]);
   const [selectedGradeSubmission, setSelectedGradeSubmission] = useState<number | null>(null);
   const [applicationType, setApplicationType] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +41,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
 
   useEffect(() => {
     fetchApprovedGrades();
+    fetchExistingApplications();
   }, []);
 
   const fetchApprovedGrades = async () => {
@@ -52,6 +61,24 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     } finally {
       setLoadingGrades(false);
     }
+  };
+
+  const fetchExistingApplications = async () => {
+    try {
+      const response = await apiClient.get<AllowanceApplication[]>('/applications/');
+      setExistingApplications(response.data);
+    } catch (error: any) {
+      console.error('Error fetching existing applications:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
+  const hasExistingApplication = (gradeId: number): boolean => {
+    return existingApplications.some(app => app.grade_submission === gradeId);
+  };
+
+  const getAvailableGradeSubmissions = (): GradeSubmission[] => {
+    return gradeSubmissions.filter(grade => !hasExistingApplication(grade.id));
   };
 
   const getSelectedGrade = (): GradeSubmission | null => {
@@ -116,8 +143,41 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
       
       if (error.response?.data) {
         if (typeof error.response.data === 'object') {
-          const errorMessages = Object.values(error.response.data).flat();
-          setError(errorMessages.join(' '));
+          // Handle field-specific errors
+          const errorMessages: string[] = [];
+          
+          // Check for non_field_errors (like unique_together constraint)
+          if (error.response.data.non_field_errors) {
+            errorMessages.push(...error.response.data.non_field_errors);
+          }
+          
+          // Check for other field errors
+          Object.entries(error.response.data).forEach(([key, value]) => {
+            if (key !== 'non_field_errors' && Array.isArray(value)) {
+              errorMessages.push(...value);
+            } else if (key !== 'non_field_errors' && typeof value === 'string') {
+              errorMessages.push(value);
+            }
+          });
+          
+          if (errorMessages.length > 0) {
+            // Check if it's a duplicate application error
+            const isDuplicateError = errorMessages.some(msg => 
+              msg.toLowerCase().includes('already exists') || 
+              msg.toLowerCase().includes('unique') ||
+              msg.toLowerCase().includes('duplicate')
+            );
+            
+            if (isDuplicateError) {
+              setError('You have already submitted an allowance application for this grade submission. Please check your application history.');
+            } else {
+              setError(errorMessages.join(' '));
+            }
+          } else {
+            setError('Failed to submit application. Please try again.');
+          }
+        } else if (typeof error.response.data === 'string') {
+          setError(error.response.data);
         } else {
           setError(error.response.data.detail || 'Failed to submit application. Please try again.');
         }
@@ -137,7 +197,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   return (
     <div className="allowance-form-container">
       <div className="allowance-form-header">
-        <h3>💰 Allowance Application</h3>
+        <h3>Allowance Application</h3>
         <p>Apply for your educational assistance allowance based on your approved grades</p>
       </div>
 
@@ -148,15 +208,30 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
         </div>
       ) : gradeSubmissions.length === 0 ? (
         <div className="no-grades-state">
-          <div className="no-grades-icon">📊</div>
           <h4>No Eligible Grades Found</h4>
           <p>You need approved grade submissions that qualify for allowances before you can apply.</p>
           <div className="requirements-list">
             <h5>Requirements:</h5>
             <ul>
-              <li>✅ Submit and get approval for your grade reports</li>
-              <li>✅ Meet the academic performance criteria</li>
-              <li>✅ Ensure grades qualify for basic allowance or merit incentive</li>
+              <li>Submit and get approval for your grade reports</li>
+              <li>Meet the academic performance criteria</li>
+              <li>Ensure grades qualify for basic allowance or merit incentive</li>
+            </ul>
+          </div>
+          <button type="button" onClick={onCancel} className="cancel-button">
+            Close
+          </button>
+        </div>
+      ) : getAvailableGradeSubmissions().length === 0 ? (
+        <div className="no-grades-state">
+          <h4>All Eligible Grades Already Applied</h4>
+          <p>You have already submitted allowance applications for all your eligible grade submissions.</p>
+          <div className="requirements-list">
+            <h5>What you can do:</h5>
+            <ul>
+              <li>Check your application status in the dashboard</li>
+              <li>Wait for your current applications to be processed</li>
+              <li>Submit new grade reports to apply for additional allowances</li>
             </ul>
           </div>
           <button type="button" onClick={onCancel} className="cancel-button">
@@ -173,22 +248,31 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
           )}
 
           <div className="form-group">
-            <label htmlFor="gradeSubmission">
-              <span className="label-icon">📈</span>
-              Select Grade Submission
-            </label>
+            <label htmlFor="gradeSubmission">Select Grade Submission *</label>
             <select
               id="gradeSubmission"
               value={selectedGradeSubmission || ''}
               onChange={(e) => {
-                setSelectedGradeSubmission(parseInt(e.target.value));
-                setApplicationType(''); // Reset application type when grade changes
+                const gradeId = parseInt(e.target.value);
+                setSelectedGradeSubmission(gradeId);
+                
+                // Automatically set application type based on grade eligibility
+                const selectedGrade = gradeSubmissions.find(g => g.id === gradeId);
+                if (selectedGrade) {
+                  if (selectedGrade.qualifies_for_basic_allowance && selectedGrade.qualifies_for_merit_incentive) {
+                    setApplicationType('both');
+                  } else if (selectedGrade.qualifies_for_merit_incentive) {
+                    setApplicationType('merit');
+                  } else if (selectedGrade.qualifies_for_basic_allowance) {
+                    setApplicationType('basic');
+                  }
+                }
               }}
               required
               className="grade-select"
             >
               <option value="">Choose a grade submission...</option>
-              {gradeSubmissions.map((grade) => (
+              {getAvailableGradeSubmissions().map((grade) => (
                 <option key={grade.id} value={grade.id}>
                   {grade.academic_year} - {grade.semester_display} 
                   (GWA: {Number(grade.general_weighted_average).toFixed(2)}%, 
@@ -200,26 +284,38 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
 
           {selectedGradeSubmission && (
             <div className="grade-summary">
-              <h4>📊 Selected Grade Summary</h4>
+              <h4>Selected Grade Summary</h4>
               <div className="grade-details">
                 {(() => {
                   const selectedGrade = getSelectedGrade();
                   return selectedGrade ? (
                     <>
-                      <div className="grade-info">
-                        <span>📅 Academic Year: {selectedGrade.academic_year}</span>
-                        <span>📚 Semester: {selectedGrade.semester_display}</span>
+                      <div className="grade-info-row">
+                        <div className="info-item">
+                          <span className="info-label">Academic Year</span>
+                          <span className="info-value">{selectedGrade.academic_year}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Semester</span>
+                          <span className="info-value">{selectedGrade.semester_display}</span>
+                        </div>
                       </div>
-                      <div className="grade-scores">
-                        <span>📈 General Weighted Average: {Number(selectedGrade.general_weighted_average).toFixed(2)}%</span>
-                        <span>📊 Semestral Weighted Average: {Number(selectedGrade.semestral_weighted_average).toFixed(2)}%</span>
+                      <div className="grade-scores-row">
+                        <div className="score-item">
+                          <span className="score-label">General Weighted Average</span>
+                          <span className="score-value">{Number(selectedGrade.general_weighted_average).toFixed(2)}%</span>
+                        </div>
+                        <div className="score-item">
+                          <span className="score-label">Semestral Weighted Average</span>
+                          <span className="score-value">{Number(selectedGrade.semestral_weighted_average).toFixed(2)}%</span>
+                        </div>
                       </div>
                       <div className="eligibility-status">
                         <span className={`eligibility ${selectedGrade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>
-                          {selectedGrade.qualifies_for_basic_allowance ? '✅' : '❌'} Basic Allowance Eligible
+                          {selectedGrade.qualifies_for_basic_allowance ? '✓' : '✗'} Basic Allowance
                         </span>
                         <span className={`eligibility ${selectedGrade.qualifies_for_merit_incentive ? 'eligible' : 'not-eligible'}`}>
-                          {selectedGrade.qualifies_for_merit_incentive ? '🌟' : '❌'} Merit Incentive Eligible
+                          {selectedGrade.qualifies_for_merit_incentive ? '✓' : '✗'} Merit Incentive
                         </span>
                       </div>
                     </>
@@ -229,60 +325,28 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             </div>
           )}
 
-          {selectedGradeSubmission && getAvailableApplicationTypes().length > 0 && (
-            <div className="form-group">
-              <label htmlFor="applicationType">
-                <span className="label-icon">💰</span>
-                Application Type
-              </label>
-              <div className="application-types">
-                {getAvailableApplicationTypes().map((type) => (
-                  <label key={type.value} className="radio-option">
-                    <input
-                      type="radio"
-                      name="applicationType"
-                      value={type.value}
-                      checked={applicationType === type.value}
-                      onChange={(e) => setApplicationType(e.target.value)}
-                      required
-                    />
-                    <div className="radio-content">
-                      <div className="radio-header">
-                        <span className="radio-title">{type.label}</span>
-                        <span className="radio-amount">{type.amount}</span>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {applicationType && (
+          {selectedGradeSubmission && applicationType && (
             <div className="application-summary">
-              <h4>💸 Application Summary</h4>
+              <h4>Application Summary</h4>
               <div className="summary-details">
                 <div className="summary-row">
-                  <span>📋 Application Type:</span>
-                  <span>{getAvailableApplicationTypes().find(t => t.value === applicationType)?.label}</span>
+                  <span className="summary-label">Application Type</span>
+                  <span className="summary-value">{getAvailableApplicationTypes().find(t => t.value === applicationType)?.label}</span>
                 </div>
                 <div className="summary-row total">
-                  <span>💰 Total Amount:</span>
+                  <span className="summary-label">Total Amount</span>
                   <span className="amount">{calculateAmount()}</span>
                 </div>
               </div>
               <div className="processing-info">
-                <div className="info-item">
-                  <span className="info-icon">⏰</span>
-                  <span>Processing Time: 3-5 business days</span>
+                <div className="info-note">
+                  <strong>Processing Time:</strong> 3-5 business days
                 </div>
-                <div className="info-item">
-                  <span className="info-icon">👩‍💼</span>
-                  <span>Requires admin approval</span>
+                <div className="info-note">
+                  <strong>Approval:</strong> Requires admin approval
                 </div>
-                <div className="info-item">
-                  <span className="info-icon">📧</span>
-                  <span>You'll receive email updates on status changes</span>
+                <div className="info-note">
+                  <strong>Updates:</strong> You'll receive email notifications on status changes
                 </div>
               </div>
             </div>
@@ -308,9 +372,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
                   Submitting Application...
                 </>
               ) : (
-                <>
-                  💰 Submit Application for {calculateAmount()}
-                </>
+                `Submit Application for ${calculateAmount()}`
               )}
             </button>
           </div>

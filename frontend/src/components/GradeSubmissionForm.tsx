@@ -358,42 +358,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
             />
             <small>Your SWA for this specific semester (65-100%)</small>
           </div>
-
-          <div className="form-group">
-            <label>Grade Status Indicators</label>
-            <div className="checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_failing_grades"
-                  checked={formData.has_failing_grades}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has failing grades (below 75%)</span>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_incomplete_grades"
-                  checked={formData.has_incomplete_grades}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has incomplete grades (INC)</span>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_dropped_subjects"
-                  checked={formData.has_dropped_subjects}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has dropped subjects (DROP)</span>
-              </label>
-            </div>
-          </div>
         </div>
 
         <div className="form-group">

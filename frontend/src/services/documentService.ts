@@ -30,7 +30,7 @@ export const documentService = {
       return [
         {
           id: 1,
-          document_type: 'enrollment_certificate',
+          document_type: 'certificate_of_enrollment',
           document_type_display: 'Certificate of Enrollment',
           status: 'pending',
           status_display: 'Under Review',
@@ -51,7 +51,7 @@ export const documentService = {
   // Check if user can submit grades
   async checkGradeSubmissionEligibility(): Promise<GradeSubmissionEligibility> {
     const requiredDocuments = [
-      'enrollment_certificate',
+      'certificate_of_enrollment',
       'birth_certificate'
     ];
 
@@ -96,7 +96,8 @@ export const documentService = {
       birth_certificate: 'Birth Certificate',
       school_id: 'School ID',
       report_card: 'Report Card/Grades',
-      enrollment_certificate: 'Certificate of Enrollment',
+      certificate_of_enrollment: 'Certificate of Enrollment',
+      enrollment_certificate: 'Certificate of Enrollment', // Legacy support
       barangay_clearance: 'Barangay Clearance',
       parents_id: 'Parent\'s Valid ID',
       voter_certification: 'Voter\'s Certification',
