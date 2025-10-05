@@ -8,6 +8,7 @@ import './ProfileSettings.css';
 interface ProfileUpdateData {
   first_name: string;
   last_name: string;
+  middle_initial?: string;
   email: string;
   username: string;
   student_id?: string;
@@ -27,6 +28,7 @@ const ProfileSettings: React.FC = () => {
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
+    middle_initial: user?.middle_initial || '',
     email: user?.email || '',
     username: user?.username || '',
     student_id: user?.student_id || '',
@@ -108,10 +110,26 @@ const ProfileSettings: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Format middle initial
+    if (name === 'middle_initial') {
+      let formatted = value.toUpperCase().replace(/[^A-Z.]/g, '');
+      if (formatted.length > 0 && !formatted.endsWith('.')) {
+        formatted = formatted.substring(0, 1) + '.';
+      }
+      if (formatted.length > 2) {
+        formatted = formatted.substring(0, 2);
+      }
+      setFormData(prev => ({
+        ...prev,
+        [name]: formatted
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,6 +274,7 @@ const ProfileSettings: React.FC = () => {
       const updateData: any = {
         first_name: formData.first_name,
         last_name: formData.last_name,
+        middle_initial: formData.middle_initial || '',
         email: formData.email,
         username: formData.username,
       };
@@ -375,9 +394,6 @@ const ProfileSettings: React.FC = () => {
         >
           {/* Profile Photo Section */}
           <div className="profile-photo-section">
-            <h2>Profile Photo</h2>
-            <p className="section-subtitle">Upload your profile picture</p>
-            
             <div className="photo-upload-wrapper">
               <div className="profile-image-container" onClick={handleImageClick}>
                 {profileImage ? (
@@ -457,7 +473,6 @@ const ProfileSettings: React.FC = () => {
                   <h3>Personal Information</h3>
                   <p className="tab-subtitle">Update your personal details</p>
                 </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="first_name">First Name</label>
@@ -472,6 +487,21 @@ const ProfileSettings: React.FC = () => {
                       placeholder="Enter your first name"
                       style={getInputStyle()}
                     />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="middle_initial">Middle Initial</label>
+                    <input
+                      type="text"
+                      id="middle_initial"
+                      name="middle_initial"
+                      value={formData.middle_initial}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="M."
+                      maxLength={2}
+                      style={getInputStyle()}
+                    />
+                    <small className="form-hint-modal">Optional (e.g., M.)</small>
                   </div>
                   <div className="form-group">
                     <label htmlFor="last_name">Last Name</label>

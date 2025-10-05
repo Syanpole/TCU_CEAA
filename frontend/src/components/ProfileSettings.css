@@ -34,7 +34,7 @@
   --text-primary: #f8fafc !important;
   --text-secondary: #e2e8f0 !important;
   --text-muted: #cbd5e1 !important;
-  --border-color: #475569 !important;
+  --border-color: #334155 !important;
   --input-bg: #1e293b !important;
   --input-border: #334155 !important;
   --input-border-focus: #dc2626 !important;
@@ -46,30 +46,129 @@
   color: #f8fafc !important;
 }
 
-/* Dark theme specific enhancements */
-.profile-settings-container.dark-theme .profile-settings-card {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Dark theme input fields - FIXED */
+.profile-settings-container.dark-theme .form-input {
+  background: #1e293b !important;
+  border: 2px solid #334155 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
 }
 
-.profile-settings-container.dark-theme .profile-settings-card:hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+.profile-settings-container.dark-theme .form-input:hover {
+  border-color: #475569 !important;
+  background: #1e293b !important;
 }
 
+.profile-settings-container.dark-theme .form-input:focus {
+  background: #1e293b !important;
+  border-color: #dc2626 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.profile-settings-container.dark-theme .form-input::placeholder {
+  color: #64748b !important;
+}
+
+/* Dark theme labels and text */
+.profile-settings-container.dark-theme label,
+.profile-settings-container.dark-theme .form-group label {
+  color: #e2e8f0 !important;
+}
+
+.profile-settings-container.dark-theme .tab-content-header h3,
+.profile-settings-container.dark-theme .profile-photo-section h2,
+.profile-settings-container.dark-theme .profile-settings-title h1 {
+  color: #f8fafc !important;
+}
+
+.profile-settings-container.dark-theme .tab-subtitle,
+.profile-settings-container.dark-theme .section-subtitle,
+.profile-settings-container.dark-theme .password-help-text,
+.profile-settings-container.dark-theme .form-hint-modal,
+.profile-settings-container.dark-theme .photo-help-text {
+  color: #94a3b8 !important;
+}
+
+/* Dark theme borders */
+.profile-settings-container.dark-theme .profile-photo-section,
+.profile-settings-container.dark-theme .tab-navigation,
+.profile-settings-container.dark-theme .form-actions,
+.profile-settings-container.dark-theme .profile-settings-title {
+  border-color: #334155 !important;
+}
+
+/* Dark theme tabs */
+.profile-settings-container.dark-theme .tab-button {
+  color: #94a3b8 !important;
+}
+
+.profile-settings-container.dark-theme .tab-button:hover {
+  color: #e2e8f0 !important;
+}
+
+.profile-settings-container.dark-theme .tab-button.active {
+  color: #ef4444 !important;
+  border-bottom-color: #ef4444 !important;
+}
+
+/* Dark theme backgrounds */
+.profile-settings-container.dark-theme .profile-settings-card,
+.profile-settings-container.dark-theme .tab-content,
+.profile-settings-container.dark-theme .profile-photo-section,
+.profile-settings-container.dark-theme .tab-navigation,
+.profile-settings-container.dark-theme .form-actions {
+  background: #1e293b !important;
+}
+
+.profile-settings-container.dark-theme .profile-settings-title {
+  background: #0f172a !important;
+}
+
+/* Dark theme messages */
 .profile-settings-container.dark-theme .message.success {
-  background: rgba(220, 38, 38, 0.15);
-  border-color: rgba(220, 38, 38, 0.3);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
 }
 
 .profile-settings-container.dark-theme .message.error {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
 }
 
-.profile-settings-container.dark-theme .profile-image-wrapper {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+/* Dark theme role badge */
+.profile-settings-container.dark-theme .role-badge {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  color: white !important;
+}
+
+/* Dark theme buttons */
+.profile-settings-container.dark-theme .upload-photo-button,
+.profile-settings-container.dark-theme .save-button,
+.profile-settings-container.dark-theme .change-password-button {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  color: white !important;
+}
+
+.profile-settings-container.dark-theme .cancel-password-button {
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+
+.profile-settings-container.dark-theme .cancel-password-button:hover {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+.profile-settings-container.dark-theme .password-toggle-button {
+  color: #ef4444 !important;
+}
+
+.profile-settings-container.dark-theme .password-toggle-button:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 /* Enhanced Dark Mode Input Styles */
@@ -187,11 +286,13 @@
 
 .profile-settings-container {
   min-height: 100vh;
-  background: var(--primary-bg);
-  padding: 24px;
+  background: #ffffff;
+  padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: var(--text-primary);
+  color: #0f172a;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 /* AGGRESSIVE Light Theme Reset - Override ALL Dark Styles */
@@ -320,6 +421,7 @@
   animation: slideIn 0.3s ease-out;
   border: 1.5px solid;
   text-align: center;
+  background: #ffffff;
 }
 
 @keyframes slideIn {
@@ -334,15 +436,15 @@
 }
 
 .message.success {
-  background: rgba(220, 38, 38, 0.08);
+  background: #fef2f2;
   color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.25);
+  border-color: #dc2626;
 }
 
 .message.error {
-  background: rgba(239, 68, 68, 0.08);
-  color: var(--error);
-  border-color: rgba(239, 68, 68, 0.25);
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #dc2626;
 }
 
 .message-icon {
@@ -585,26 +687,27 @@
 .role-display {
   display: flex;
   flex-direction: column;
+  margin-bottom: 16px;
 }
 
 .role-display label {
-  color: var(--text-secondary);
+  color: #334155;
   font-weight: 500;
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .role-badge {
   display: inline-flex;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--gradient-primary);
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
   color: white;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   width: fit-content;
-  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
 }
 
 /* Password Section */
@@ -653,8 +756,15 @@
 
 .password-help-text {
   font-size: 12px;
-  color: var(--text-muted);
+  color: #64748b;
   margin: 8px 0 0 0;
+  font-style: italic;
+}
+
+.form-hint-modal {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
   font-style: italic;
 }
 
@@ -722,60 +832,72 @@
    TABBED LAYOUT STYLES
    =================================== */
 
-/* Profile Settings Wrapper */
+/* Profile Settings Wrapper - Full Width */
 .profile-settings-wrapper {
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .profile-settings-title {
-  padding: 24px 0;
-  text-align: center;
+  padding: 24px 40px 16px 40px;
+  text-align: left;
+  background: #ffffff;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .profile-settings-title h1 {
   font-size: 28px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #0f172a;
   margin: 0;
 }
 
-/* Profile Settings Card - Updated */
+/* Profile Settings Card - Full Width */
 .profile-settings-card {
-  background: var(--card-bg);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border-radius: 0;
+  box-shadow: none;
   padding: 0;
-  border: 2px solid var(--border-color);
-  overflow: hidden;
+  border: none;
+  overflow: visible;
   transition: all 0.3s ease;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
-/* Profile Photo Section */
+/* Profile Photo Section - Full Width Horizontal Layout */
 .profile-photo-section {
-  padding: 32px 32px 28px 32px;
-  border-bottom: 2px solid var(--border-color);
+  padding: 24px 40px;
+  border-bottom: 2px solid #e2e8f0;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 32px;
+  align-items: center;
 }
 
 .profile-photo-section h2 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
+  display: none; /* Hide title for cleaner horizontal layout */
 }
 
 .section-subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0 0 24px 0;
-  font-weight: 400;
+  display: none; /* Hide subtitle for cleaner horizontal layout */
 }
 
 .photo-upload-wrapper {
   display: flex;
   align-items: center;
   gap: 24px;
+  max-width: none;
+  width: 100%;
 }
 
 .profile-image-container {
@@ -869,12 +991,13 @@
   display: none;
 }
 
-/* Tab Navigation */
+/* Tab Navigation - Full Width */
 .tab-navigation {
   display: flex;
-  border-bottom: 2px solid var(--border-color);
-  background: var(--card-bg);
-  padding: 0 32px;
+  border-bottom: 2px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0 40px;
+  gap: 8px;
 }
 
 .tab-button {
@@ -883,27 +1006,33 @@
   padding: 16px 24px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: #64748b;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   margin-bottom: -2px;
   transition: all 0.3s ease;
   position: relative;
 }
 
 .tab-button:hover {
-  color: var(--text-primary);
+  color: #0f172a;
+  background: rgba(220, 38, 38, 0.05);
 }
 
 .tab-button.active {
-  color: var(--accent-red);
-  border-bottom-color: var(--accent-red);
+  color: #dc2626;
+  border-bottom-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
 }
 
-/* Tab Content */
+/* Tab Content - Horizontal Layout Full Width */
 .tab-content {
-  padding: 32px;
+  padding: 32px 40px;
   animation: fadeIn 0.3s ease;
+  background: #ffffff;
+  flex: 1;
+  overflow-y: auto;
+  max-width: 100%;
 }
 
 @keyframes fadeIn {
@@ -918,21 +1047,86 @@
 }
 
 .tab-content-header {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .tab-content-header h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
+  color: #0f172a;
+  margin: 0 0 6px 0;
 }
 
 .tab-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: #64748b;
   margin: 0;
   font-weight: 400;
+}
+
+/* Make form fields horizontal - Full Width */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+/* Individual form groups */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.form-group label {
+  color: #334155;
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.form-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #ffffff;
+  box-sizing: border-box;
+  color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
+  font-weight: 400;
+}
+
+.form-input:hover {
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #dc2626;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+  transform: none;
+  color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
 }
 
 /* Change Password Button (in password tab) */
@@ -972,13 +1166,14 @@
   color: var(--accent-red);
 }
 
-/* Form Actions */
+/* Form Actions - Full Width */
 .form-actions {
-  padding: 24px 32px;
-  border-top: 2px solid var(--border-color);
-  background: var(--card-bg);
+  padding: 20px 40px;
+  border-top: 2px solid #e2e8f0;
+  background: #ffffff;
   display: flex;
   justify-content: flex-end;
+  margin-top: auto;
 }
 
 .save-button {
@@ -1034,68 +1229,55 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .form-row {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .profile-settings-container {
-    padding: 10px;
+    padding: 0;
   }
   
-  .profile-settings-card {
-    margin: 0;
-    border-radius: 12px;
+  .profile-settings-title {
+    padding: 20px 20px;
   }
   
-  .profile-header {
-    padding: 20px 16px;
+  .profile-settings-title h1 {
+    font-size: 24px;
   }
   
-  .profile-header h1 {
-    font-size: 20px;
-  }
-  
-  .profile-header p {
-    font-size: 13px;
-  }
-  
-  .profile-form {
-    padding: 20px 16px;
+  .tab-content {
+    padding: 24px 20px;
   }
   
   .form-row {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 16px;
   }
   
-  .password-section-header {
+  .photo-upload-wrapper {
     flex-direction: column;
-    gap: 12px;
     align-items: flex-start;
   }
   
-  .toggle-password-section {
-    width: 100%;
-    text-align: center;
-    padding: 8px 14px;
-    font-size: 13px;
+  .profile-photo-section {
+    padding: 24px 20px;
+    grid-template-columns: 1fr;
   }
   
-  .profile-image-wrapper {
-    width: 90px;
-    height: 90px;
+  .tab-navigation {
+    padding: 0 20px;
+    overflow-x: auto;
   }
   
-  .form-input {
-    font-size: 16px;
-    padding: 10px 12px;
+  .form-actions {
+    padding: 16px 20px;
   }
-  
-  .form-section h3 {
-    font-size: 14px;
-  }
-  
+
   .save-button {
-    min-width: 140px;
-    padding: 11px 24px;
-    font-size: 14px;
+    width: 100%;
   }
 }
 

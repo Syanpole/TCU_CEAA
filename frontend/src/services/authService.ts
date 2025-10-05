@@ -9,6 +9,7 @@ export interface User {
   role: 'admin' | 'user' | 'student';
   first_name: string;
   last_name: string;
+  middle_initial?: string;
   student_id?: string;
   profile_image_url?: string;
   created_at: string;
@@ -27,6 +28,7 @@ export interface RegisterData {
   password_confirm: string;
   first_name: string;
   last_name: string;
+  middle_initial?: string;
   role?: 'admin' | 'user' | 'student';
   student_id?: string;
 }

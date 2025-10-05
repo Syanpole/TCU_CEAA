@@ -16,6 +16,7 @@ class CustomUser(AbstractUser):
     ]
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
     student_id = models.CharField(max_length=8, unique=True, null=True, blank=True, help_text="Format: YY-XXXXX (e.g., 22-00001)")
+    middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
     profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
