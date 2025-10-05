@@ -155,13 +155,22 @@
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 8px;
-  color: inherit;
+  color: #1f2937;
+}
+
+.documents-page.dark-theme .upload-card h2 {
+  color: #f9fafb;
 }
 
 .upload-card p {
   font-size: 14px;
   margin: 0 0 24px;
   opacity: 0.7;
+  color: #6b7280;
+}
+
+.documents-page.dark-theme .upload-card p {
+  color: #9ca3af;
 }
 
 .main-upload-button {
@@ -194,6 +203,11 @@
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 16px;
+  color: #1f2937;
+}
+
+.documents-page.dark-theme .uploaded-documents h3 {
+  color: #f9fafb;
 }
 
 .document-list {
@@ -214,10 +228,21 @@
   padding: 16px 20px;
   gap: 12px;
   border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.document-item:hover {
+  background: #f9fafb;
 }
 
 .documents-page.dark-theme .document-item {
   border-bottom-color: #374151;
+  background: #1f2937;
+}
+
+.documents-page.dark-theme .document-item:hover {
+  background: #2d3748;
 }
 
 .document-item:last-child {
@@ -226,6 +251,15 @@
 
 .document-item .document-icon {
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.documents-page.dark-theme .document-item .document-icon {
+  filter: brightness(1.2);
 }
 
 .document-item .document-info {
@@ -237,12 +271,22 @@
   font-weight: 500;
   font-size: 14px;
   margin-bottom: 2px;
+  color: #1f2937;
+}
+
+.documents-page.dark-theme .document-name {
+  color: #f9fafb;
 }
 
 .document-date {
   display: block;
   font-size: 12px;
   opacity: 0.7;
+  color: #6b7280;
+}
+
+.documents-page.dark-theme .document-date {
+  color: #9ca3af;
 }
 
 .status-badge {
@@ -252,6 +296,10 @@
   font-weight: 500;
   color: white;
   text-transform: capitalize;
+}
+
+.documents-page.dark-theme .status-badge {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 
