@@ -10,7 +10,9 @@ interface StudentRegistrationModalProps {
 
 const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onBack, onGoToLogin, onClose }) => {
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    middleInitial: '',
+    lastName: '',
     email: '',
     username: '',
     studentId: '',
@@ -36,6 +38,16 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
       let formatted = value.replace(/\D/g, '');
       if (formatted.length > 2) {
         formatted = formatted.substring(0, 2) + '-' + formatted.substring(2, 7);
+      }
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+    } else if (name === 'middleInitial') {
+      // Format middle initial - capitalize and add period if needed
+      let formatted = value.toUpperCase().replace(/[^A-Z.]/g, '');
+      if (formatted.length > 0 && !formatted.endsWith('.')) {
+        formatted = formatted.substring(0, 1) + '.';
+      }
+      if (formatted.length > 2) {
+        formatted = formatted.substring(0, 2);
       }
       setFormData(prev => ({ ...prev, [name]: formatted }));
     } else {
@@ -71,16 +83,14 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
     }
 
     try {
-      const [firstName, ...lastNameParts] = formData.fullName.trim().split(' ');
-      const lastName = lastNameParts.join(' ');
-
       await authService.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
         password_confirm: formData.confirmPassword,
-        first_name: firstName,
-        last_name: lastName || '',
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        middle_initial: formData.middleInitial.trim() || '',
         student_id: formData.studentId,
         role: 'student'
       });
@@ -221,18 +231,47 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
             </div>
           )}
 
-          <div className="form-group-modal">
-            <label htmlFor="fullName">Full Name *</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleInputChange}
-              required
-              className="form-input-modal"
-              placeholder="Enter your full name"
-            />
+          <div className="form-row-modal">
+            <div className="form-group-modal">
+              <label htmlFor="firstName">First Name *</label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+                className="form-input-modal"
+                placeholder="Enter your first name"
+              />
+            </div>
+            <div className="form-group-modal">
+              <label htmlFor="middleInitial">Middle Initial</label>
+              <input
+                type="text"
+                id="middleInitial"
+                name="middleInitial"
+                value={formData.middleInitial}
+                onChange={handleInputChange}
+                className="form-input-modal"
+                placeholder="M."
+                maxLength={2}
+              />
+              <small className="form-hint-modal">Optional (e.g., M.)</small>
+            </div>
+            <div className="form-group-modal">
+              <label htmlFor="lastName">Last Name *</label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+                className="form-input-modal"
+                placeholder="Enter your last name"
+              />
+            </div>
           </div>
 
           <div className="form-group-modal">
