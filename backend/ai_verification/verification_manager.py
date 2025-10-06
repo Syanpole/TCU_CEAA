@@ -105,29 +105,6 @@ class DocumentVerificationManager:
             notes.append("❌ DOCUMENT TYPE VERIFICATION: FAILED")
             notes.append(f"   ✗ Document does not match declared type: {document_submission.get_document_type_display()}")
         
-        # Add filename-content crosscheck results
-        filename_analysis = ai_verification.get('filename_analysis', {})
-        crosscheck = ai_verification.get('filename_content_consistency', 'unknown')
-        mismatch_warnings = ai_verification.get('crosscheck_warnings', [])
-        
-        if crosscheck != 'unknown':
-            if crosscheck == 'consistent':
-                notes.append("\n✅ FILENAME-CONTENT CONSISTENCY: PASSED")
-                notes.append("   ✓ Filename and content analysis are consistent")
-            elif crosscheck == 'mismatch_high_risk':
-                notes.append("\n🚨 FILENAME-CONTENT CONSISTENCY: CRITICAL MISMATCH")
-                notes.append("   ✗ HIGH FRAUD RISK: Filename suggests different document type")
-            elif crosscheck == 'filename_misleading':
-                notes.append("\n⚠️ FILENAME-CONTENT CONSISTENCY: MISLEADING FILENAME")
-                notes.append("   ✗ Filename appears designed to deceive verification")
-            elif crosscheck == 'partial_mismatch':
-                notes.append("\n⚠️ FILENAME-CONTENT CONSISTENCY: PARTIAL MISMATCH")
-                notes.append("   ✗ Filename matches declared type but content lacks keywords")
-        
-        # Show specific crosscheck warnings
-        for warning in mismatch_warnings[:2]:  # Limit to top 2 warnings
-            notes.append(f"   • {warning.get('description', 'Crosscheck warning')}")
-        
         # Fraud detection results
         fraud_indicators = ai_verification.get('fraud_indicators', [])
         if processed['fraud_detected']:

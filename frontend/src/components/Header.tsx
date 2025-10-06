@@ -63,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ currentView = 'dashboard', onViewChange
                 <DefaultAvatar 
                   firstName={user?.first_name}
                   lastName={user?.last_name}
-                  size={50}
+                  size={40}
                   className="user-avatar-default"
                 />
               )}

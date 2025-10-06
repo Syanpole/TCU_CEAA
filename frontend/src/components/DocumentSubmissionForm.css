@@ -1,121 +1,95 @@
-/* Modern Document Submission Form */
+/* Modern Document Submission Form - Modal Enhanced */
 .document-submission-form {
-  background: transparent;
-  border-radius: 20px;
-  padding: 20px;
-  max-width: 480px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 700px;
   margin: 0 auto;
   position: relative;
   overflow: visible;
-  border: none;
-  box-shadow: none;
-}
-
-/* Compact version for modal usage */
-.compact-modal-content .document-submission-form {
-  padding: 16px;
-  max-width: 100%;
-  border-radius: 16px;
-}
-
-/* Improved text visibility for compact modals */
-.compact-modal-content .form-group label {
-  color: #1e293b !important;
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.compact-modal-content .form-header h3 {
-  color: #1e293b !important;
-  font-weight: 800;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
-}
-
-.compact-modal-content .form-header p {
-  color: #334155 !important;
-  font-weight: 600;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
-}
-
-/* Better input styling for visibility */
-.compact-modal-content input,
-.compact-modal-content select,
-.compact-modal-content textarea {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border: 2px solid rgba(30, 41, 59, 0.2) !important;
-  color: #1e293b !important;
-  font-weight: 500;
-}
-
-.compact-modal-content input:focus,
-.compact-modal-content select:focus,
-.compact-modal-content textarea:focus {
-  border-color: #667eea !important;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
-}
-
-/* Dark theme text visibility improvements */
-.student-dashboard-container.dark-theme .compact-modal-content .form-group label {
-  color: #f1f5f9 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.student-dashboard-container.dark-theme .compact-modal-content .form-header h3 {
-  color: #f1f5f9 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.student-dashboard-container.dark-theme .compact-modal-content .form-header p {
-  color: #cbd5e1 !important;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
-}
-
-.student-dashboard-container.dark-theme .compact-modal-content input,
-.student-dashboard-container.dark-theme .compact-modal-content select,
-.student-dashboard-container.dark-theme .compact-modal-content textarea {
-  background: rgba(51, 65, 85, 0.8) !important;
-  border: 2px solid rgba(100, 116, 139, 0.3) !important;
-  color: #f1f5f9 !important;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .form-header {
-  margin-bottom: 18px;
+  margin-bottom: 28px;
   text-align: center;
   position: relative;
-}
-
-/* Compact header */
-.compact-modal-content .form-header {
-  margin-bottom: 14px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
 }
 
 .form-header h3 {
-  color: #0f172a !important;
-  margin: 0 0 6px 0;
-  font-size: 22px;
-  font-weight: 700;
+  color: #1e293b !important;
+  margin: 0 0 10px 0;
+  font-size: 28px;
+  font-weight: 800;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-/* Compact title */
-.compact-modal-content .form-header h3 {
-  font-size: 20px;
-  margin: 0 0 4px 0;
+  letter-spacing: -0.5px;
 }
 
 .form-header p {
   color: #64748b !important;
-  margin: 0;
-  font-size: 14px;
+  margin: 0 0 18px 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.requirement-note {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.2) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.requirement-note strong {
+  color: #1e40af;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.important-note {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(248, 113, 113, 0.15) 100%);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.important-note strong {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.requirement-note ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+  color: #1e40af;
+}
+
+.requirement-note li {
+  margin: 4px 0;
+  font-size: 13px;
   font-weight: 500;
 }
 
-/* Compact description */
-.compact-modal-content .form-header p {
-  font-size: 13px;
+.document-order-note {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(252, 211, 77, 0.2) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  color: #92400e;
+  font-size: 12px;
 }
 
 .error-alert {
@@ -140,52 +114,27 @@
 .submission-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Compact form groups */
-.compact-modal-content .form-group {
-  gap: 6px;
-  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 24px;
 }
 
 .form-group label {
   font-weight: 600;
-  color: #0f172a;
+  color: #334155;
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Compact labels */
-.compact-modal-content .form-group label {
-  font-size: 13px;
-  gap: 4px;
+  padding-top: 12px;
+  text-align: left;
 }
 
 .form-group label::before {
-  content: '📄';
-  font-size: 16px;
-}
-
-/* Compact icons */
-.compact-modal-content .form-group label::before {
-  font-size: 14px;
-}
-
-.form-group:nth-child(2) label::before {
-  content: '✏️';
-}
-
-.form-group:nth-child(3) label::before {
-  content: '📎';
+  content: none;
 }
 
 .form-select,
@@ -196,10 +145,11 @@
   border-radius: 12px;
   font-size: 14px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(248, 250, 252, 0.8);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  color: #0f172a;
+  color: #1e293b;
   font-weight: 500;
+  width: 100%;
 }
 
 .form-select:focus,
@@ -207,8 +157,8 @@
 .form-file:focus {
   outline: none;
   border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  background: rgba(255, 255, 255, 1);
   transform: translateY(-1px);
 }
 
@@ -249,8 +199,7 @@
 }
 
 .file-info small::before {
-  content: '💡';
-  font-size: 14px;
+  content: none;
 }
 
 .selected-file {
@@ -324,13 +273,6 @@
   margin-top: 16px;
   padding-top: 20px;
   border-top: 1px solid rgba(226, 232, 240, 0.5);
-}
-
-/* Compact form actions */
-.compact-modal-content .form-actions {
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 16px;
 }
 
 .btn-primary,
@@ -420,29 +362,21 @@
   }
 }
 
-/* Compact button styles */
-.compact-modal-content .btn-primary,
-.compact-modal-content .btn-secondary {
-  padding: 10px 20px;
-  font-size: 13px;
-  border-radius: 10px;
-  gap: 6px;
-}
-
-.compact-modal-content .btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.compact-modal-content .btn-secondary:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .document-submission-form {
     margin: 12px;
-    padding: 20px;
+    padding: 24px;
     border-radius: 16px;
+  }
+
+  .form-group {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .form-group label {
+    padding-top: 0;
   }
   
   .form-actions {
@@ -458,7 +392,7 @@
   }
 
   .form-header h3 {
-    font-size: 20px;
+    font-size: 24px;
   }
 }
 

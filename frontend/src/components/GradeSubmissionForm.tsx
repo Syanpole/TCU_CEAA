@@ -105,12 +105,14 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     // Check if user can submit grades
     if (!eligibility?.canSubmit) {
       setNotificationType('warning');
-      if (eligibility?.missingDocuments.length) {
+      if (eligibility?.missingDocuments.length && eligibility?.requiredDocuments.length === 0) {
+        setNotificationMessage('Please upload at least one supporting document before submitting grades. Required documents include: Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.');
+      } else if (eligibility?.missingDocuments.length) {
         setNotificationMessage(`Please upload the following required documents first: ${eligibility.missingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}`);
       } else if (eligibility?.pendingDocuments.length) {
         setNotificationMessage(`Your documents are still under review. Please wait for admin approval of: ${eligibility.pendingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}`);
       } else {
-        setNotificationMessage('You need to have your required documents approved before submitting grades. Please upload your Certificate of Enrollment and Valid ID Copy.');
+        setNotificationMessage('You need to have at least one approved supporting document before submitting grades. Please upload your Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.');
       }
       setShowNotification(true);
       return;
@@ -213,46 +215,70 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           </div>
         ) : eligibility ? (
           <>
-            <div className="document-requirements">
-              {eligibility.requiredDocuments.map(docType => {
-                const isApproved = eligibility.approvedDocuments.includes(docType);
-                const isPending = eligibility.pendingDocuments.includes(docType);
-                const isMissing = eligibility.missingDocuments.includes(docType);
-                
-                return (
-                  <div key={docType} className={`requirement-item ${isApproved ? 'approved' : isPending ? 'pending' : 'missing'}`}>
-                    <div className="requirement-icon">
-                      {isApproved ? '✅' : isPending ? '⏳' : '❌'}
+            {eligibility.requiredDocuments.length > 0 ? (
+              <div className="document-requirements">
+                {eligibility.requiredDocuments.map(docType => {
+                  const isApproved = eligibility.approvedDocuments.includes(docType);
+                  const isPending = eligibility.pendingDocuments.includes(docType);
+                  const isMissing = eligibility.missingDocuments.includes(docType);
+                  
+                  return (
+                    <div key={docType} className={`requirement-item ${isApproved ? 'approved' : isPending ? 'pending' : 'missing'}`}>
+                      <div className="requirement-icon">
+                        {isApproved ? '✅' : isPending ? '⏳' : '❌'}
+                      </div>
+                      <div className="requirement-info">
+                        <span className="requirement-name">
+                          {documentService.getDocumentTypeLabel(docType)}
+                        </span>
+                        <span className="requirement-status">
+                          {isApproved ? 'Approved' : isPending ? 'Under Review' : 'Not Submitted'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="requirement-info">
-                      <span className="requirement-name">
-                        {documentService.getDocumentTypeLabel(docType)}
-                      </span>
-                      <span className="requirement-status">
-                        {isApproved ? 'Approved' : isPending ? 'Under Review' : 'Not Submitted'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="no-documents-message">
+                <div className="info-icon">ℹ️</div>
+                <div className="info-text">
+                  <strong>No Documents Submitted Yet</strong>
+                  <p>Please submit at least one of the following documents before submitting grades: Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.</p>
+                </div>
+              </div>
+            )}
             {!eligibility.canSubmit && (
               <div className="document-warning">
                 <div className="warning-icon">⚠️</div>
                 <div className="warning-text">
                   <strong>Document Approval Required</strong>
-                  {eligibility.missingDocuments.length > 0 && (
+                  {eligibility.missingDocuments.length > 0 && eligibility.requiredDocuments.length === 0 && (
+                    <p>
+                      No documents submitted yet. Please upload at least one supporting document (Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records) before submitting grades.
+                    </p>
+                  )}
+                  {eligibility.missingDocuments.length > 0 && eligibility.requiredDocuments.length > 0 && (
                     <p>
                       Missing documents: {eligibility.missingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}. 
                       Please upload these documents first.
                     </p>
                   )}
-                  {eligibility.pendingDocuments.length > 0 && (
+                  {eligibility.pendingDocuments.length > 0 && eligibility.approvedDocuments.length === 0 && (
                     <p>
                       Pending approval: {eligibility.pendingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}. 
                       Please wait for admin approval (usually 3-5 business days).
                     </p>
                   )}
+                </div>
+              </div>
+            )}
+            {eligibility.canSubmit && (
+              <div className="document-success">
+                <div className="success-icon">✅</div>
+                <div className="success-text">
+                  <strong>You're all set!</strong>
+                  <p>Your documents have been approved. You can now submit your grades.</p>
                 </div>
               </div>
             )}
@@ -357,42 +383,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
               className="form-input"
             />
             <small>Your SWA for this specific semester (65-100%)</small>
-          </div>
-
-          <div className="form-group">
-            <label>Grade Status Indicators</label>
-            <div className="checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_failing_grades"
-                  checked={formData.has_failing_grades}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has failing grades (below 75%)</span>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_incomplete_grades"
-                  checked={formData.has_incomplete_grades}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has incomplete grades (INC)</span>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="has_dropped_subjects"
-                  checked={formData.has_dropped_subjects}
-                  onChange={handleInputChange}
-                  className="form-checkbox"
-                />
-                <span>Has dropped subjects (DROP)</span>
-              </label>
-            </div>
           </div>
         </div>
 

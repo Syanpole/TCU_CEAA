@@ -1,11 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Modal from './Modal';
-import ModalLogin from './ModalLogin';
-import ModalRegistration from './ModalRegistration';
-import DisclaimerModal from './DisclaimerModal';
-import PrivacyPolicyModal from './PrivacyPolicyModal';
-import FAQModal from './FAQModal';
-import HelpCenterModal from './HelpCenterModal';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -14,64 +7,9 @@ interface LandingPageProps {
   onPrivacyClick: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showFAQModal, setShowFAQModal] = useState(false);
-  const [showHelpCenterModal, setShowHelpCenterModal] = useState(false);
-
-  const handleLoginClick = () => {
-    setShowLoginModal(true);
-  };
-
-  const handleRegisterClick = () => {
-    setShowRegisterModal(true);
-  };
-
-  const closeModals = () => {
-    setShowLoginModal(false);
-    setShowRegisterModal(false);
-    setShowDisclaimerModal(false);
-    setShowPrivacyModal(false);
-    setShowFAQModal(false);
-    setShowHelpCenterModal(false);
-  };
-
-  const showDisclaimer = () => {
-    setShowDisclaimerModal(true);
-  };
-
-  const showPrivacy = () => {
-    setShowPrivacyModal(true);
-  };
-
-  const showFAQ = () => {
-    setShowFAQModal(true);
-  };
-
-  const showHelpCenter = () => {
-    setShowHelpCenterModal(true);
-  };
-
-  const switchToLogin = () => {
-    setShowRegisterModal(false);
-    setShowLoginModal(true);
-  };
-
-  const switchToRegister = () => {
-    setShowLoginModal(false);
-    setShowRegisterModal(true);
-  };
-
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
+const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick, onPrivacyClick }) => {
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Scroll animation observer
@@ -95,16 +33,66 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
     // Scroll to top button visibility
     const handleScroll = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      setShowScrollTop(scrollTop > 300);
+      setShowScrollToTop(scrollTop > 300);
     };
+
+    // Handle smooth scrolling for navigation links
+    const handleNavClick = (e: Event) => {
+      const target = e.target as HTMLAnchorElement;
+      if (target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+        const targetId = target.getAttribute('href')?.substring(1);
+        const targetElement = document.getElementById(targetId!);
+        if (targetElement) {
+          const headerHeight = 100; // Adjust based on your header height
+          const targetPosition = targetElement.offsetTop - headerHeight;
+          window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+          });
+          // Close mobile menu after navigation
+          setMobileMenuOpen(false);
+        }
+      }
+    };
+
+    // Add click listeners to navigation links
+    const navLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
+    navLinks.forEach(link => {
+      link.addEventListener('click', handleNavClick);
+    });
 
     window.addEventListener('scroll', handleScroll);
 
     return () => {
       observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
+      navLinks.forEach(link => {
+        link.removeEventListener('click', handleNavClick);
+      });
     };
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleLoginClick = () => {
+    setMobileMenuOpen(false);
+    onLoginClick();
+  };
+
+  const handleRegisterClick = () => {
+    setMobileMenuOpen(false);
+    onRegisterClick();
+  };
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -121,40 +109,68 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
               TCU-CEAA Portal
             </h1>
           </div>
-          <nav className="nav-menu">
+
+          <nav className={`nav-menu ${mobileMenuOpen ? 'mobile-open' : ''}`}>
             <a href="#about">About</a>
             <a href="#features">Features</a>
             <a href="#process">Process</a>
             <a href="#contact">Contact</a>
+            
+            {/* Mobile auth buttons inside menu */}
+            <div className="mobile-auth-buttons">
+              <button className="signin-btn" onClick={handleLoginClick}>
+                Sign In
+              </button>
+              <button className="register-btn" onClick={handleRegisterClick}>
+                Student Registration
+              </button>
+            </div>
           </nav>
+
+          {/* Desktop auth buttons */}
           <div className="auth-buttons">
-            <button className="signin-btn" onClick={handleLoginClick}>
+            <button className="signin-btn" onClick={onLoginClick}>
               Sign In
             </button>
-            <button className="register-btn" onClick={handleRegisterClick}>
+            <button className="register-btn" onClick={onRegisterClick}>
               Student Registration
             </button>
           </div>
+
+          {/* Mobile menu toggle */}
+          <button 
+            className="mobile-menu-toggle" 
+            onClick={toggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
       <main className="landing-main">
-        
 
         <section className="hero animate-section">
           <div className="hero-content">
             <div className="hero-text">
-              <h2>City Educational Assistance Allowance</h2>
+              <h2>Educational Assistance Portal</h2>
               <p>
-                Welcome to the official portal of TCU City Educational Assistance Allowance. 
-                Experience seamless academic management, student services, and administrative 
-                excellence powered by modern technology and AI-driven insights.
+                Get financial support for your education at Taguig City University. 
+                Apply for allowances and manage your academic journey with ease.
               </p>
               <div className="hero-buttons">
-                <button className="cta-primary" onClick={handleRegisterClick}>
+                <button className="cta-primary" onClick={onRegisterClick}>
                   Student Registration
                 </button>
-                <button className="cta-secondary" onClick={handleLoginClick}>
+                <button className="cta-secondary" onClick={onLoginClick}>
                   Sign In
                 </button>
               </div>
@@ -190,45 +206,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="about" className="info-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>About TCU-CEAA</h3>
-            <p>Supporting TCU students with educational financial assistance</p>
+            <h3>About CEAA</h3>
+            <p>Financial assistance for TCU students</p>
           </div>
           <div className="info-grid">
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/financial-assistance.png" alt="Financial Assistance" />
               </div>
-              <h4>Financial Assistance</h4>
-              <p>Get the financial support you need to continue your education and achieve your academic goals.</p>
+              <h4>Financial Support</h4>
+              <p>Get financial help to continue your studies at TCU.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/easy-application.png" alt="Easy Application" />
               </div>
               <h4>Easy Application</h4>
-              <p>Simple online application process - upload your documents and submit your grades easily.</p>
+              <p>Simple online process to apply for your allowance.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/quick-processing.png" alt="Quick Processing" />
               </div>
               <h4>Quick Processing</h4>
-              <p>Fast evaluation of your application so you can get your allowance as soon as possible.</p>
+              <p>Fast review of your application and quick approval.</p>
             </div>
             <div className="info-card">
               <div className="info-icon">
                 <img src="/images/track-status.png" alt="Track Status" />
               </div>
               <h4>Track Status</h4>
-              <p>Check your application status anytime, anywhere through your student dashboard.</p>
+              <p>Check your application status anytime through your dashboard.</p>
             </div>
           </div>
         </section>
 
         <section id="features" className="features-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>What You Can Do</h3>
-            <p>Everything you need to apply for and manage your educational allowance</p>
+            <h3>Features</h3>
+            <p>Simple tools to manage your allowance application</p>
           </div>
           <div className="features-grid">
             <div className="feature-category">
@@ -256,8 +272,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section id="process" className="landing-process-section animate-section">
           <div className="LandingPage-section-header">
-            <h3>How to Apply</h3>
-            <p>Simple steps to get your educational allowance</p>
+            <h3>How It Works</h3>
+            <p>Four simple steps to get your allowance</p>
           </div>
           <div className="landing-process-steps">
             <div className="landing-step">
@@ -296,13 +312,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
 
         <section className="cta-section animate-section">
           <div className="cta-content">
-            <h3>Need Financial Support for Your Studies?</h3>
-            <p>Join thousands of TCU students who are getting educational assistance through our program</p>
+            <h3>Ready to Apply?</h3>
+            <p>Join thousands of TCU students getting financial assistance</p>
             <div className="cta-buttons-large">
-              <button className="cta-primary-large" onClick={handleRegisterClick}>
+              <button className="cta-primary-large" onClick={onRegisterClick}>
                 Apply for Allowance
               </button>
-              <button className="cta-secondary-large" onClick={handleLoginClick}>
+              <button className="cta-secondary-large" onClick={onLoginClick}>
                 Already Registered? Sign In
               </button>
             </div>
@@ -314,7 +330,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
         <div className="footer-content">
           <div className="footer-section">
             <h4>TCU-CEAA Portal</h4>
-            <p>Taguig City University - City Educational Assistance Allowance - Supporting students through financial assistance and academic excellence.</p>
+            <p>Taguig City University educational assistance program for students.</p>
             <div className="social-links">
               <a 
                 href="https://www.facebook.com/TaguigCityUniversity" 
@@ -365,103 +381,47 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           </div>
           <div className="footer-section">
             <h4>Contact Info</h4>
-            <p>📍 Gen. Santos Ave. Central Bicutan<br />Taguig City, Philippines</p>
+            <p>📍 Gen. Santos Ave. Central Bicutan, Taguig City</p>
             <p>📞 (817) 257-TCU1 (8281)</p>
             <p>✉️ ceaa@tcu.edu</p>
           </div>
           <div className="footer-section">
             <h4>Support</h4>
             <ul>
-              <li><button onClick={showFAQ} className="footer-link-button">FAQ</button></li>
-              <li><button onClick={showHelpCenter} className="footer-link-button">Help Center</button></li>
-              <li><button onClick={showPrivacy} className="footer-link-button">Privacy Policy</button></li>
-              <li><button onClick={showDisclaimer} className="footer-link-button">Disclaimer</button></li>
+              <li><a href="#faq">FAQ</a></li>
+              <li><a href="#help">Help Center</a></li>
+              <li><button onClick={onPrivacyClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>Privacy Policy</button></li>
+              <li><a href="#terms">Terms of Service</a></li>
             </ul>
           </div>
         </div>
         <div className="footer-bottom">
           <p>&copy; {new Date().getFullYear()} Taguig City University CEAA Portal. All rights reserved.</p>
-          <p>Powered by Modern Technology | Made with ❤️ for TCU Community</p>
+          <p>Made for TCU Community</p>
         </div>
       </footer>
 
       {/* Scroll to Top Button */}
-      <button 
-        className={`scroll-to-top ${showScrollTop ? 'visible' : ''}`}
-        onClick={scrollToTop}
-        aria-label="Scroll to top"
-      >
-        <svg 
-          width="24" 
-          height="24" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
+      {showScrollToTop && (
+        <button 
+          className="scroll-to-top-btn"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
         >
-          <path 
-            d="M12 19V5M5 12L12 5L19 12" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {/* Modals */}
-      <Modal
-        isOpen={showLoginModal}
-        onClose={closeModals}
-        size="small"
-      >
-        <ModalLogin
-          onClose={closeModals}
-          onSwitchToRegister={switchToRegister}
-        />
-      </Modal>
-
-      <Modal
-        isOpen={showRegisterModal}
-        onClose={closeModals}
-        size="medium"
-      >
-        <ModalRegistration
-          onClose={closeModals}
-          onSwitchToLogin={switchToLogin}
-        />
-      </Modal>
-
-      <Modal
-        isOpen={showDisclaimerModal}
-        onClose={closeModals}
-        size="large"
-      >
-        <DisclaimerModal onClose={closeModals} />
-      </Modal>
-
-      <Modal
-        isOpen={showPrivacyModal}
-        onClose={closeModals}
-        size="large"
-      >
-        <PrivacyPolicyModal onClose={closeModals} />
-      </Modal>
-
-      <Modal
-        isOpen={showFAQModal}
-        onClose={closeModals}
-        size="large"
-      >
-        <FAQModal onClose={closeModals} />
-      </Modal>
-
-      <Modal
-        isOpen={showHelpCenterModal}
-        onClose={closeModals}
-        size="large"
-      >
-        <HelpCenterModal onClose={closeModals} />
-      </Modal>
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path 
+              d="M12 8L6 14L7.41 15.41L12 10.83L16.59 15.41L18 14L12 8Z" 
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+      )}
     </div>
   );
 };

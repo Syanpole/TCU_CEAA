@@ -365,17 +365,48 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
         setLoading(true);
         setError(null);
         
-        // Fetch current user info and students list
-        const [userResponse, studentsResponse] = await Promise.all([
-          apiClient.get<Student>('/auth/me/'),
-          apiClient.get<Student[]>('/students/')
-        ]);
-        
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('You must be logged in to access this page. Please login first.');
+          setLoading(false);
+          return;
+        }
+
+        // First fetch current user info
+        const userResponse = await apiClient.get<Student>('/auth/profile/');
         setCurrentUser(userResponse.data);
-        setStudents(studentsResponse.data);
-      } catch (err) {
+        
+        // Then fetch students list (only if user is admin)
+        if (userResponse.data.role === 'admin') {
+          const studentsResponse = await apiClient.get<Student[]>('/students/');
+          setStudents(studentsResponse.data);
+        } else {
+          // If user is a student, just set empty students array
+          setStudents([]);
+        }
+        
+      } catch (err: any) {
         console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again later.');
+        let errorMessage = 'Failed to load data. Please try again later.';
+        
+        if (err.response?.status === 401) {
+          errorMessage = 'Authentication failed. Please login again.';
+          // Clear invalid token
+          localStorage.removeItem('token');
+        } else if (err.response?.status === 403) {
+          errorMessage = 'Access denied. You may not have permission to view students.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'API endpoint not found. Please check if the backend is running.';
+        } else if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+          errorMessage = 'Cannot connect to server. Please check if the backend server is running on http://localhost:8000';
+        } else if (err.response?.data?.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.message) {
+          errorMessage = `Error: ${err.message}`;
+        }
+        
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -383,6 +414,61 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
 
     fetchData();
   }, []);
+
+  const handleRetry = () => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('You must be logged in to access this page. Please login first.');
+          setLoading(false);
+          return;
+        }
+
+        // First fetch current user info
+        const userResponse = await apiClient.get<Student>('/auth/profile/');
+        setCurrentUser(userResponse.data);
+        
+        // Then fetch students list (only if user is admin)
+        if (userResponse.data.role === 'admin') {
+          const studentsResponse = await apiClient.get<Student[]>('/students/');
+          setStudents(studentsResponse.data);
+        } else {
+          // If user is a student, just set empty students array
+          setStudents([]);
+        }
+        
+      } catch (err: any) {
+        console.error('Error fetching data:', err);
+        let errorMessage = 'Failed to load data. Please try again later.';
+        
+        if (err.response?.status === 401) {
+          errorMessage = 'Authentication failed. Please login again.';
+          localStorage.removeItem('token');
+        } else if (err.response?.status === 403) {
+          errorMessage = 'Access denied. You may not have permission to view students.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'API endpoint not found. Please check if the backend is running.';
+        } else if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+          errorMessage = 'Cannot connect to server. Please check if the backend server is running on http://localhost:8000';
+        } else if (err.response?.data?.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.message) {
+          errorMessage = `Error: ${err.message}`;
+        }
+        
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  };
 
   const filteredStudents = students.filter(student =>
     student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -466,7 +552,7 @@ const StudentsManagement: React.FC<StudentsManagementProps> = ({ onViewChange })
           <p className="error-message">{error}</p>
           <button 
             className="retry-btn"
-            onClick={() => window.location.reload()}
+            onClick={handleRetry}
           >
             RETRY
           </button>

@@ -2,62 +2,58 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import Privacy from './components/Privacy';
-import Login from './components/Login';
+import Modal from './components/Modal';
+import LoginModal from './components/LoginModal';
+import StudentRegistrationModal from './components/StudentRegistrationModal';
 import Header from './components/Header';
 import Dashboard from './components/AdminDashboard';
-import StudentDashboard from './components/student/StudentDashboard';
-import StudentRegistration from './components/student/StudentRegistration';
+import StudentDashboard from './components/StudentDashboard';
 import ProfileSettings from './components/ProfileSettings';
-import StudentsManagement from './components/student/StudentsManagement';
+import StudentsManagement from './components/StudentsManagement';
 import DocumentsManagement from './components/DocumentsManagement';
 import GradesManagement from './components/GradesManagement';
 import ApplicationsManagement from './components/ApplicationsManagement';
-import Analytics from './components/Analytics';
 import './App.css';
 
 const AppContent: React.FC = () => {
   const { user, loading, isAdmin } = useAuth();
-  const [showLanding, setShowLanding] = useState(true);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showStudentRegistration, setShowStudentRegistration] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard');
-
-  const showStudentRegister = () => {
-    setShowStudentRegistration(true);
-    setShowLanding(false);
-    setShowPrivacy(false);
-  };
-
-  const backToLanding = () => {
-    setShowLanding(true);
-    setShowStudentRegistration(false);
-    setShowPrivacy(false);
-  };
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'profile'
 
   const showPrivacyPage = () => {
     setShowPrivacy(true);
-    setShowLanding(false);
-    setShowStudentRegistration(false);
   };
 
-  const goToLogin = () => {
-    setShowLanding(false);
-    setShowStudentRegistration(false);
+  const handleBackToLanding = () => {
     setShowPrivacy(false);
   };
 
   const handleLoginClick = () => {
-    // Login is now handled by modal, no state change needed
+    setShowLoginModal(true);
   };
 
   const handleRegisterClick = () => {
-    // Registration is now handled by modal, no state change needed
+    setShowRegistrationModal(true);
   };
 
-  const handleBackToLanding = () => {
-    setShowLanding(true);
-    setShowStudentRegistration(false);
-    setShowPrivacy(false);
+  const closeLoginModal = () => {
+    setShowLoginModal(false);
+  };
+
+  const closeRegistrationModal = () => {
+    setShowRegistrationModal(false);
+  };
+
+  const switchToRegistration = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const switchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
   };
 
   if (loading) {
@@ -74,29 +70,48 @@ const AppContent: React.FC = () => {
       return <Privacy onBackToHome={handleBackToLanding} />;
     }
     
-    if (showLanding) {
-      return (
+    return (
+      <>
         <LandingPage 
           onLoginClick={handleLoginClick}
           onRegisterClick={handleRegisterClick}
           onPrivacyClick={showPrivacyPage}
         />
-      );
-    }
-    
-    if (showStudentRegistration) {
-      return <StudentRegistration onBack={backToLanding} onGoToLogin={goToLogin} />;
-    }
-
-    return (
-      <LandingPage 
-        onLoginClick={handleLoginClick}
-        onRegisterClick={handleRegisterClick}
-        onPrivacyClick={showPrivacyPage}
-      />
+        
+        <Modal isOpen={showLoginModal} onClose={closeLoginModal}>
+          <LoginModal 
+            onStudentRegister={switchToRegistration}
+            onClose={closeLoginModal}
+          />
+        </Modal>
+        
+        <Modal isOpen={showRegistrationModal} onClose={closeRegistrationModal}>
+          <StudentRegistrationModal 
+            onBack={closeRegistrationModal}
+            onGoToLogin={switchToLogin}
+            onClose={closeRegistrationModal}
+          />
+        </Modal>
+      </>
     );
   }
 
+  // For students, don't show the Header as StudentDashboard has its own integrated sidebar
+  if (!isAdmin) {
+    return (
+      <div className="app-authenticated">
+        {currentView === 'dashboard' ? (
+          <StudentDashboard />
+        ) : currentView === 'profile' ? (
+          <ProfileSettings />
+        ) : (
+          <StudentDashboard />
+        )}
+      </div>
+    );
+  }
+
+  // For admins, show the Header with navigation
   return (
     <div className="app-authenticated">
       <Header 
@@ -104,21 +119,19 @@ const AppContent: React.FC = () => {
         onViewChange={setCurrentView}
       />
       {currentView === 'dashboard' ? (
-        isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
+        <Dashboard onViewChange={setCurrentView} />
       ) : currentView === 'profile' ? (
-        <ProfileSettings onViewChange={setCurrentView} />
-      ) : currentView === 'students' && isAdmin ? (
+        <ProfileSettings />
+      ) : currentView === 'students' ? (
         <StudentsManagement onViewChange={setCurrentView} />
-      ) : currentView === 'documents' && isAdmin ? (
+      ) : currentView === 'documents' ? (
         <DocumentsManagement onViewChange={setCurrentView} />
-      ) : currentView === 'grades' && isAdmin ? (
+      ) : currentView === 'grades' ? (
         <GradesManagement onViewChange={setCurrentView} />
-      ) : currentView === 'applications' && isAdmin ? (
+      ) : currentView === 'applications' ? (
         <ApplicationsManagement onViewChange={setCurrentView} />
-      ) : currentView === 'analytics' && isAdmin ? (
-        <Analytics onViewChange={setCurrentView} />
       ) : (
-        isAdmin ? <Dashboard onViewChange={setCurrentView} /> : <StudentDashboard />
+        <Dashboard onViewChange={setCurrentView} />
       )}
     </div>
   );

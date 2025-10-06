@@ -5,17 +5,10 @@ import ImageCropper from './ImageCropper';
 import DefaultAvatar from './DefaultAvatar';
 import './ProfileSettings.css';
 
-// Declare VANTA global variable for TypeScript
-declare global {
-  interface Window {
-    VANTA?: any;
-    THREE?: any;
-  }
-}
-
 interface ProfileUpdateData {
   first_name: string;
   last_name: string;
+  middle_initial?: string;
   email: string;
   username: string;
   student_id?: string;
@@ -24,45 +17,18 @@ interface ProfileUpdateData {
   confirm_password?: string;
 }
 
-interface ProfileSettingsProps {
-  onViewChange: (view: string) => void;
-}
-
-const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
-  // Dynamically load Vanta and THREE scripts if missing
-  useEffect(() => {
-    const loadScript = (src: string) => {
-      return new Promise<void>((resolve, reject) => {
-        if (document.querySelector(`script[src='${src}']`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject();
-        document.body.appendChild(script);
-      });
-    };
-    Promise.all([
-      loadScript('/three.r134.min.js'),
-      loadScript('/vanta.net.min.js'),
-    ]).catch(() => {
-      console.warn('Vanta or THREE script failed to load');
-    });
-  }, []);
+const ProfileSettings: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const vantaRef = useRef<HTMLDivElement>(null);
-  const vantaEffect = useRef<any>(null);
   
   // Theme state - sync with StudentDashboard theme
   const [darkMode, setDarkMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'password'>('personal');
   
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
+    middle_initial: user?.middle_initial || '',
     email: user?.email || '',
     username: user?.username || '',
     student_id: user?.student_id || '',
@@ -85,102 +51,85 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
     confirm: false,
   });
 
-  // Load saved theme preference from StudentDashboard
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('studentDashboardTheme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-    } else {
-      setDarkMode(false); // Explicitly set to false for light mode
-    }
+  // Utility function for consistent input styling
+  const getInputStyle = () => ({
+    backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+    color: darkMode ? '#f8fafc' : '#0f172a',
+    border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+    WebkitTextFillColor: darkMode ? '#f8fafc' : '#0f172a'
+  });
 
-    // Listen for theme changes from other components
+  // Load saved theme preference and sync with StudentDashboard
+  useEffect(() => {
+    const loadTheme = () => {
+      const savedTheme = localStorage.getItem('studentDashboardTheme');
+      const isDark = savedTheme === 'dark';
+      setDarkMode(isDark);
+      
+      // Debug log to verify theme loading
+      console.log('ProfileSettings theme loaded:', isDark ? 'dark' : 'light');
+    };
+
+    // Load initial theme
+    loadTheme();
+
+    // Listen for localStorage changes (cross-tab)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'studentDashboardTheme') {
-        if (e.newValue === 'dark') {
-          setDarkMode(true);
-        } else {
-          setDarkMode(false);
-        }
+        const isDark = e.newValue === 'dark';
+        setDarkMode(isDark);
+        console.log('ProfileSettings theme changed via storage:', isDark ? 'dark' : 'light');
       }
     };
 
+    // Listen for custom theme change events (same-tab)
+    const handleThemeChange = (e: CustomEvent) => {
+      setDarkMode(e.detail.darkMode);
+      console.log('ProfileSettings theme changed via event:', e.detail.darkMode ? 'dark' : 'light');
+    };
+
+    // Periodic theme check as fallback
+    const themeChecker = setInterval(() => {
+      const currentTheme = localStorage.getItem('studentDashboardTheme');
+      const shouldBeDark = currentTheme === 'dark';
+      if (shouldBeDark !== darkMode) {
+        setDarkMode(shouldBeDark);
+        console.log('ProfileSettings theme synced via interval:', shouldBeDark ? 'dark' : 'light');
+      }
+    }, 500); // Check every 500ms for immediate response
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('themeChange', handleThemeChange as EventListener);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  // Initialize Vanta.js background effect
-  useEffect(() => {
-    const initVanta = () => {
-      if (window.VANTA && window.THREE && vantaRef.current) {
-        if (vantaEffect.current) {
-          try {
-            vantaEffect.current.destroy();
-          } catch (error) {
-            console.warn('Error destroying previous Vanta effect:', error);
-          }
-          vantaEffect.current = null;
-        }
-        setTimeout(() => {
-          if (vantaRef.current && window.VANTA && window.THREE) {
-            try {
-              console.log('Initializing Vanta NET background...');
-              vantaEffect.current = window.VANTA.NET({
-                el: vantaRef.current,
-                mouseControls: true,
-                touchControls: true,
-                gyroControls: false,
-                minHeight: 200.00,
-                minWidth: 200.00,
-                scale: 1.00,
-                scaleMobile: 1.00,
-                color: darkMode ? 0xff4444 : 0xf20000,
-                backgroundColor: darkMode ? 0x1a1a1a : 0xffffff,
-                points: 10.00,
-                maxDistance: 20.00,
-                spacing: 15.00,
-                showDots: true
-              });
-            } catch (error) {
-              console.warn('Error initializing Vanta effect:', error);
-            }
-          }
-        }, 200);
-      } else {
-        console.log('VANTA or THREE not loaded yet');
-      }
-    };
-    const timer = setTimeout(initVanta, 400);
-    return () => {
-      clearTimeout(timer);
-      if (vantaEffect.current) {
-        try {
-          vantaEffect.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying Vanta effect on cleanup:', error);
-        }
-      }
+      window.removeEventListener('themeChange', handleThemeChange as EventListener);
+      clearInterval(themeChecker);
     };
   }, [darkMode]);
 
-  // Cleanup effect on unmount
-  useEffect(() => {
-    return () => {
-      if (vantaEffect.current) {
-        vantaEffect.current.destroy();
-      }
-    };
-  }, []);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Format middle initial
+    if (name === 'middle_initial') {
+      let formatted = value.toUpperCase().replace(/[^A-Z.]/g, '');
+      if (formatted.length > 0 && !formatted.endsWith('.')) {
+        formatted = formatted.substring(0, 1) + '.';
+      }
+      if (formatted.length > 2) {
+        formatted = formatted.substring(0, 2);
+      }
+      setFormData(prev => ({
+        ...prev,
+        [name]: formatted
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,6 +274,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
       const updateData: any = {
         first_name: formData.first_name,
         last_name: formData.last_name,
+        middle_initial: formData.middle_initial || '',
         email: formData.email,
         username: formData.username,
       };
@@ -414,29 +364,14 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
     return (
       <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
         <div className="no-user-message">
-          <h2>Please log in to access your profile</h2>
+          <h2>Please log in to access profile settings</h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {/* Vanta.js animated background - ensure first child for layering */}
-      <div
-        ref={vantaRef}
-        className={`vanta-background${darkMode ? ' dark-theme' : ' light-theme'}`}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: -1,
-          pointerEvents: 'none',
-        }}
-      />
-
+    <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
       {showCropper && cropImageSrc && (
         <ImageCropper
           imageSrc={cropImageSrc}
@@ -444,59 +379,23 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
           onCancel={handleCropCancel}
         />
       )}
-
-      <div className="profile-settings-card">
-        <div className="profile-header">
-          <button
-            type="button"
-            className="back-button"
-            onClick={() => onViewChange('dashboard')}
-            aria-label="Go back"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="back-icon"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              width="20"
-              height="20"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
+      
+      <div className="profile-settings-wrapper">
+        <div className="profile-settings-title">
           <h1>Profile Settings</h1>
         </div>
-        <p
+
+        <div 
+          className="profile-settings-card"
           style={{
-            textAlign: 'center',
-            marginTop: '0.5rem',
-            marginBottom: '1rem',
-            color: darkMode ? '#f5f5f5' : '#b22222', // light gray for dark, dark red for light
-            width: '100%',
-            fontWeight: 500,
-            fontSize: '1.05rem',
-            textShadow: darkMode ? '0 1px 4px #000' : '0 1px 2px #fff'
+            backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+            color: darkMode ? '#f8fafc' : '#0f172a'
           }}
         >
-          Update your account information and preferences
-        </p>
-
-        <form onSubmit={handleSubmit} className="profile-form">
-          {message && (
-            <div className={`message ${message.type}`}>
-              {message.text}
-            </div>
-          )}
-
-          {/* Profile Image Section */}
-          <div className="profile-image-section">
-            <h3>Profile Photo</h3>
-            <div className="image-upload-container">
-              <div className="profile-image-wrapper" onClick={handleImageClick}>
+          {/* Profile Photo Section */}
+          <div className="profile-photo-section">
+            <div className="photo-upload-wrapper">
+              <div className="profile-image-container" onClick={handleImageClick}>
                 {profileImage ? (
                   <img src={profileImage} alt="Profile" className="profile-image" />
                 ) : (
@@ -504,237 +403,317 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onViewChange }) => {
                     <DefaultAvatar 
                       firstName={formData.first_name}
                       lastName={formData.last_name}
-                      size={120}
+                      size={100}
                       className="profile-image-default-avatar"
                     />
-                    <div className="upload-prompt">
-                      <span>Click to upload</span>
-                    </div>
                   </div>
                 )}
                 <div className="image-overlay">
-                  <span>Change Image</span>
+                  <span>Change Photo</span>
                 </div>
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden-file-input"
-              />
-              {profileImage && (
+              
+              <div className="photo-actions">
                 <button
                   type="button"
-                  onClick={removeImage}
-                  className="remove-image-button"
+                  onClick={handleImageClick}
+                  className="upload-photo-button"
                 >
-                  Remove Image
+                  Upload Photo
                 </button>
-              )}
-              <p className="image-help-text">
-                Max 5MB. Supports JPG, PNG, GIF, WebP.
-              </p>
-            </div>
-          </div>
-
-          {/* Personal Information */}
-          <div className="form-section">
-            <h3>Personal Information</h3>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="first_name">First Name</label>
-                <input
-                  type="text"
-                  id="first_name"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="First name"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="last_name">Last Name</label>
-                <input
-                  type="text"
-                  id="last_name"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Last name"
-                />
+                <p className="photo-help-text">JPG, PNG or GIF. Max 5MB.</p>
               </div>
             </div>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/*"
+              className="hidden-file-input"
+            />
           </div>
 
-          {/* Account Information */}
-          <div className="form-section">
-            <h3>Account Information</h3>
-            <div className="form-group">
-              <label htmlFor="username">Username</label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                placeholder="Username"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                placeholder="Email address"
-              />
-            </div>
-            {user.role === 'student' && (
-              <div className="form-group">
-                <label htmlFor="student_id">Student ID</label>
-                <input
-                  type="text"
-                  id="student_id"
-                  name="student_id"
-                  value={formData.student_id}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  placeholder="Student ID"
-                />
+          {/* Tab Navigation */}
+          <div className="tab-navigation">
+            <button
+              className={`tab-button ${activeTab === 'personal' ? 'active' : ''}`}
+              onClick={() => setActiveTab('personal')}
+              type="button"
+            >
+              Personal Info
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'account' ? 'active' : ''}`}
+              onClick={() => setActiveTab('account')}
+              type="button"
+            >
+              Account Info
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'password' ? 'active' : ''}`}
+              onClick={() => setActiveTab('password')}
+              type="button"
+            >
+              Password
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="profile-form">
+            {message && (
+              <div className={`message ${message.type}`}>
+                {message.text}
               </div>
             )}
-            <div className="role-display">
-              <label>Role</label>
-              <div className="role-badge">
-                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-              </div>
-            </div>
-          </div>
 
-          {/* Password Section */}
-          <div className="form-section">
-            <div className="password-section-header">
-              <h3>Password</h3>
-              <button
-                type="button"
-                onClick={() => setShowPasswordSection(!showPasswordSection)}
-                className="toggle-password-section"
-              >
-                {showPasswordSection ? 'Cancel' : 'Change Password'}
-              </button>
-            </div>
-
-            {showPasswordSection && (
-              <div className="password-fields">
-                <div className="form-group">
-                  <label htmlFor="current_password">Current Password</label>
-                  <div className="input-wrapper">
+            {/* Personal Info Tab */}
+            {activeTab === 'personal' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Personal Information</h3>
+                  <p className="tab-subtitle">Update your personal details</p>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="first_name">First Name</label>
                     <input
-                      type={showPasswords.current ? "text" : "password"}
-                      id="current_password"
-                      name="current_password"
-                      value={formData.current_password}
+                      type="text"
+                      id="first_name"
+                      name="first_name"
+                      value={formData.first_name}
                       onChange={handleInputChange}
                       required
                       className="form-input"
-                      placeholder="Current password"
+                      placeholder="Enter your first name"
+                      style={getInputStyle()}
                     />
-                    <button
-                      type="button"
-                      className="password-toggle-button"
-                      onClick={() => togglePasswordVisibility('current')}
-                      aria-label={showPasswords.current ? "Hide password" : "Show password"}
-                    >
-                      {showPasswords.current ? 'Hide' : 'Show'}
-                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="middle_initial">Middle Initial</label>
+                    <input
+                      type="text"
+                      id="middle_initial"
+                      name="middle_initial"
+                      value={formData.middle_initial}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="M."
+                      maxLength={2}
+                      style={getInputStyle()}
+                    />
+                    <small className="form-hint-modal">Optional (e.g., M.)</small>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="last_name">Last Name</label>
+                    <input
+                      type="text"
+                      id="last_name"
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input"
+                      placeholder="Enter your last name"
+                      style={getInputStyle()}
+                    />
                   </div>
                 </div>
 
-                <div className="form-row">
+                {user.role === 'student' && (
                   <div className="form-group">
-                    <label htmlFor="new_password">New Password</label>
-                    <div className="input-wrapper">
-                      <input
-                        type={showPasswords.new ? "text" : "password"}
-                        id="new_password"
-                        name="new_password"
-                        value={formData.new_password}
-                        onChange={handleInputChange}
-                        required
-                        className="form-input"
-                        placeholder="New password"
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-button"
-                        onClick={() => togglePasswordVisibility('new')}
-                        aria-label={showPasswords.new ? "Hide password" : "Show password"}
-                      >
-                        {showPasswords.new ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
+                    <label htmlFor="student_id">Student ID</label>
+                    <input
+                      type="text"
+                      id="student_id"
+                      name="student_id"
+                      value={formData.student_id}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="Enter your student ID"
+                      style={getInputStyle()}
+                    />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="confirm_password">Confirm Password</label>
-                    <div className="input-wrapper">
-                      <input
-                        type={showPasswords.confirm ? "text" : "password"}
-                        id="confirm_password"
-                        name="confirm_password"
-                        value={formData.confirm_password}
-                        onChange={handleInputChange}
-                        required
-                        className="form-input"
-                        placeholder="Confirm password"
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-button"
-                        onClick={() => togglePasswordVisibility('confirm')}
-                        aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
-                      >
-                        {showPasswords.confirm ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <p className="password-help-text">
-                  Minimum 6 characters required
-                </p>
+                )}
               </div>
             )}
-          </div>
 
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="save-button"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="loading-spinner"></span>
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </button>
-          </div>
-        </form>
+            {/* Account Info Tab */}
+            {activeTab === 'account' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Account Information</h3>
+                  <p className="tab-subtitle">Manage your account details</p>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="username">Username</label>
+                  <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    required
+                    className="form-input"
+                    placeholder="Enter your username"
+                    style={getInputStyle()}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email">Email Address</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    className="form-input"
+                    placeholder="Enter your email address"
+                    style={getInputStyle()}
+                  />
+                </div>
+
+                <div className="role-display">
+                  <label>Role</label>
+                  <div className="role-badge">
+                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Password Tab */}
+            {activeTab === 'password' && (
+              <div className="tab-content">
+                <div className="tab-content-header">
+                  <h3>Change Password</h3>
+                  <p className="tab-subtitle">Update your password</p>
+                </div>
+
+                {!showPasswordSection ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordSection(true)}
+                    className="change-password-button"
+                  >
+                    Change Password
+                  </button>
+                ) : (
+                  <div className="password-fields">
+                    <div className="form-group">
+                      <label htmlFor="current_password">Current Password</label>
+                      <div className="input-wrapper">
+                        <input
+                          type={showPasswords.current ? "text" : "password"}
+                          id="current_password"
+                          name="current_password"
+                          value={formData.current_password}
+                          onChange={handleInputChange}
+                          required
+                          className="form-input"
+                          placeholder="Enter your current password"
+                          style={getInputStyle()}
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-button"
+                          onClick={() => togglePasswordVisibility('current')}
+                          aria-label={showPasswords.current ? "Hide password" : "Show password"}
+                        >
+                          {showPasswords.current ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="new_password">New Password</label>
+                        <div className="input-wrapper">
+                          <input
+                            type={showPasswords.new ? "text" : "password"}
+                            id="new_password"
+                            name="new_password"
+                            value={formData.new_password}
+                            onChange={handleInputChange}
+                            required
+                            className="form-input"
+                            placeholder="Enter new password"
+                            minLength={6}
+                            style={getInputStyle()}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-button"
+                            onClick={() => togglePasswordVisibility('new')}
+                            aria-label={showPasswords.new ? "Hide password" : "Show password"}
+                          >
+                            {showPasswords.new ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="confirm_password">Confirm New Password</label>
+                        <div className="input-wrapper">
+                          <input
+                            type={showPasswords.confirm ? "text" : "password"}
+                            id="confirm_password"
+                            name="confirm_password"
+                            value={formData.confirm_password}
+                            onChange={handleInputChange}
+                            required
+                            className="form-input"
+                            placeholder="Confirm new password"
+                            minLength={6}
+                            style={getInputStyle()}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-button"
+                            onClick={() => togglePasswordVisibility('confirm')}
+                            aria-label={showPasswords.confirm ? "Hide password" : "Show password"}
+                          >
+                            {showPasswords.confirm ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="password-help-text">
+                      Password must be at least 6 characters long
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordSection(false);
+                        setFormData(prev => ({
+                          ...prev,
+                          current_password: '',
+                          new_password: '',
+                          confirm_password: '',
+                        }));
+                      }}
+                      className="cancel-password-button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="save-button"
+                disabled={loading}
+              >
+                {loading ? 'Saving Changes...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -9,6 +9,21 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_tcu_ceaa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -104,16 +119,35 @@ jobs:
           except ImportError: print('⚠️  pdfplumber: Not available')
           "
           echo "✅ Dependency verification completed"
+        env:
+          DB_NAME: test_tcu_ceaa
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
 
       - name: Run Django migrations
         run: |
           cd backend
           python manage.py migrate --noinput
+        env:
+          DB_NAME: test_tcu_ceaa
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
 
       - name: Run Django tests
         run: |
           cd backend
-          python manage.py test
+          echo "🧪 Running Django application tests..."
+          python manage.py test myapp --verbosity=2
+        env:
+          DB_NAME: test_tcu_ceaa
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
 
       - name: Check Django code style with flake8
         run: |

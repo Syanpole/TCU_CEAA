@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'student_id', 'profile_image', 'profile_image_url', 'created_at']
+        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'middle_initial', 'student_id', 'profile_image', 'profile_image_url', 'created_at']
         read_only_fields = ['id', 'created_at', 'profile_image_url']
         extra_kwargs = {
             'profile_image': {'write_only': True}
@@ -67,7 +67,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'role', 'student_id']
+        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'middle_initial', 'role', 'student_id']
 
     def validate(self, data):
         if data['password'] != data['password_confirm']:
@@ -192,35 +192,35 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     def _check_suspicious_filename_patterns(self, filename: str, declared_type: str) -> str:
         """Check for obviously suspicious filename patterns"""
         
-        # Common patterns that suggest wrong document types
+        # Enhanced patterns for better document type detection
         suspicious_indicators = {
             'birth_certificate': {
-                'suspicious': ['school', 'student', 'grade', 'transcript', 'id', 'photo', 'selfie'],
-                'expected': ['birth', 'certificate', 'civil', 'registry', 'psa', 'nso']
+                'suspicious': ['school', 'student', 'grade', 'transcript', 'enrollment', 'diploma', 'card', 'semester'],
+                'expected': ['birth', 'certificate', 'civil', 'registry', 'psa', 'nso', 'born']
             },
             'school_id': {
-                'suspicious': ['birth', 'certificate', 'civil', 'registry', 'grade', 'transcript'],
-                'expected': ['id', 'student', 'school', 'identification', 'tcu']
+                'suspicious': ['birth', 'certificate', 'civil', 'registry', 'grade', 'transcript', 'enrollment', 'diploma'],
+                'expected': ['id', 'student', 'school', 'identification', 'tcu', 'card']
             },
-            'report_card': {
-                'suspicious': ['birth', 'certificate', 'civil', 'id', 'selfie', 'photo'],
-                'expected': ['grade', 'report', 'card', 'transcript', 'academic']
+            'certificate_of_enrollment': {
+                'suspicious': ['birth', 'civil', 'grade', 'transcript', 'diploma', 'report'],
+                'expected': ['enrollment', 'certificate', 'enrolled', 'coe', 'student', 'school']
             },
-            'enrollment_certificate': {
-                'suspicious': ['birth', 'civil', 'id', 'photo', 'selfie', 'grade'],
-                'expected': ['enrollment', 'certificate', 'enrolled', 'coe']
+            'grade_10_report_card': {
+                'suspicious': ['birth', 'certificate', 'civil', 'enrollment', 'diploma', 'grade_12', 'grade12'],
+                'expected': ['grade', 'report', 'card', 'transcript', 'academic', '10', 'ten', 'jhs', 'junior']
             },
-            'barangay_clearance': {
-                'suspicious': ['birth', 'school', 'student', 'grade', 'id'],
-                'expected': ['barangay', 'clearance', 'certificate']
+            'grade_12_report_card': {
+                'suspicious': ['birth', 'certificate', 'civil', 'enrollment', 'diploma', 'grade_10', 'grade10'],
+                'expected': ['grade', 'report', 'card', 'transcript', 'academic', '12', 'twelve', 'shs', 'senior']
             },
-            'parents_id': {
-                'suspicious': ['birth', 'school', 'student', 'grade', 'certificate'],
-                'expected': ['id', 'identification', 'parent', 'father', 'mother']
+            'diploma': {
+                'suspicious': ['birth', 'certificate', 'civil', 'enrollment', 'grade', 'report', 'card'],
+                'expected': ['diploma', 'graduation', 'graduate', 'degree', 'certificate']
             },
-            'voter_certification': {
-                'suspicious': ['birth', 'school', 'student', 'grade', 'id'],
-                'expected': ['voter', 'voting', 'certification', 'comelec']
+            'others': {
+                'suspicious': [],
+                'expected': []
             }
         }
         
@@ -232,12 +232,12 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         # Check for suspicious keywords
         suspicious_found = [word for word in patterns['suspicious'] if word in filename]
         if suspicious_found:
-            return f"Filename contains suspicious keywords: {', '.join(suspicious_found)}."
+            return f"⚠️ Document type mismatch detected! Filename contains keywords ({', '.join(suspicious_found)}) that don't match {declared_type.replace('_', ' ').title()}."
         
         # Check for complete absence of expected keywords (might be too strict, so make it a warning)
         expected_found = [word for word in patterns['expected'] if word in filename]
-        if not expected_found and len(filename) > 10:  # Only for reasonably named files
-            return f"Filename doesn't contain typical keywords for {declared_type}."
+        if not expected_found and len(filename) > 10 and declared_type != 'others':  # Only for reasonably named files
+            return f"⚠️ Filename doesn't contain typical keywords for {declared_type.replace('_', ' ').title()}. Please ensure you're uploading the correct document."
         
         return ""
         
@@ -260,79 +260,90 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         return document
     
     def run_comprehensive_ai_analysis(self, document):
-        """Run LIGHTNING-FAST AI document verification for instant student feedback"""
+        """Run LIGHTNING-FAST AI document verification with strict type validation"""
         try:
             # Import the lightning-fast verification system for instant processing
             from ai_verification.lightning_verifier import lightning_verifier
             
-            # Use lightning-fast verifier for instant feedback (< 0.3 seconds)
+            # Use lightning-fast verifier with strict validation (< 0.5 seconds)
             verification_result = lightning_verifier.lightning_verify(document, document.document_file)
             
             # Process results and update document immediately
             self._process_lightning_fast_results(document, verification_result)
             
+            # Check if document was rejected
+            if document.status == 'rejected':
+                rejection_reason = verification_result.get('rejection_reason', 'Document verification failed')
+                
+                # Delete the rejected document from database
+                document.delete()
+                
+                # Raise validation error to inform user
+                raise serializers.ValidationError({
+                    'document_file': rejection_reason
+                })
+            
             # Log the verification outcome
             import logging
             logger = logging.getLogger(__name__)
             logger.info(
-                f"⚡ LIGHTNING-FAST AI verification completed for document {document.id} in {verification_result.get('processing_time', 0):.3f}s. "
+                f"⚡ AI verification completed for document {document.id} in {verification_result.get('processing_time', 0):.3f}s. "
                 f"Status: {document.status}, "
                 f"Confidence: {verification_result.get('confidence_score', 0):.1%}"
             )
             
+        except serializers.ValidationError:
+            # Re-raise validation errors
+            raise
         except Exception as e:
-            # Fallback to instant approval for student experience
+            # For other errors, reject the document for security
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"⚡ Ultra-fast AI verification failed for document {document.id}: {str(e)}")
-            logger.info("💚 Applying student-friendly fallback - INSTANT APPROVAL")
+            logger.error(f"⚡ AI verification error for document {document.id}: {str(e)}")
             
-            # Student-friendly fallback - instant approval
-            document.status = 'approved'
-            document.ai_analysis_completed = True
-            document.ai_auto_approved = True
-            document.ai_analysis_notes = (
-                f"⚡ INSTANT APPROVAL - Student-Friendly Fallback\n"
-                f"📅 Processed: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"🎯 Result: APPROVED ✅\n"
-                f"💡 Reason: System optimized for student experience\n"
-                f"⚡ Processing: Lightning-fast mode\n\n"
-                f"🤖 AI Note: When technical issues occur, we default to approval\n"
-                f"to ensure students aren't blocked by system problems.\n\n"
-                f"📋 Document Type: {document.get_document_type_display()}\n"
-                f"✅ Status: Ready for next steps"
-            )
-            document.ai_confidence_score = 0.8
-            document.reviewed_at = timezone.now()
-            document.save()
+            # Delete the document and raise error
+            try:
+                document.delete()
+            except:
+                pass
+            
+            raise serializers.ValidationError({
+                'document_file': 'Document verification failed. Please try uploading again or contact support.'
+            })
     
     def _process_lightning_fast_results(self, document, verification_result):
-        """Process lightning-fast verification results for immediate student feedback"""
+        """Process lightning-fast verification results with strict document type validation"""
         from django.utils import timezone
         
-        # Always approve for student experience (ultra-fast mode prioritizes UX)
-        if verification_result.get('is_valid_document', True):
+        # Check if document is valid and type matches
+        is_valid = verification_result.get('is_valid_document', False)
+        type_matches = verification_result.get('document_type_match', False)
+        rejection_reason = verification_result.get('rejection_reason', None)
+        
+        if is_valid and type_matches:
+            # Approve the document
             document.status = 'approved'
             status_emoji = "✅ APPROVED"
             result_message = "Document successfully verified and approved!"
+            document.ai_auto_approved = True
         else:
-            # Even if issues detected, be student-friendly
-            document.status = 'approved'  # Still approve but with notes
-            status_emoji = "✅ APPROVED (with minor concerns)"
-            result_message = "Document approved with minor quality suggestions"
+            # Reject the document with clear reason
+            document.status = 'rejected'
+            status_emoji = "❌ REJECTED"
+            result_message = rejection_reason or "Document verification failed"
+            document.ai_auto_approved = False
         
         # Set AI analysis fields
         document.ai_analysis_completed = True
-        document.ai_auto_approved = True
-        document.ai_confidence_score = verification_result.get('confidence_score', 0.8)
+        document.ai_confidence_score = verification_result.get('confidence_score', 0.0)
         document.reviewed_at = timezone.now()
         
-        # Create comprehensive but student-friendly analysis notes
+        # Create comprehensive analysis notes
         processing_time = verification_result.get('processing_time', 0)
-        quality_rating = verification_result.get('quality_rating', 'good')
+        quality_rating = verification_result.get('quality_rating', 'rejected' if not is_valid else 'good')
         
         notes = [
-            f"⚡ LIGHTNING-FAST AI VERIFICATION COMPLETE",
+            f"⚡ AI DOCUMENT VERIFICATION COMPLETE",
             f"=" * 50,
             f"📅 Processed: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"⏱️ Processing Time: {processing_time:.3f} seconds",
@@ -340,49 +351,122 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             f"📊 Confidence: {document.ai_confidence_score:.1%}",
             f"🏆 Quality: {quality_rating.title()}",
             "",
-            f"🤖 AI Analysis Summary:",
-            f"📋 Document Type: {document.get_document_type_display()}",
-            f"✅ Format Validation: Passed",
-            f"✅ Content Detection: Passed",
-            f"✅ Student Experience: Optimized",
-            "",
-            f"💡 {result_message}",
-            ""
         ]
         
-        # Add any quality suggestions (student-friendly)
-        quality_issues = verification_result.get('quality_issues', [])
-        if quality_issues:
+        if is_valid and type_matches:
+            # Approved document notes
+            # Check if using fallback mode (OCR unavailable)
+            fallback_mode = verification_result.get('fallback_mode', False)
+            ocr_available = verification_result.get('ocr_available', True)
+            
             notes.extend([
-                "📈 Suggestions for Future Uploads:",
-                *[f"   • {issue}" for issue in quality_issues[:3]],
+                f"🤖 AI Analysis Summary:",
+                f"📋 Document Type: {document.get_document_type_display()}",
+                f"✅ Document Type Match: Verified",
+                f"✅ Format Validation: Passed",
+                f"✅ Content Verification: {'Filename-based (OCR unavailable)' if fallback_mode and not ocr_available else 'Passed'}",
                 "",
-                "💡 These are just suggestions - your document is already approved!",
+            ])
+            
+            # Add OCR status warning if in fallback mode
+            if fallback_mode and not ocr_available:
+                notes.extend([
+                    "⚠️ Note: OCR text extraction not available",
+                    "   Validation performed using filename analysis only",
+                    "   For enhanced security, install Tesseract OCR",
+                    ""
+                ])
+            
+            notes.extend([
+                f"💡 {result_message}",
                 ""
+            ])
+            
+            # Add matched keywords if available
+            matched_keywords = verification_result.get('matched_keywords', [])
+            if matched_keywords:
+                notes.extend([
+                    "🔑 Verified Keywords Found:",
+                    *[f"   • {keyword}" for keyword in matched_keywords[:5]],
+                    ""
+                ])
+            
+            # Add any quality suggestions
+            quality_issues = verification_result.get('quality_issues', [])
+            if quality_issues:
+                notes.extend([
+                    "📈 Suggestions for Future Uploads:",
+                    *[f"   • {issue}" for issue in quality_issues[:3]],
+                    ""
+                ])
+            
+            notes.extend([
+                "🎉 DOCUMENT APPROVED!",
+                "Your document has been verified and approved.",
+                "You can now proceed to the next step in your TCU-CEAA journey!",
+                "",
+                "🚀 Next Steps:",
+                "   • Submit additional required documents",
+                "   • Upload your grade records (requires 2+ approved documents)",
+                "   • Apply for allowances once grades are approved"
+            ])
+        else:
+            # Rejected document notes
+            notes.extend([
+                f"🤖 AI Analysis Summary:",
+                f"📋 Declared Type: {document.get_document_type_display()}",
+                f"❌ Document Type Match: Failed",
+                "",
+                f"⚠️ Rejection Reason:",
+                f"   {result_message}",
+                ""
+            ])
+            
+            # Add detected type if available
+            detected_type = verification_result.get('detected_type', None)
+            expected_type = verification_result.get('expected_type', None)
+            if detected_type and expected_type:
+                notes.extend([
+                    f"📊 Verification Details:",
+                    f"   • Expected Type: {expected_type.replace('_', ' ').title()}",
+                    f"   • Detected Type: {detected_type}",
+                    ""
+                ])
+            
+            # Add fraud indicators if any
+            fraud_indicators = verification_result.get('fraud_indicators', [])
+            if fraud_indicators:
+                notes.extend([
+                    "🚨 Issues Detected:",
+                    *[f"   • {indicator}" for indicator in fraud_indicators[:3]],
+                    ""
+                ])
+            
+            notes.extend([
+                "💡 What to do next:",
+                "   1. Make sure you selected the correct document type",
+                "   2. Upload a clear image/PDF of the actual document",
+                "   3. Ensure the document is readable and not corrupted",
+                "   4. Contact support if you believe this is an error",
+                "",
+                "� Tips for successful upload:",
+                "   • Use clear, well-lit photos or scans",
+                "   • Ensure all text is readable",
+                "   • Upload the correct document for the selected type",
+                "   • Accepted formats: JPG, PNG, PDF"
             ])
         
         # Add performance info
         performance_info = verification_result.get('performance_info', {})
         if performance_info:
             notes.extend([
-                "⚡ Performance Metrics:",
-                f"   • Method: {performance_info.get('processing_method', 'lightning_fast')}",
-                f"   • Target: {performance_info.get('target_time', 0.2)}s",
-                f"   • Actual: {processing_time:.3f}s",
-                f"   • Optimized for: {performance_info.get('optimized_for', 'student_experience')}",
+                "",
+                "⚡ Verification Metrics:",
+                f"   • Method: {performance_info.get('processing_method', 'lightning_fast_strict')}",
+                f"   • Processing: {processing_time:.3f}s",
+                f"   • Security: Strict validation enabled",
                 ""
             ])
-        
-        notes.extend([
-            "🎉 CONGRATULATIONS!",
-            "Your document has been instantly processed and approved.",
-            "You can now proceed to the next step in your TCU-CEAA journey!",
-            "",
-            "🚀 Next Steps:",
-            "   • Submit additional required documents",
-            "   • Upload your grade records (requires 2+ approved documents)",
-            "   • Apply for allowances once grades are approved"
-        ])
         
         document.ai_analysis_notes = "\n".join(notes)
         document.save()

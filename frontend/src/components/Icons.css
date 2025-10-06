@@ -1,0 +1,164 @@
+/* Icon Base Styles */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* Specific Icon Styles */
+.dashboard-icon {
+  color: #3b82f6;
+}
+
+.document-icon {
+  color: #10b981;
+}
+
+.grade-icon {
+  color: #f59e0b;
+}
+
+.application-icon {
+  color: #8b5cf6;
+}
+
+.requirements-icon {
+  color: #ef4444;
+}
+
+.settings-icon {
+  color: #6b7280;
+}
+
+.money-icon {
+  color: #059669;
+}
+
+.logout-icon {
+  color: #dc2626;
+}
+
+.student-icon {
+  color: #3b82f6;
+}
+
+.email-icon {
+  color: #6366f1;
+}
+
+.upload-icon {
+  color: #2563eb;
+}
+
+.check-icon {
+  color: #10b981;
+}
+
+.chart-icon {
+  color: #f59e0b;
+}
+
+.warning-icon {
+  color: #f59e0b;
+}
+
+.info-icon {
+  color: #3b82f6;
+}
+
+/* Dark Mode Icon Colors */
+.dark-theme .dashboard-icon {
+  color: #60a5fa;
+}
+
+.dark-theme .document-icon {
+  color: #34d399;
+}
+
+.dark-theme .grade-icon {
+  color: #fbbf24;
+}
+
+.dark-theme .application-icon {
+  color: #a78bfa;
+}
+
+.dark-theme .requirements-icon {
+  color: #f87171;
+}
+
+.dark-theme .settings-icon {
+  color: #9ca3af;
+}
+
+.dark-theme .money-icon {
+  color: #10b981;
+}
+
+.dark-theme .logout-icon {
+  color: #ef4444;
+}
+
+.dark-theme .student-icon {
+  color: #60a5fa;
+}
+
+.dark-theme .email-icon {
+  color: #818cf8;
+}
+
+.dark-theme .upload-icon {
+  color: #3b82f6;
+}
+
+.dark-theme .check-icon {
+  color: #34d399;
+}
+
+.dark-theme .chart-icon {
+  color: #fbbf24;
+}
+
+.dark-theme .warning-icon {
+  color: #fbbf24;
+}
+
+.dark-theme .info-icon {
+  color: #60a5fa;
+}
+
+/* Icon Hover Effects */
+.icon:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+/* Icon Size Variants */
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-md {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-lg {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-xl {
+  width: 32px;
+  height: 32px;
+}

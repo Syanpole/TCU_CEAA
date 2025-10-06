@@ -2,28 +2,63 @@ Django==5.2.5
 djangorestframework==3.15.2
 django-cors-headers==4.4.0
 psycopg[binary]==3.2.3
+python-dotenv==1.0.1
 Pillow==10.4.0
 
-# Enhanced AI Document Verification Dependencies
+# ============================================================================
+# 6 CORE AI ALGORITHMS + ADVANCED FEATURES
+# ============================================================================
+
+# 1. Document Validator - OCR with Pytesseract
+pytesseract==0.3.13
+
+# 2. Cross-Document Matcher - Fuzzy String Matching
+python-Levenshtein==0.25.1  # Levenshtein distance for fuzzy matching
+
+# 3. Grade Verifier - GWA Calculation + Pattern Detection
+numpy==1.26.4
+scipy==1.13.1
+
+# 4. Face Verifier - OpenCV Face Detection
+opencv-python==4.10.0.84
+
+# 5. Fraud Detector - Metadata Analysis
 PyPDF2==3.0.1
 PyMuPDF==1.24.10  # Updated to latest stable version with better wheel support
-opencv-python-headless==4.10.0.84  # Headless version for better CI/server compatibility
-numpy>=1.21.0,<2.0.0  # Use compatible range instead of exact version
-pytesseract==0.3.13
+
+# 6. AI Verification Manager - Orchestration
+# (Uses all above libraries)
+
+# ============================================================================
+# ADVANCED COSINE SIMILARITY INTEGRATION
+# ============================================================================
+
+# TF-IDF Vectorization & Vector Space Analysis
 scikit-learn==1.5.2
+
+# NLP for Text Analysis
 nltk==3.9.1
 textblob==0.18.0
-python-docx==1.1.2
 
-# Image processing and analysis - using prebuilt wheels when possible
-scipy>=1.9.0,<2.0.0  # Use compatible range to allow prebuilt wheels
+# ============================================================================
+# SUPPORTING LIBRARIES
+# ============================================================================
+
+# Document processing
+python-docx==1.1.2
+pdfplumber==0.11.0  # Additional PDF processing
+
+# Data visualization (optional, for performance monitoring)
 matplotlib==3.8.4
 
 # Additional dependencies for Python 3.12+ compatibility
 setuptools>=75.1.0
 wheel>=0.44.0
 
-# Optional: For even better AI capabilities (can be installed separately)
-# tensorflow>=2.13.0  # For advanced ML models
-# torch>=2.0.0        # For deep learning models
-# transformers>=4.30.0 # For NLP models
+# ============================================================================
+# OPTIONAL ADVANCED AI FEATURES (Install separately if needed)
+# ============================================================================
+# tensorflow>=2.13.0        # For deep learning models
+# torch>=2.0.0              # For PyTorch-based models
+# transformers>=4.30.0      # For transformer-based NLP
+# face-recognition>=1.3.0   # For advanced face recognition

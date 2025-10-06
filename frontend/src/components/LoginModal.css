@@ -1,0 +1,345 @@
+/* Login Modal Styles */
+.login-modal-container {
+  max-width: 460px;
+  width: 100%;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  overflow: visible;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  position: relative;
+  transform: translateZ(0);
+}
+
+.login-modal-content {
+  padding: 2.2rem 2.2rem 2.2rem 2.2rem;
+  background: transparent;
+  border-radius: 20px;
+  position: relative;
+}
+
+.login-modal-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.tcu-logo-modal {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.logo-circle-modal {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.22);
+  position: relative;
+  overflow: hidden;
+  border: 2.5px solid #dc2626;
+}
+
+.logo-circle-modal::before {
+  display: none;
+}
+
+.tcu-logo-img-modal {
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  z-index: 2;
+  border-radius: 50%;
+}
+
+.login-modal-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0.5rem 0 0.25rem 0;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-modal-header h2 {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #dc2626;
+  margin: 0 0 0.65rem 0;
+  letter-spacing: -0.25px;
+}
+
+.login-modal-header p {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.login-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.error-message-modal {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.error-icon-modal {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.form-group-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group-modal label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}
+
+.input-wrapper-modal {
+  position: relative;
+}
+
+.form-input-modal {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: all 0.25s ease;
+  background-color: #ffffff;
+  box-sizing: border-box;
+  font-weight: 400;
+  color: #1f2937;
+}
+
+.form-input-modal[data-has-toggle="true"] {
+  padding-right: 48px;
+}
+
+.form-input-modal:focus {
+  outline: none;
+  border-color: #dc2626;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
+.form-input-modal::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.password-toggle-button-modal {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle-button-modal:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+}
+
+.submit-button-modal {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  letter-spacing: 0.015em;
+}
+
+.submit-button-modal:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.3);
+}
+
+.submit-button-modal:active {
+  transform: translateY(0);
+}
+
+.submit-button-modal:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner-modal {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.student-section-modal {
+  margin-top: 15px;
+}
+
+.divider-modal {
+  position: relative;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.divider-modal::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.divider-modal span {
+  background: white;
+  color: #6b7280;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  position: relative;
+  z-index: 1;
+  font-weight: 400;
+}
+
+.student-register-button-modal {
+  width: 100%;
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  letter-spacing: 0.01em;
+}
+
+.student-register-button-modal:hover {
+  background: #059669;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.student-register-button-modal:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .login-modal-container {
+    max-width: 100%;
+  }
+  
+  .login-modal-content {
+    padding: 50px 15px 15px 15px;
+  }
+  
+  .login-modal-header {
+    margin-bottom: 25px;
+  }
+  
+  .logo-circle-modal {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .tcu-logo-img-modal {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .login-modal-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .login-modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .login-modal-header p {
+    font-size: 0.9rem;
+  }
+  
+  .login-modal-form {
+    gap: 18px;
+  }
+  
+  .form-input-modal {
+    padding: 11px 14px;
+    font-size: 0.95rem;
+  }
+  
+  .form-input-modal[data-has-toggle="true"] {
+    padding-right: 45px;
+  }
+  
+  .password-toggle-button-modal {
+    right: 10px;
+  }
+  
+  .submit-button-modal {
+    padding: 12px 18px;
+    font-size: 0.95rem;
+  }
+  
+  .student-register-button-modal {
+    padding: 11px 18px;
+    font-size: 0.95rem;
+  }
+}

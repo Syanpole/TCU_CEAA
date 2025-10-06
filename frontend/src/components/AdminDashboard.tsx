@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
+import { safeToFixed, formatCurrency } from '../utils/numberUtils';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -32,7 +33,6 @@ interface AllowanceApplication {
   id: number;
   student_name: string;
   student_id: string;
-  application_type: string;
   application_type_display: string;
   amount: number;
   status: string;
@@ -58,39 +58,6 @@ interface AdminDashboardProps {
   onViewChange?: (view: string) => void;
 }
 
-// Utility functions
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    minimumFractionDigits: 2
-  }).format(amount);
-};
-
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const safeToFixed = (value: number | string, decimals: number = 2): string => {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(num) ? '0.00' : num.toFixed(decimals);
-};
-
-const getPriorityLevel = (doc: DocumentSubmission): 'high' | 'medium' | 'low' => {
-  const submittedDate = new Date(doc.submitted_at);
-  const daysSinceSubmitted = (Date.now() - submittedDate.getTime()) / (1000 * 60 * 60 * 24);
-  
-  if (daysSinceSubmitted > 7) return 'high';
-  if (daysSinceSubmitted > 3) return 'medium';
-  return 'low';
-};
-
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
@@ -98,9 +65,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [allApplications, setAllApplications] = useState<AllowanceApplication[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -127,9 +91,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             const grades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
             const applications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
             const users = Array.isArray(usersRes.data) ? usersRes.data : [];
-
-            // Store all applications for stats modal
-            setAllApplications(applications);
 
             setDashboardData({
               pending_documents: documents.filter((doc: any) => doc.status === 'pending') || [],
@@ -281,160 +242,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
     if (daysOld >= 7) return 'high';
     if (daysOld >= 3) return 'medium';
     return 'low';
-  };
-
-  // Calculate financial statistics for the stats modal
-  const calculateFinancialStats = () => {
-    if (!allApplications || allApplications.length === 0) {
-      return {
-        total: { amount: 0, count: 0 },
-        approved: { amount: 0, count: 0 },
-        disbursed: { amount: 0, count: 0 },
-        pending: { amount: 0, count: 0 },
-        rejected: { amount: 0, count: 0 }
-      };
-    }
-
-    const stats = {
-      total: { amount: 0, count: allApplications.length },
-      approved: { amount: 0, count: 0 },
-      disbursed: { amount: 0, count: 0 },
-      pending: { amount: 0, count: 0 },
-      rejected: { amount: 0, count: 0 }
-    };
-
-    allApplications.forEach(app => {
-      stats.total.amount += app.amount;
-      
-      switch (app.status) {
-        case 'approved':
-          stats.approved.amount += app.amount;
-          stats.approved.count++;
-          break;
-        case 'disbursed':
-          stats.disbursed.amount += app.amount;
-          stats.disbursed.count++;
-          break;
-        case 'pending':
-          stats.pending.amount += app.amount;
-          stats.pending.count++;
-          break;
-        case 'rejected':
-          stats.rejected.amount += app.amount;
-          stats.rejected.count++;
-          break;
-      }
-    });
-
-    return stats;
-  };
-
-  // Stats Modal Component
-  const StatsModal = () => {
-    const stats = calculateFinancialStats();
-    
-    return (
-      <div className="modal-overlay" onClick={() => setShowStatsModal(false)}>
-        <div className="stats-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2>Financial Statistics Overview</h2>
-            <button className="modal-close" onClick={() => setShowStatsModal(false)}>×</button>
-          </div>
-          
-          <div className="stats-grid">
-            <div className="stat-card total">
-              <div className="stat-icon">💰</div>
-              <div className="stat-content">
-                <div className="stat-title">Total Applications</div>
-                <div className="stat-amount">{formatCurrency(stats.total.amount)}</div>
-                <div className="stat-count">{stats.total.count} applications</div>
-              </div>
-            </div>
-
-            <div className="stat-card approved">
-              <div className="stat-icon">✅</div>
-              <div className="stat-content">
-                <div className="stat-title">Approved Amount</div>
-                <div className="stat-amount">{formatCurrency(stats.approved.amount)}</div>
-                <div className="stat-count">{stats.approved.count} applications</div>
-              </div>
-            </div>
-
-            <div className="stat-card disbursed">
-              <div className="stat-icon">💸</div>
-              <div className="stat-content">
-                <div className="stat-title">Disbursed Amount</div>
-                <div className="stat-amount">{formatCurrency(stats.disbursed.amount)}</div>
-                <div className="stat-count">{stats.disbursed.count} applications</div>
-              </div>
-            </div>
-
-            <div className="stat-card pending">
-              <div className="stat-icon">⏳</div>
-              <div className="stat-content">
-                <div className="stat-title">Pending Amount</div>
-                <div className="stat-amount">{formatCurrency(stats.pending.amount)}</div>
-                <div className="stat-count">{stats.pending.count} applications</div>
-              </div>
-            </div>
-
-            <div className="stat-card rejected">
-              <div className="stat-icon">❌</div>
-              <div className="stat-content">
-                <div className="stat-title">Rejected Amount</div>
-                <div className="stat-amount">{formatCurrency(stats.rejected.amount)}</div>
-                <div className="stat-count">{stats.rejected.count} applications</div>
-              </div>
-            </div>
-
-            <div className="stat-card efficiency">
-              <div className="stat-icon">📊</div>
-              <div className="stat-content">
-                <div className="stat-title">Approval Rate</div>
-                <div className="stat-amount">
-                  {stats.total.count > 0 
-                    ? `${Math.round((stats.approved.count / stats.total.count) * 100)}%`
-                    : '0%'
-                  }
-                </div>
-                <div className="stat-count">
-                  {stats.approved.count} of {stats.total.count} approved
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="detailed-breakdown">
-            <h3>Application Type Breakdown</h3>
-            <div className="breakdown-grid">
-              {['basic', 'merit', 'both'].map(type => {
-                const typeApps = allApplications.filter(app => app.application_type === type);
-                const typeAmount = typeApps.reduce((sum, app) => sum + app.amount, 0);
-                const typeName = type === 'basic' ? 'Basic Educational Assistance' :
-                                type === 'merit' ? 'Merit Incentive' : 'Both Allowances';
-                
-                return (
-                  <div key={type} className="breakdown-item">
-                    <div className="breakdown-title">{typeName}</div>
-                    <div className="breakdown-amount">{formatCurrency(typeAmount)}</div>
-                    <div className="breakdown-count">{typeApps.length} applications</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setShowStatsModal(false)}>
-              Close
-            </button>
-            <button className="btn-primary" onClick={() => onViewChange && onViewChange('applications')}>
-              View Applications
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   if (loading) {
@@ -623,21 +430,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </div>
             )}
           </button>
-
-          <button className="command-btn analytics" onClick={() => onViewChange && onViewChange('analytics')}>
-            <div className="command-header">
-              <div className="command-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="command-label">Analytics Dashboard</div>
-            <div className="command-status">View Insights</div>
-            <div className="priority-indicator medium">
-              Data Insights
-            </div>
-          </button>
         </div>
 
         {/* Operations Dashboard */}
@@ -705,13 +497,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
 
           {/* Pending Grades */}
           <div style={{
-            background: 'var(--secondary-bg)',
+            background: '#f8fafc',
             padding: '20px',
             borderRadius: '12px',
-            border: '1px solid var(--border-color)'
+            border: '1px solid #e2e8f0'
           }}>
             <h3 style={{
-              color: 'var(--text-primary)',
+              color: '#1e293b',
               fontSize: '18px',
               fontWeight: '600',
               margin: '0 0 15px 0'
@@ -722,16 +514,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               {dashboardData?.pending_grades && dashboardData.pending_grades.length > 0 ? (
                 dashboardData.pending_grades.map((grade) => (
                   <div key={grade.id} style={{
-                    background: 'var(--card-bg)',
+                    background: 'white',
                     padding: '15px',
                     borderRadius: '8px',
                     marginBottom: '10px',
-                    border: '1px solid var(--border-color)'
+                    border: '1px solid #e2e8f0'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{grade.student_name}</strong>
+                      <strong style={{ color: '#1e293b', fontSize: '14px' }}>{grade.student_name}</strong>
                       <span style={{
-                        background: 'var(--accent-blue)',
+                        background: '#3b82f6',
                         color: 'white',
                         padding: '2px 8px',
                         borderRadius: '12px',
@@ -740,13 +532,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                         {grade.status_display}
                       </span>
                     </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '5px' }}>
+                    <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '5px' }}>
                       ID: {grade.student_id} • {grade.academic_year} {grade.semester_display}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '5px' }}>
                       GWA: {safeToFixed(grade.general_weighted_average)} | SWA: {safeToFixed(grade.semestral_weighted_average)}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                    <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Submitted: {formatDate(grade.submitted_at)}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
@@ -785,11 +577,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                 ))
               ) : (
                 <div style={{
-                  background: 'var(--card-bg)',
+                  background: 'white',
                   padding: '20px',
                   borderRadius: '8px',
                   textAlign: 'center',
-                  color: 'var(--text-muted)'
+                  color: '#64748b'
                 }}>
                   <div style={{ fontSize: '32px', opacity: '0.5', marginBottom: '10px' }}>📄</div>
                   <p style={{ margin: '0' }}>No pending grades</p>
@@ -801,13 +593,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
 
         {/* Pending Applications */}
         <div style={{
-          background: 'var(--secondary-bg)',
+          background: '#f8fafc',
           padding: '20px',
           borderRadius: '12px',
-          border: '1px solid var(--border-color)'
+          border: '1px solid #e2e8f0'
         }}>
           <h3 style={{
-            color: 'var(--text-primary)',
+            color: '#1e293b',
             fontSize: '18px',
             fontWeight: '600',
             margin: '0 0 15px 0'
@@ -823,15 +615,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               }}>
                 {dashboardData.pending_applications.map((app) => (
                   <div key={app.id} style={{
-                    background: 'var(--card-bg)',
+                    background: 'white',
                     padding: '15px',
                     borderRadius: '8px',
-                    border: '1px solid var(--border-color)'
+                    border: '1px solid #e2e8f0'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{app.student_name}</strong>
+                      <strong style={{ color: '#1e293b', fontSize: '14px' }}>{app.student_name}</strong>
                       <span style={{
-                        background: 'var(--accent-orange)',
+                        background: '#f59e0b',
                         color: 'white',
                         padding: '2px 8px',
                         borderRadius: '12px',
@@ -840,14 +632,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                         {app.status_display}
                       </span>
                     </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '5px' }}>
+                    <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '5px' }}>
                       ID: {app.student_id} • {app.application_type_display}
                     </div>
                     <div style={{ color: '#10b981', fontSize: '14px', fontWeight: '600', marginBottom: '5px' }}>
                       {formatCurrency(app.amount)}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                      Applied: {new Date(app.applied_at).toLocaleDateString()}
+                    <div style={{ color: '#64748b', fontSize: '12px' }}>
+                      Applied: {formatDate(app.applied_at)}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                       <button 
@@ -901,11 +693,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </div>
             ) : (
               <div style={{
-                background: 'var(--card-bg)',
+                background: 'white',
                 padding: '20px',
                 borderRadius: '8px',
                 textAlign: 'center',
-                color: 'var(--text-muted)'
+                color: '#64748b'
               }}>
                 <div style={{ fontSize: '48px', opacity: '0.5', marginBottom: '10px' }}>💸</div>
                 <p style={{ margin: '0 0 10px 0' }}>No pending applications</p>
@@ -917,9 +709,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           </div>
         </div>
       </div>
-
-      {/* Stats Modal */}
-      {showStatsModal && <StatsModal />}
     </div>
   );
 };

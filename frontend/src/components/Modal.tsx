@@ -4,18 +4,12 @@ import './Modal.css';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
   children: React.ReactNode;
-  size?: 'small' | 'medium' | 'large';
+  title?: string;
+  className?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
-  size = 'medium' 
-}) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, className }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -23,45 +17,49 @@ const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'unset';
     }
 
-    // Handle escape key
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleEscapeKey);
     }
 
     return () => {
       document.body.style.overflow = 'unset';
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div 
-        className={`modal-content modal-${size}`} 
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          {title && <h2 className="modal-title">{title}</h2>}
-          <button
-            className="modal-close-button"
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-        <div className="modal-body">
+    <div className="modal-overlay" onClick={handleBackdropClick}>
+      <div className={`modal-container ${className || ''}`}>
+        <button 
+          className="modal-close-button" 
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        {title && (
+          <div className="modal-header">
+            <h2 className="modal-title">{title}</h2>
+          </div>
+        )}
+        <div className="modal-content">
           {children}
         </div>
       </div>
