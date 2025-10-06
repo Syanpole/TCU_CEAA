@@ -18,6 +18,10 @@
 - **Problem:** `CustomUser matching query does not exist` during test discovery
 - **Fix:** Updated CI to run only `python manage.py test myapp --verbosity=2`
 
+### Issue 5: Syntax Errors in Test Files
+- **Problem:** `E999 SyntaxError: expected 'except' or 'finally' block`
+- **Fix:** Fixed indentation in `test_authentication.py` and removed duplicate file
+
 ---
 
 ## 📦 Files Changed

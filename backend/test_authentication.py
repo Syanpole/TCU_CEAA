@@ -63,16 +63,16 @@ def run_manual_test():
         print()
         print("If login fails, it means:")
         print("1. Password hash format is correct (Django hashes)")
-    print("2. But the user needs to know their original password")
-    print()
-    print("To test a migrated user login, you need to know their original password.")
-    print("Or you can reset their password.")
-    
-except User.DoesNotExist:
-    print("  Test user 'kyoti' not found")
+        print("2. But the user needs to know their original password")
+        print()
+        print("To test a migrated user login, you need to know their original password.")
+        print("Or you can reset their password.")
+        
+    except User.DoesNotExist:
+        print("  Test user 'kyoti' not found")
 
-print()
-print("=" * 60)
+    print()
+    print("=" * 60)
 print("Recommendation:")
 print("=" * 60)
 print()
