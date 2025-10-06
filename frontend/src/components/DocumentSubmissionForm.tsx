@@ -37,6 +37,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
     'certificate_of_enrollment',
     'grade_10_report_card',
     'grade_12_report_card',
+    'transcript_of_records',
     'diploma',
     'others'
   ];
@@ -47,6 +48,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
     certificate_of_enrollment: 'Certificate of Enrollment',
     grade_10_report_card: 'Grade 10 Report Card',
     grade_12_report_card: 'Grade 12 Report Card',
+    transcript_of_records: 'Transcript of Records',
     diploma: 'Diploma',
     others: 'Others'
   };
@@ -203,6 +205,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
             <li>School ID</li>
             <li>Certificate of Enrollment</li>
             <li>Grade 10 or Grade 12 Report Card</li>
+            <li>Transcript of Records (if available)</li>
             <li>Diploma (if applicable)</li>
           </ul>
           <div className="important-note">

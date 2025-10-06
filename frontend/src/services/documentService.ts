@@ -50,26 +50,59 @@ export const documentService = {
 
   // Check if user can submit grades
   async checkGradeSubmissionEligibility(): Promise<GradeSubmissionEligibility> {
-    const requiredDocuments = [
-      'certificate_of_enrollment',
-      'birth_certificate'
-    ];
-
     try {
       const documents = await this.getUserDocuments();
       
-      const approvedDocuments = documents
-        .filter(doc => requiredDocuments.includes(doc.document_type) && doc.status === 'approved')
+      // Dynamic required documents based on what user has submitted
+      // We consider any relevant academic/enrollment documents as valid
+      const validDocumentTypes = [
+        'certificate_of_enrollment',
+        'enrollment_certificate',
+        'birth_certificate',
+        'school_id',
+        'grade_10_report_card',
+        'grade_12_report_card',
+        'transcript_of_records',
+        'diploma',
+        'report_card',
+        'academic_records',
+        'valid_id',
+        'junior_hs_certificate',
+        'senior_hs_diploma'
+      ];
+      
+      // Filter documents that are valid for grade submission
+      const submittedValidDocs = documents.filter(doc => 
+        validDocumentTypes.includes(doc.document_type)
+      );
+      
+      const approvedDocuments = submittedValidDocs
+        .filter(doc => doc.status === 'approved')
         .map(doc => doc.document_type);
       
-      const pendingDocuments = documents
-        .filter(doc => requiredDocuments.includes(doc.document_type) && doc.status === 'pending')
+      const pendingDocuments = submittedValidDocs
+        .filter(doc => doc.status === 'pending')
         .map(doc => doc.document_type);
       
-      const submittedDocTypes = documents.map(doc => doc.document_type);
-      const missingDocuments = requiredDocuments.filter(docType => !submittedDocTypes.includes(docType));
+      const submittedDocTypes = submittedValidDocs.map(doc => doc.document_type);
       
-      const canSubmit = approvedDocuments.length === requiredDocuments.length;
+      // Determine required documents based on what they've submitted
+      let requiredDocuments: string[] = [];
+      
+      if (submittedDocTypes.length === 0) {
+        // If no documents submitted yet, suggest basic requirements
+        requiredDocuments = ['certificate_of_enrollment', 'birth_certificate'];
+      } else {
+        // Use the documents they've already submitted as requirements
+        requiredDocuments = submittedDocTypes;
+      }
+      
+      const missingDocuments = requiredDocuments.filter(
+        docType => !submittedDocTypes.includes(docType)
+      );
+      
+      // Can submit if at least one valid document is approved
+      const canSubmit = approvedDocuments.length > 0;
       
       return {
         canSubmit,
@@ -82,8 +115,8 @@ export const documentService = {
       console.error('Error checking grade submission eligibility:', error);
       return {
         canSubmit: false,
-        requiredDocuments,
-        missingDocuments: requiredDocuments,
+        requiredDocuments: ['certificate_of_enrollment', 'birth_certificate'],
+        missingDocuments: ['certificate_of_enrollment', 'birth_certificate'],
         pendingDocuments: [],
         approvedDocuments: []
       };
@@ -98,12 +131,22 @@ export const documentService = {
       report_card: 'Report Card/Grades',
       certificate_of_enrollment: 'Certificate of Enrollment',
       enrollment_certificate: 'Certificate of Enrollment', // Legacy support
+      transcript_of_records: 'Transcript of Records',
+      grade_10_report_card: 'Grade 10 Report Card',
+      grade_12_report_card: 'Grade 12 Report Card',
+      diploma: 'Diploma',
       barangay_clearance: 'Barangay Clearance',
       parents_id: 'Parent\'s Valid ID',
       voter_certification: 'Voter\'s Certification',
-      other: 'Other Document'
+      academic_records: 'Academic Records',
+      valid_id: 'Valid ID',
+      junior_hs_certificate: 'Junior High School Certificate',
+      senior_hs_diploma: 'Senior High School Diploma',
+      form_137: 'Form 137',
+      other: 'Other Document',
+      others: 'Others'
     };
-    return labels[documentType] || documentType;
+    return labels[documentType] || documentType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   },
 
   // Status color helper

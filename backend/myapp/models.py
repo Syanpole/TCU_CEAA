@@ -85,12 +85,16 @@ class DocumentSubmission(models.Model):
         ('academic_records', 'Academic Records (Grade 10/12 Report Card, Certificate, or Diploma)'),
         ('valid_id', 'Valid ID (School ID, Birth Certificate, or Government-issued ID)'),
         ('certificate_of_enrollment', 'Certificate of Enrollment'),
+        ('transcript_of_records', 'Transcript of Records'),
         
         # Required Documents (New Applicants)
         ('junior_hs_certificate', 'Junior High School Certificate/Grade 10 Report Card/Certification from Principal'),
         ('senior_hs_diploma', 'Senior High School Diploma/Grade 12 Report Card/Certification from Principal'),
         ('school_id', 'School ID or Valid Government-issued ID'),
         ('birth_certificate', 'Birth Certificate (issued by PSA/NSO/Civil Registry Office)'),
+        ('grade_10_report_card', 'Grade 10 Report Card'),
+        ('grade_12_report_card', 'Grade 12 Report Card'),
+        ('diploma', 'Diploma'),
         
         # Other Necessary Documents
         ('form_137', 'Certified True Copy of Elementary and/or High School Form 137'),
@@ -120,6 +124,7 @@ class DocumentSubmission(models.Model):
         ('parents_id', 'Parent\'s Valid ID'),
         ('voter_certification', 'Voter\'s Certification'),
         ('other', 'Other Document'),
+        ('others', 'Others'),
     ]
     
     STATUS_CHOICES = [
