@@ -140,7 +140,8 @@ jobs:
       - name: Run Django tests
         run: |
           cd backend
-          python manage.py test
+          echo "🧪 Running Django application tests..."
+          python manage.py test myapp --verbosity=2
         env:
           DB_NAME: test_tcu_ceaa
           DB_USER: postgres

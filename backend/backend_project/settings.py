@@ -186,3 +186,13 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ]
 }
+
+# Test Runner Configuration
+# Only discover tests in app directories (myapp/tests.py), not root backend/ directory
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
+TEST_DISCOVER_TOP_LEVEL = BASE_DIR
+TEST_DISCOVER_ROOT = BASE_DIR
+TEST_DISCOVER_PATTERN = 'test*.py'
+
+# This prevents Django from discovering test_*.py files in the backend root directory
+# Those are manual testing scripts, not Django test cases
