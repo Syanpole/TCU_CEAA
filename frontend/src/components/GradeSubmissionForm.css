@@ -728,7 +728,7 @@
 
 /* AI Processing Information Styles */
 .ai-processing-info {
-  background: linear-gradient(135deg, #ee8b8b 0%, #f24444 100%);
+  background: rgb(158, 158, 158);
   border-radius: 16px;
   padding: 24px;
   margin: 24px 0;
@@ -737,7 +737,7 @@
 }
 
 .ai-processing-info h4 {
-  color: white !important;
+  color: rgb(26, 26, 26) !important;
   margin: 0 0 16px 0;
   font-size: 18px;
   font-weight: 700;
@@ -771,7 +771,7 @@
 }
 
 .ai-confidence-note {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(247, 39, 39, 0.15);
   padding: 16px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -781,5 +781,5 @@
 }
 
 .ai-confidence-note strong {
-  color: #fbbf24;
+  color: #fb2424;
 }

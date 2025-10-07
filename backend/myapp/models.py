@@ -373,9 +373,250 @@ class AllowanceApplication(models.Model):
     email_sent_at = models.DateTimeField(null=True, blank=True)
     notification_error = models.TextField(blank=True, null=True)
     
+    
     class Meta:
         ordering = ['-applied_at']
         unique_together = ['student', 'grade_submission']
     
     def __str__(self):
         return f"{self.student.username} - {self.get_application_type_display()} - ₱{self.amount}"
+
+
+# Audit Log Model
+class AuditLog(models.Model):
+    """Model to track all admin and user actions in the system"""
+    
+    ACTION_TYPES = [
+        # Document Actions
+        ('document_submitted', 'Document Submitted'),
+        ('document_approved', 'Document Approved'),
+        ('document_rejected', 'Document Rejected'),
+        ('document_revised', 'Document Revision Requested'),
+        
+        # Grade Actions
+        ('grade_submitted', 'Grade Submitted'),
+        ('grade_approved', 'Grade Approved'),
+        ('grade_rejected', 'Grade Rejected'),
+        ('grade_processed', 'Grade Processed'),
+        
+        # Application Actions
+        ('application_submitted', 'Application Submitted'),
+        ('application_approved', 'Application Approved'),
+        ('application_rejected', 'Application Rejected'),
+        ('application_disbursed', 'Application Disbursed'),
+        
+        # User Actions
+        ('user_login', 'User Login'),
+        ('user_logout', 'User Logout'),
+        ('user_registered', 'User Registered'),
+        ('user_updated', 'User Profile Updated'),
+        ('password_changed', 'Password Changed'),
+        
+        # Admin Actions
+        ('admin_review', 'Admin Review Performed'),
+        ('admin_action', 'Admin Action Taken'),
+        ('system_config', 'System Configuration Changed'),
+        
+        # AI Actions
+        ('ai_analysis', 'AI Analysis Completed'),
+        ('ai_auto_approve', 'AI Auto-Approval'),
+        
+        # Other
+        ('other', 'Other Action'),
+    ]
+    
+    SEVERITY_LEVELS = [
+        ('info', 'Information'),
+        ('warning', 'Warning'),
+        ('critical', 'Critical'),
+        ('success', 'Success'),
+    ]
+    
+    # Who performed the action
+    user = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='audit_logs'
+    )
+    
+    # Action details
+    action_type = models.CharField(max_length=30, choices=ACTION_TYPES)
+    action_description = models.TextField()
+    severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='info')
+    
+    # Affected object details
+    target_model = models.CharField(max_length=50, blank=True, null=True, help_text="Model name (e.g., DocumentSubmission)")
+    target_object_id = models.IntegerField(blank=True, null=True, help_text="ID of the affected object")
+    target_user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='targeted_audit_logs',
+        help_text="User affected by the action (if applicable)"
+    )
+    
+    # Additional data
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional action metadata")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    
+    # Timestamps
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['-timestamp']),
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['action_type', '-timestamp']),
+            models.Index(fields=['severity', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        user_str = self.user.username if self.user else "System"
+        return f"{user_str} - {self.get_action_type_display()} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+    
+    @classmethod
+    def log_action(cls, action_type, description, user=None, target_model=None, 
+                   target_object_id=None, target_user=None, severity='info', 
+                   metadata=None, request=None):
+        """Helper method to create audit log entries"""
+        ip_address = None
+        user_agent = None
+        
+        if request:
+            # Extract IP address
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            # Extract user agent
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        return cls.objects.create(
+            user=user,
+            action_type=action_type,
+            action_description=description,
+            severity=severity,
+            target_model=target_model,
+            target_object_id=target_object_id,
+            target_user=target_user,
+            metadata=metadata or {},
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+
+class SystemAnalytics(models.Model):
+    """Model to store daily analytics snapshots"""
+    
+    date = models.DateField(unique=True, db_index=True)
+    
+    # User statistics
+    total_users = models.IntegerField(default=0)
+    total_students = models.IntegerField(default=0)
+    total_admins = models.IntegerField(default=0)
+    new_users_today = models.IntegerField(default=0)
+    active_users_today = models.IntegerField(default=0)
+    
+    # Document statistics
+    total_documents = models.IntegerField(default=0)
+    documents_pending = models.IntegerField(default=0)
+    documents_approved = models.IntegerField(default=0)
+    documents_rejected = models.IntegerField(default=0)
+    documents_submitted_today = models.IntegerField(default=0)
+    
+    # Grade statistics
+    total_grades = models.IntegerField(default=0)
+    grades_pending = models.IntegerField(default=0)
+    grades_approved = models.IntegerField(default=0)
+    grades_rejected = models.IntegerField(default=0)
+    grades_submitted_today = models.IntegerField(default=0)
+    
+    # Application statistics
+    total_applications = models.IntegerField(default=0)
+    applications_pending = models.IntegerField(default=0)
+    applications_approved = models.IntegerField(default=0)
+    applications_rejected = models.IntegerField(default=0)
+    applications_disbursed = models.IntegerField(default=0)
+    applications_submitted_today = models.IntegerField(default=0)
+    total_amount_disbursed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # AI statistics
+    ai_analyses_completed = models.IntegerField(default=0)
+    ai_auto_approvals = models.IntegerField(default=0)
+    avg_ai_confidence_score = models.FloatField(default=0.0)
+    
+    # Performance metrics
+    avg_document_processing_time = models.FloatField(default=0.0, help_text="Average time in hours")
+    avg_grade_processing_time = models.FloatField(default=0.0, help_text="Average time in hours")
+    avg_application_processing_time = models.FloatField(default=0.0, help_text="Average time in hours")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-date']
+        verbose_name_plural = "System Analytics"
+    
+    def __str__(self):
+        return f"Analytics for {self.date}"
+    
+    @classmethod
+    def generate_today_snapshot(cls):
+        """Generate analytics snapshot for today"""
+        from django.db.models import Count, Avg, Sum
+        from datetime import date
+        
+        today = date.today()
+        
+        # Get or create today's analytics
+        analytics, created = cls.objects.get_or_create(date=today)
+        
+        # User statistics
+        analytics.total_users = CustomUser.objects.count()
+        analytics.total_students = CustomUser.objects.filter(role='student').count()
+        analytics.total_admins = CustomUser.objects.filter(role='admin').count()
+        analytics.new_users_today = CustomUser.objects.filter(created_at__date=today).count()
+        
+        # Document statistics
+        analytics.total_documents = DocumentSubmission.objects.count()
+        analytics.documents_pending = DocumentSubmission.objects.filter(status='pending').count()
+        analytics.documents_approved = DocumentSubmission.objects.filter(status='approved').count()
+        analytics.documents_rejected = DocumentSubmission.objects.filter(status='rejected').count()
+        analytics.documents_submitted_today = DocumentSubmission.objects.filter(submitted_at__date=today).count()
+        
+        # Grade statistics
+        analytics.total_grades = GradeSubmission.objects.count()
+        analytics.grades_pending = GradeSubmission.objects.filter(status='pending').count()
+        analytics.grades_approved = GradeSubmission.objects.filter(status='approved').count()
+        analytics.grades_rejected = GradeSubmission.objects.filter(status='rejected').count()
+        analytics.grades_submitted_today = GradeSubmission.objects.filter(submitted_at__date=today).count()
+        
+        # Application statistics
+        analytics.total_applications = AllowanceApplication.objects.count()
+        analytics.applications_pending = AllowanceApplication.objects.filter(status='pending').count()
+        analytics.applications_approved = AllowanceApplication.objects.filter(status='approved').count()
+        analytics.applications_rejected = AllowanceApplication.objects.filter(status='rejected').count()
+        analytics.applications_disbursed = AllowanceApplication.objects.filter(status='disbursed').count()
+        analytics.applications_submitted_today = AllowanceApplication.objects.filter(applied_at__date=today).count()
+        analytics.total_amount_disbursed = AllowanceApplication.objects.filter(
+            status='disbursed'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        # AI statistics
+        analytics.ai_analyses_completed = DocumentSubmission.objects.filter(ai_analysis_completed=True).count()
+        analytics.ai_auto_approvals = DocumentSubmission.objects.filter(ai_auto_approved=True).count()
+        avg_confidence = DocumentSubmission.objects.filter(
+            ai_analysis_completed=True
+        ).aggregate(avg=Avg('ai_confidence_score'))['avg']
+        analytics.avg_ai_confidence_score = avg_confidence or 0.0
+        
+        analytics.save()
+        return analytics
+

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication
+from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -110,3 +110,39 @@ class AllowanceApplicationAdmin(admin.ModelAdmin):
         if obj:  # editing an existing object
             return self.readonly_fields + ['student', 'grade_submission', 'application_type']
         return self.readonly_fields
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ['user', 'action_type', 'severity', 'target_model', 'timestamp']
+    list_filter = ['action_type', 'severity', 'timestamp']
+    search_fields = ['user__username', 'action_description', 'target_model']
+    readonly_fields = ['user', 'action_type', 'action_description', 'severity', 'target_model', 
+                      'target_object_id', 'target_user', 'metadata', 'ip_address', 'user_agent', 'timestamp']
+    
+    def has_add_permission(self, request):
+        return False  # Audit logs should only be created programmatically
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # Only superusers can delete audit logs
+
+
+@admin.register(SystemAnalytics)
+class SystemAnalyticsAdmin(admin.ModelAdmin):
+    list_display = ['date', 'total_users', 'total_students', 'total_documents', 
+                   'total_grades', 'total_applications', 'total_amount_disbursed']
+    list_filter = ['date']
+    readonly_fields = ['date', 'total_users', 'total_students', 'total_admins', 'new_users_today',
+                      'total_documents', 'documents_pending', 'documents_approved', 'documents_rejected',
+                      'total_grades', 'grades_pending', 'grades_approved', 'grades_rejected',
+                      'total_applications', 'applications_pending', 'applications_approved',
+                      'applications_rejected', 'applications_disbursed', 'total_amount_disbursed',
+                      'ai_analyses_completed', 'ai_auto_approvals', 'avg_ai_confidence_score',
+                      'created_at', 'updated_at']
+    
+    def has_add_permission(self, request):
+        return False  # Analytics should only be created programmatically
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
