@@ -1339,7 +1339,7 @@
 }
 
 .panel-header {
-  background: var(--secondary-bg);
+  background: rgb(255, 255, 255);
   border-bottom: 1px solid var(--border-color);
 }
 

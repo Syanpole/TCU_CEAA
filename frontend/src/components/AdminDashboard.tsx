@@ -78,6 +78,20 @@ interface AuditLog {
   timestamp: string;
 }
 
+interface AIStats {
+  total_processed: number;
+  auto_approved: number;
+  auto_rejected: number;
+  manual_review: number;
+  average_confidence: number;
+  recent_activities: {
+    timestamp: string;
+    action: string;
+    confidence: number;
+    decision: string;
+  }[];
+}
+
 interface AnalyticsData {
   today_snapshot: {
     total_users: number;
@@ -124,10 +138,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [auditFilter, setAuditFilter] = useState<string>('all'); // 'all', 'ai', 'admin', 'user'
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -230,12 +246,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
     }
   };
 
+  // Fetch AI Statistics
+  const fetchAIStats = async () => {
+    try {
+      const response = await apiClient.get<AIStats>('/ai-stats/');
+      setAiStats(response.data);
+    } catch (error) {
+      console.error('Error fetching AI stats:', error);
+    }
+  };
+
   // Fetch data based on active tab
   useEffect(() => {
     if (activeTab === 'analytics' && !analyticsData) {
       fetchAnalyticsData();
     } else if (activeTab === 'audit' && auditLogs.length === 0) {
       fetchAuditLogs();
+      fetchAIStats();
     }
   }, [activeTab]);
 
@@ -946,7 +973,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           <div className="audit-logs-section">
             <div className="audit-logs-header">
               <h2>📋 System Audit Logs</h2>
-              <button className="refresh-btn" onClick={() => fetchAuditLogs()}>
+              <button className="refresh-btn" onClick={() => { fetchAuditLogs(); fetchAIStats(); }}>
                 <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '16px', height: '16px'}}>
                   <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -954,14 +981,295 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               </button>
             </div>
 
+            {/* AI Performance Monitoring Section */}
+            {aiStats && (
+              <div className="ai-monitoring-section" style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '24px',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                color: 'white',
+                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '20px',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '32px', height: '32px'}}>
+                      <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{margin: '0 0 4px 0', fontSize: '24px', fontWeight: '700'}}>
+                      🤖 AI Processing Monitor
+                    </h3>
+                    <p style={{margin: 0, fontSize: '14px', opacity: 0.9}}>
+                      Real-time AI document verification performance
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px',
+                  marginTop: '20px'
+                }}>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      📊 Total AI Processed
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.total_processed}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Documents analyzed
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      ✅ Auto-Approved
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.auto_approved}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      {aiStats.total_processed > 0 
+                        ? `${((aiStats.auto_approved / aiStats.total_processed) * 100).toFixed(1)}% success rate`
+                        : 'No data yet'
+                      }
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      ❌ Auto-Rejected
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.auto_rejected}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Fraud/quality issues
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      👁️ Manual Review
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.manual_review}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Pending admin review
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(59, 130, 246, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      🎯 AI Confidence
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {(aiStats.average_confidence * 100).toFixed(1)}%
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Average accuracy score
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent AI Activities */}
+                {aiStats.recent_activities && aiStats.recent_activities.length > 0 && (
+                  <div style={{marginTop: '20px'}}>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      marginBottom: '12px',
+                      opacity: 0.95
+                    }}>
+                      🕒 Recent AI Activities
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gap: '8px'
+                    }}>
+                      {aiStats.recent_activities.slice(0, 3).map((activity, idx) => (
+                        <div key={idx} style={{
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '13px'
+                        }}>
+                          <div>
+                            <span style={{marginRight: '8px'}}>
+                              {activity.decision === 'approved' ? '✅' : activity.decision === 'rejected' ? '❌' : '⏳'}
+                            </span>
+                            {activity.action}
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'center',
+                            fontSize: '12px'
+                          }}>
+                            <span style={{
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              padding: '4px 8px',
+                              borderRadius: '4px'
+                            }}>
+                              {(activity.confidence * 100).toFixed(0)}% confidence
+                            </span>
+                            <span style={{opacity: 0.8}}>
+                              {new Date(activity.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filter Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                className={`filter-btn ${auditFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('all')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'all' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                  background: auditFilter === 'all' ? '#3b82f6' : 'white',
+                  color: auditFilter === 'all' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📋 All Activities
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'ai' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('ai')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'ai' ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
+                  background: auditFilter === 'ai' ? '#8b5cf6' : 'white',
+                  color: auditFilter === 'ai' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                🤖 AI Actions
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'admin' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('admin')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'admin' ? '2px solid #10b981' : '1px solid #e2e8f0',
+                  background: auditFilter === 'admin' ? '#10b981' : 'white',
+                  color: auditFilter === 'admin' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                👤 Admin Actions
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'user' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('user')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'user' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                  background: auditFilter === 'user' ? '#f59e0b' : 'white',
+                  color: auditFilter === 'user' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                👥 User Actions
+              </button>
+            </div>
+
             <div className="audit-logs-list">
-              {auditLogs.map((log) => (
+              {auditLogs
+                .filter(log => {
+                  if (auditFilter === 'all') return true;
+                  if (auditFilter === 'ai') return log.action_type === 'ai_analysis' || log.action_type === 'ai_auto_approve';
+                  if (auditFilter === 'admin') return log.action_type.startsWith('admin_') || log.action_type.includes('approved') || log.action_type.includes('rejected');
+                  if (auditFilter === 'user') return log.action_type.startsWith('user_') || log.action_type.includes('submitted');
+                  return true;
+                })
+                .map((log) => (
                 <div key={log.id} className={`audit-log-item severity-${log.severity}`}>
                   <div className="audit-log-header">
                     <div className="audit-log-user">
-                      <div className="user-avatar">{log.user.username[0].toUpperCase()}</div>
+                      <div className="user-avatar">
+                        {log.action_type.startsWith('ai_') ? '🤖' : log.user.username[0].toUpperCase()}
+                      </div>
                       <div>
-                        <div className="user-name">{log.user.full_name}</div>
+                        <div className="user-name">
+                          {log.action_type.startsWith('ai_') ? '🤖 AI System' : log.user.full_name}
+                        </div>
                         <div className="user-action">{log.action_type_display}</div>
                       </div>
                     </div>
@@ -971,6 +1279,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                     </div>
                   </div>
                   <div className="audit-log-description">{log.action_description}</div>
+                  {log.metadata && log.metadata.confidence_score && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      background: '#f0f9ff',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#0369a1'
+                    }}>
+                      🎯 AI Confidence Score: <strong>{(log.metadata.confidence_score * 100).toFixed(1)}%</strong>
+                      {log.metadata.auto_decision && (
+                        <span style={{marginLeft: '12px'}}>
+                          • Decision: <strong>{log.metadata.decision || 'Auto-processed'}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {log.target_user && (
                     <div className="audit-log-target">
                       Target: {log.target_user.full_name} ({log.target_user.username})

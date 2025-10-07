@@ -497,3 +497,59 @@ def analytics_overview(request):
         }
     })
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ai_stats(request):
+    """Get AI processing statistics for monitoring"""
+    if not request.user.is_admin():
+        return Response({'error': 'Only admins can access AI statistics'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from django.db.models import Avg, Count, Q
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    # Get documents processed by AI
+    ai_processed_docs = DocumentSubmission.objects.filter(ai_analysis_completed=True)
+    
+    # Calculate statistics
+    total_processed = ai_processed_docs.count()
+    auto_approved = ai_processed_docs.filter(ai_auto_approved=True, status='approved').count()
+    auto_rejected = ai_processed_docs.filter(
+        ai_analysis_completed=True, 
+        status='rejected',
+        reviewed_at__isnull=False
+    ).exclude(ai_auto_approved=True).count()
+    manual_review = ai_processed_docs.filter(status='pending').count()
+    
+    # Average confidence score
+    avg_confidence_result = ai_processed_docs.filter(
+        ai_confidence_score__gt=0
+    ).aggregate(avg=Avg('ai_confidence_score'))
+    average_confidence = avg_confidence_result['avg'] or 0.0
+    
+    # Get recent AI activities (last 24 hours)
+    recent_time = timezone.now() - timedelta(hours=24)
+    recent_ai_logs = AuditLog.objects.filter(
+        action_type__in=['ai_analysis', 'ai_auto_approve'],
+        timestamp__gte=recent_time
+    ).order_by('-timestamp')[:10]
+    
+    recent_activities = []
+    for log in recent_ai_logs:
+        activity = {
+            'timestamp': log.timestamp.isoformat(),
+            'action': log.action_description,
+            'confidence': log.metadata.get('confidence_score', 0) if log.metadata else 0,
+            'decision': log.metadata.get('decision', 'unknown') if log.metadata else 'unknown'
+        }
+        recent_activities.append(activity)
+    
+    return Response({
+        'total_processed': total_processed,
+        'auto_approved': auto_approved,
+        'auto_rejected': auto_rejected,
+        'manual_review': manual_review,
+        'average_confidence': float(average_confidence),
+        'recent_activities': recent_activities
+    })
