@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
@@ -340,4 +340,216 @@ def admin_dashboard_data(request):
             'total_grades': total_grades,
             'total_applications': total_applications,
         }
+    })
+
+# Audit Logs and Analytics Endpoints
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def audit_logs_list(request):
+    """Get audit logs for admins"""
+    if not request.user.is_admin():
+        return Response({'error': 'Only admins can access audit logs'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Get query parameters
+    limit = int(request.GET.get('limit', 50))
+    action_type = request.GET.get('action_type', None)
+    severity = request.GET.get('severity', None)
+    user_id = request.GET.get('user_id', None)
+    
+    # Build query
+    logs = AuditLog.objects.all()
+    
+    if action_type:
+        logs = logs.filter(action_type=action_type)
+    if severity:
+        logs = logs.filter(severity=severity)
+    if user_id:
+        logs = logs.filter(user_id=user_id)
+    
+    # Limit results
+    logs = logs[:limit]
+    
+    # Serialize data manually
+    logs_data = []
+    for log in logs:
+        logs_data.append({
+            'id': log.id,
+            'user': {
+                'id': log.user.id if log.user else None,
+                'username': log.user.username if log.user else 'System',
+                'full_name': f"{log.user.first_name} {log.user.last_name}" if log.user else 'System'
+            },
+            'action_type': log.action_type,
+            'action_type_display': log.get_action_type_display(),
+            'action_description': log.action_description,
+            'severity': log.severity,
+            'severity_display': log.get_severity_display(),
+            'target_model': log.target_model,
+            'target_object_id': log.target_object_id,
+            'target_user': {
+                'id': log.target_user.id if log.target_user else None,
+                'username': log.target_user.username if log.target_user else None,
+                'full_name': f"{log.target_user.first_name} {log.target_user.last_name}" if log.target_user else None
+            } if log.target_user else None,
+            'metadata': log.metadata,
+            'ip_address': log.ip_address,
+            'timestamp': log.timestamp.isoformat()
+        })
+    
+    return Response({
+        'logs': logs_data,
+        'count': len(logs_data)
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def analytics_overview(request):
+    """Get system analytics overview for admins"""
+    if not request.user.is_admin():
+        return Response({'error': 'Only admins can access analytics'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from django.db.models import Count, Avg, Sum, Q
+    from datetime import date, timedelta
+    
+    today = date.today()
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+    
+    # Generate today's snapshot
+    try:
+        today_analytics = SystemAnalytics.generate_today_snapshot()
+    except Exception as e:
+        today_analytics = None
+    
+    # Get recent analytics
+    recent_analytics = SystemAnalytics.objects.filter(date__gte=week_ago).order_by('-date')[:7]
+    
+    # Calculate trends
+    documents_trend = list(DocumentSubmission.objects.filter(
+        submitted_at__date__gte=week_ago
+    ).values('submitted_at__date').annotate(count=Count('id')).order_by('submitted_at__date'))
+    
+    grades_trend = list(GradeSubmission.objects.filter(
+        submitted_at__date__gte=week_ago
+    ).values('submitted_at__date').annotate(count=Count('id')).order_by('submitted_at__date'))
+    
+    applications_trend = list(AllowanceApplication.objects.filter(
+        applied_at__date__gte=week_ago
+    ).values('applied_at__date').annotate(count=Count('id')).order_by('applied_at__date'))
+    
+    # Status distribution
+    document_status_dist = DocumentSubmission.objects.values('status').annotate(count=Count('id'))
+    grade_status_dist = GradeSubmission.objects.values('status').annotate(count=Count('id'))
+    application_status_dist = AllowanceApplication.objects.values('status').annotate(count=Count('id'))
+    
+    # Top performing students
+    top_students = GradeSubmission.objects.filter(
+        status='approved',
+        qualifies_for_merit_incentive=True
+    ).order_by('-semestral_weighted_average')[:10]
+    
+    top_students_data = []
+    for grade in top_students:
+        top_students_data.append({
+            'student_name': f"{grade.student.first_name} {grade.student.last_name}",
+            'student_id': grade.student.student_id,
+            'gwa': float(grade.general_weighted_average),
+            'swa': float(grade.semestral_weighted_average),
+            'academic_year': grade.academic_year,
+            'semester': grade.get_semester_display()
+        })
+    
+    # Financial summary
+    total_disbursed = AllowanceApplication.objects.filter(
+        status='disbursed'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    total_pending_amount = AllowanceApplication.objects.filter(
+        status__in=['pending', 'approved']
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    return Response({
+        'today_snapshot': {
+            'total_users': today_analytics.total_users if today_analytics else 0,
+            'total_students': today_analytics.total_students if today_analytics else 0,
+            'total_documents': today_analytics.total_documents if today_analytics else 0,
+            'total_grades': today_analytics.total_grades if today_analytics else 0,
+            'total_applications': today_analytics.total_applications if today_analytics else 0,
+            'documents_pending': today_analytics.documents_pending if today_analytics else 0,
+            'grades_pending': today_analytics.grades_pending if today_analytics else 0,
+            'applications_pending': today_analytics.applications_pending if today_analytics else 0,
+        },
+        'trends': {
+            'documents': [{'date': str(item['submitted_at__date']), 'count': item['count']} for item in documents_trend],
+            'grades': [{'date': str(item['submitted_at__date']), 'count': item['count']} for item in grades_trend],
+            'applications': [{'date': str(item['applied_at__date']), 'count': item['count']} for item in applications_trend],
+        },
+        'status_distribution': {
+            'documents': list(document_status_dist),
+            'grades': list(grade_status_dist),
+            'applications': list(application_status_dist),
+        },
+        'top_students': top_students_data,
+        'financial_summary': {
+            'total_disbursed': float(total_disbursed),
+            'total_pending': float(total_pending_amount),
+            'total_committed': float(total_disbursed + total_pending_amount)
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ai_stats(request):
+    """Get AI processing statistics for monitoring"""
+    if not request.user.is_admin():
+        return Response({'error': 'Only admins can access AI statistics'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from django.db.models import Avg, Count, Q
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    # Get documents processed by AI
+    ai_processed_docs = DocumentSubmission.objects.filter(ai_analysis_completed=True)
+    
+    # Calculate statistics
+    total_processed = ai_processed_docs.count()
+    auto_approved = ai_processed_docs.filter(ai_auto_approved=True, status='approved').count()
+    auto_rejected = ai_processed_docs.filter(
+        ai_analysis_completed=True, 
+        status='rejected',
+        reviewed_at__isnull=False
+    ).exclude(ai_auto_approved=True).count()
+    manual_review = ai_processed_docs.filter(status='pending').count()
+    
+    # Average confidence score
+    avg_confidence_result = ai_processed_docs.filter(
+        ai_confidence_score__gt=0
+    ).aggregate(avg=Avg('ai_confidence_score'))
+    average_confidence = avg_confidence_result['avg'] or 0.0
+    
+    # Get recent AI activities (last 24 hours)
+    recent_time = timezone.now() - timedelta(hours=24)
+    recent_ai_logs = AuditLog.objects.filter(
+        action_type__in=['ai_analysis', 'ai_auto_approve'],
+        timestamp__gte=recent_time
+    ).order_by('-timestamp')[:10]
+    
+    recent_activities = []
+    for log in recent_ai_logs:
+        activity = {
+            'timestamp': log.timestamp.isoformat(),
+            'action': log.action_description,
+            'confidence': log.metadata.get('confidence_score', 0) if log.metadata else 0,
+            'decision': log.metadata.get('decision', 'unknown') if log.metadata else 'unknown'
+        }
+        recent_activities.append(activity)
+    
+    return Response({
+        'total_processed': total_processed,
+        'auto_approved': auto_approved,
+        'auto_rejected': auto_rejected,
+        'manual_review': manual_review,
+        'average_confidence': float(average_confidence),
+        'recent_activities': recent_activities
     })

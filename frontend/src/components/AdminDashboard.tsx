@@ -54,17 +54,96 @@ interface AdminDashboardData {
   stats: AdminStats;
 }
 
+interface AuditLog {
+  id: number;
+  user: {
+    id: number | null;
+    username: string;
+    full_name: string;
+  };
+  action_type: string;
+  action_type_display: string;
+  action_description: string;
+  severity: string;
+  severity_display: string;
+  target_model: string | null;
+  target_object_id: number | null;
+  target_user: {
+    id: number;
+    username: string;
+    full_name: string;
+  } | null;
+  metadata: any;
+  ip_address: string | null;
+  timestamp: string;
+}
+
+interface AIStats {
+  total_processed: number;
+  auto_approved: number;
+  auto_rejected: number;
+  manual_review: number;
+  average_confidence: number;
+  recent_activities: {
+    timestamp: string;
+    action: string;
+    confidence: number;
+    decision: string;
+  }[];
+}
+
+interface AnalyticsData {
+  today_snapshot: {
+    total_users: number;
+    total_students: number;
+    total_documents: number;
+    total_grades: number;
+    total_applications: number;
+    documents_pending: number;
+    grades_pending: number;
+    applications_pending: number;
+  };
+  trends: {
+    documents: { date: string; count: number }[];
+    grades: { date: string; count: number }[];
+    applications: { date: string; count: number }[];
+  };
+  status_distribution: {
+    documents: { status: string; count: number }[];
+    grades: { status: string; count: number }[];
+    applications: { status: string; count: number }[];
+  };
+  top_students: {
+    student_name: string;
+    student_id: string;
+    gwa: number;
+    swa: number;
+    academic_year: string;
+    semester: string;
+  }[];
+  financial_summary: {
+    total_disbursed: number;
+    total_pending: number;
+    total_committed: number;
+  };
+}
+
 interface AdminDashboardProps {
   onViewChange?: (view: string) => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'audit'>('overview');
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [auditFilter, setAuditFilter] = useState<string>('all'); // 'all', 'ai', 'admin', 'user'
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -146,6 +225,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
       console.error('Error refreshing dashboard data:', error);
     }
   };
+
+  // Fetch Analytics Data
+  const fetchAnalyticsData = async () => {
+    try {
+      const response = await apiClient.get<AnalyticsData>('/analytics/');
+      setAnalyticsData(response.data);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  };
+
+  // Fetch Audit Logs
+  const fetchAuditLogs = async (limit: number = 50) => {
+    try {
+      const response = await apiClient.get<{logs: AuditLog[]; count: number}>(`/audit-logs/?limit=${limit}`);
+      setAuditLogs(response.data.logs);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+    }
+  };
+
+  // Fetch AI Statistics
+  const fetchAIStats = async () => {
+    try {
+      const response = await apiClient.get<AIStats>('/ai-stats/');
+      setAiStats(response.data);
+    } catch (error) {
+      console.error('Error fetching AI stats:', error);
+    }
+  };
+
+  // Fetch data based on active tab
+  useEffect(() => {
+    if (activeTab === 'analytics' && !analyticsData) {
+      fetchAnalyticsData();
+    } else if (activeTab === 'audit' && auditLogs.length === 0) {
+      fetchAuditLogs();
+      fetchAIStats();
+    }
+  }, [activeTab]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -319,6 +438,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           </div>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="dashboard-tabs">
+          <button 
+            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            Overview
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M16 11V3H8v6H2v12h20V11h-6zm-6-6h4v14h-4V5zm-6 6h4v8H4v-8zm16 8h-4v-6h4v6z" />
+            </svg>
+            Analytics
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audit')}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+            </svg>
+            Audit Logs
+          </button>
+        </div>
+
+        {/* Conditional Content Based on Active Tab */}
+        {activeTab === 'overview' && (
+          <>
         {/* Stats Section */}
         <div className="metrics-grid">
           <div className="metric-card personnel" onClick={() => onViewChange && onViewChange('students')}>
@@ -708,9 +861,467 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             )}
           </div>
         </div>
+          </>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="analytics-section">
+            {analyticsData ? (
+              <>
+                {/* Quick Stats */}
+                <div className="analytics-stats-grid">
+                  <div className="analytics-stat-card">
+                    <div className="stat-icon" style={{background: '#dbeafe'}}>
+                      <svg viewBox="0 0 24 24" fill="#3b82f6" style={{width: '24px', height: '24px'}}>
+                        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div className="stat-details">
+                      <div className="stat-value">{analyticsData.today_snapshot.total_students}</div>
+                      <div className="stat-label">Total Students</div>
+                    </div>
+                  </div>
+                  
+                  <div className="analytics-stat-card">
+                    <div className="stat-icon" style={{background: '#fef3c7'}}>
+                      <svg viewBox="0 0 24 24" fill="#f59e0b" style={{width: '24px', height: '24px'}}>
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="stat-details">
+                      <div className="stat-value">{analyticsData.today_snapshot.documents_pending}</div>
+                      <div className="stat-label">Pending Documents</div>
+                    </div>
+                  </div>
+
+                  <div className="analytics-stat-card">
+                    <div className="stat-icon" style={{background: '#dcfce7'}}>
+                      <svg viewBox="0 0 24 24" fill="#10b981" style={{width: '24px', height: '24px'}}>
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="stat-details">
+                      <div className="stat-value">{analyticsData.today_snapshot.grades_pending}</div>
+                      <div className="stat-label">Pending Grades</div>
+                    </div>
+                  </div>
+
+                  <div className="analytics-stat-card">
+                    <div className="stat-icon" style={{background: '#fce7f3'}}>
+                      <svg viewBox="0 0 24 24" fill="#ec4899" style={{width: '24px', height: '24px'}}>
+                        <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="stat-details">
+                      <div className="stat-value">{formatCurrency(analyticsData.financial_summary.total_disbursed)}</div>
+                      <div className="stat-label">Total Disbursed</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Students */}
+                <div className="analytics-section-card">
+                  <h3>🏆 Top Performing Students</h3>
+                  <div className="top-students-list">
+                    {analyticsData.top_students.map((student, idx) => (
+                      <div key={idx} className="top-student-item">
+                        <div className="student-rank">#{idx + 1}</div>
+                        <div className="student-info">
+                          <div className="student-name">{student.student_name}</div>
+                          <div className="student-id">ID: {student.student_id} • {student.academic_year} {student.semester}</div>
+                        </div>
+                        <div className="student-grades">
+                          <span className="grade-badge gwa">GWA: {student.gwa.toFixed(2)}</span>
+                          <span className="grade-badge swa">SWA: {student.swa.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Financial Summary */}
+                <div className="analytics-section-card">
+                  <h3>💰 Financial Summary</h3>
+                  <div className="financial-grid">
+                    <div className="financial-item">
+                      <div className="financial-label">Total Disbursed</div>
+                      <div className="financial-value disbursed">{formatCurrency(analyticsData.financial_summary.total_disbursed)}</div>
+                    </div>
+                    <div className="financial-item">
+                      <div className="financial-label">Pending Approval</div>
+                      <div className="financial-value pending">{formatCurrency(analyticsData.financial_summary.total_pending)}</div>
+                    </div>
+                    <div className="financial-item">
+                      <div className="financial-label">Total Committed</div>
+                      <div className="financial-value committed">{formatCurrency(analyticsData.financial_summary.total_committed)}</div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="loading-content">
+                <div className="loading-spinner"></div>
+                <p>Loading analytics data...</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Audit Logs Tab */}
+        {activeTab === 'audit' && (
+          <div className="audit-logs-section">
+            <div className="audit-logs-header">
+              <h2>📋 System Audit Logs</h2>
+              <button className="refresh-btn" onClick={() => { fetchAuditLogs(); fetchAIStats(); }}>
+                <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '16px', height: '16px'}}>
+                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
+
+            {/* AI Performance Monitoring Section */}
+            {aiStats && (
+              <div className="ai-monitoring-section" style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '24px',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                color: 'white',
+                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '20px',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '32px', height: '32px'}}>
+                      <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{margin: '0 0 4px 0', fontSize: '24px', fontWeight: '700'}}>
+                      🤖 AI Processing Monitor
+                    </h3>
+                    <p style={{margin: 0, fontSize: '14px', opacity: 0.9}}>
+                      Real-time AI document verification performance
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px',
+                  marginTop: '20px'
+                }}>
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      📊 Total AI Processed
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.total_processed}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Documents analyzed
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      ✅ Auto-Approved
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.auto_approved}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      {aiStats.total_processed > 0 
+                        ? `${((aiStats.auto_approved / aiStats.total_processed) * 100).toFixed(1)}% success rate`
+                        : 'No data yet'
+                      }
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      ❌ Auto-Rejected
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.auto_rejected}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Fraud/quality issues
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      👁️ Manual Review
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {aiStats.manual_review}
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Pending admin review
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(59, 130, 246, 0.2)',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)'
+                  }}>
+                    <div style={{fontSize: '12px', opacity: 0.9, marginBottom: '8px', fontWeight: '600'}}>
+                      🎯 AI Confidence
+                    </div>
+                    <div style={{fontSize: '32px', fontWeight: '700', marginBottom: '4px'}}>
+                      {(aiStats.average_confidence * 100).toFixed(1)}%
+                    </div>
+                    <div style={{fontSize: '11px', opacity: 0.8}}>
+                      Average accuracy score
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent AI Activities */}
+                {aiStats.recent_activities && aiStats.recent_activities.length > 0 && (
+                  <div style={{marginTop: '20px'}}>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      marginBottom: '12px',
+                      opacity: 0.95
+                    }}>
+                      🕒 Recent AI Activities
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gap: '8px'
+                    }}>
+                      {aiStats.recent_activities.slice(0, 3).map((activity, idx) => (
+                        <div key={idx} style={{
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '13px'
+                        }}>
+                          <div>
+                            <span style={{marginRight: '8px'}}>
+                              {activity.decision === 'approved' ? '✅' : activity.decision === 'rejected' ? '❌' : '⏳'}
+                            </span>
+                            {activity.action}
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'center',
+                            fontSize: '12px'
+                          }}>
+                            <span style={{
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              padding: '4px 8px',
+                              borderRadius: '4px'
+                            }}>
+                              {(activity.confidence * 100).toFixed(0)}% confidence
+                            </span>
+                            <span style={{opacity: 0.8}}>
+                              {new Date(activity.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filter Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                className={`filter-btn ${auditFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('all')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'all' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                  background: auditFilter === 'all' ? '#3b82f6' : 'white',
+                  color: auditFilter === 'all' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📋 All Activities
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'ai' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('ai')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'ai' ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
+                  background: auditFilter === 'ai' ? '#8b5cf6' : 'white',
+                  color: auditFilter === 'ai' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                🤖 AI Actions
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'admin' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('admin')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'admin' ? '2px solid #10b981' : '1px solid #e2e8f0',
+                  background: auditFilter === 'admin' ? '#10b981' : 'white',
+                  color: auditFilter === 'admin' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                👤 Admin Actions
+              </button>
+              <button
+                className={`filter-btn ${auditFilter === 'user' ? 'active' : ''}`}
+                onClick={() => setAuditFilter('user')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: auditFilter === 'user' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                  background: auditFilter === 'user' ? '#f59e0b' : 'white',
+                  color: auditFilter === 'user' ? 'white' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                👥 User Actions
+              </button>
+            </div>
+
+            <div className="audit-logs-list">
+              {auditLogs
+                .filter(log => {
+                  if (auditFilter === 'all') return true;
+                  if (auditFilter === 'ai') return log.action_type === 'ai_analysis' || log.action_type === 'ai_auto_approve';
+                  if (auditFilter === 'admin') return log.action_type.startsWith('admin_') || log.action_type.includes('approved') || log.action_type.includes('rejected');
+                  if (auditFilter === 'user') return log.action_type.startsWith('user_') || log.action_type.includes('submitted');
+                  return true;
+                })
+                .map((log) => (
+                <div key={log.id} className={`audit-log-item severity-${log.severity}`}>
+                  <div className="audit-log-header">
+                    <div className="audit-log-user">
+                      <div className="user-avatar">
+                        {log.action_type.startsWith('ai_') ? '🤖' : log.user.username[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="user-name">
+                          {log.action_type.startsWith('ai_') ? '🤖 AI System' : log.user.full_name}
+                        </div>
+                        <div className="user-action">{log.action_type_display}</div>
+                      </div>
+                    </div>
+                    <div className="audit-log-meta">
+                      <span className={`severity-badge ${log.severity}`}>{log.severity_display}</span>
+                      <span className="audit-time">{formatDate(log.timestamp)}</span>
+                    </div>
+                  </div>
+                  <div className="audit-log-description">{log.action_description}</div>
+                  {log.metadata && log.metadata.confidence_score && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      background: '#f0f9ff',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#0369a1'
+                    }}>
+                      🎯 AI Confidence Score: <strong>{(log.metadata.confidence_score * 100).toFixed(1)}%</strong>
+                      {log.metadata.auto_decision && (
+                        <span style={{marginLeft: '12px'}}>
+                          • Decision: <strong>{log.metadata.decision || 'Auto-processed'}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {log.target_user && (
+                    <div className="audit-log-target">
+                      Target: {log.target_user.full_name} ({log.target_user.username})
+                    </div>
+                  )}
+                  {log.ip_address && (
+                    <div className="audit-log-ip">IP: {log.ip_address}</div>
+                  )}
+                </div>
+              ))}
+              
+              {auditLogs.length === 0 && (
+                <div className="empty-state-admin">
+                  <div className="empty-icon">📋</div>
+                  <h4>No audit logs found</h4>
+                  <p>System activities will be logged here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
 
 export default AdminDashboard;
+

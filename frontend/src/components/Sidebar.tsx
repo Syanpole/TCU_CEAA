@@ -8,6 +8,7 @@ import {
   ApplicationIcon, 
   RequirementsIcon, 
   SettingsIcon, 
+  LogoutIcon,
 } from './Icons';
 import './Sidebar.css';
 
@@ -27,22 +28,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, darkM
     {
       id: 'overview',
       label: 'Overview',
-      icon: <DashboardIcon size={20} />
+      icon: <DashboardIcon size={18} />
     },
     {
       id: 'documents',
       label: 'Documents',
-      icon: <DocumentIcon size={20} />
+      icon: <DocumentIcon size={18} />
     },
     {
       id: 'grades',
       label: 'Grades',
-      icon: <GradeIcon size={20} />
+      icon: <GradeIcon size={18} />
     },
     {
       id: 'application-details',
       label: 'Application Details',
-      icon: <ApplicationIcon size={20} />
+      icon: <ApplicationIcon size={18} />
     }
   ];
 
@@ -50,8 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, darkM
     <div className={`sidebar ${darkMode ? 'dark-theme' : 'light-theme'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
         <div className="logo-container">
+          <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo" />
           <div className="logo-text">Student Portal</div>
         </div>
+        <div className="welcome-text">Welcome back!</div>
       </div>
       
       <nav className="sidebar-nav">
@@ -82,6 +85,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, darkM
           className="sidebar-item sidebar-logout-button"
           onClick={() => setShowLogoutModal(true)}
         >
+          <span className="sidebar-icon">
+            <LogoutIcon size={18} />
+          </span>
           <span className="sidebar-label">Logout</span>
         </button>
       </div>
