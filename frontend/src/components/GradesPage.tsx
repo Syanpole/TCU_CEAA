@@ -168,10 +168,6 @@ const GradesPage: React.FC<GradesPageProps> = ({
                     <span className="grade-label">General Weighted Average:</span>
                     <span className="grade-value">{grade.general_weighted_average}</span>
                   </div>
-                  <div className="grade-row">
-                    <span className="grade-label">Semestral Weighted Average:</span>
-                    <span className="grade-value">{grade.semestral_weighted_average}</span>
-                  </div>
                 </div>
 
                 <div className="eligibility-section">

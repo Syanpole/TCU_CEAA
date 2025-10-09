@@ -378,6 +378,22 @@
   transform: translateY(-1px);
 }
 
+.delete-btn {
+  background: #6b7280;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #ef4444;
+  transform: translateY(-1px);
+}
+
+.delete-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;

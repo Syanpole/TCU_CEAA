@@ -14,7 +14,6 @@ interface FormData {
   academic_year: string;
   total_units: string;
   general_weighted_average: string;
-  semestral_weighted_average: string;
   has_failing_grades: boolean;
   has_incomplete_grades: boolean;
   has_dropped_subjects: boolean;
@@ -30,7 +29,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     academic_year: '',
     total_units: '',
     general_weighted_average: '',
-    semestral_weighted_average: '',
     has_failing_grades: false,
     has_incomplete_grades: false,
     has_dropped_subjects: false,
@@ -119,7 +117,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     }
     
     if (!formData.semester || !formData.academic_year || !formData.total_units || 
-        !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet) {
+        !formData.general_weighted_average || !formData.grade_sheet) {
       setError('Please fill in all required fields');
       return;
     }
@@ -127,20 +125,28 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     // Validate numeric fields
     const totalUnits = parseInt(formData.total_units);
     const gwa = parseFloat(formData.general_weighted_average);
-    const swa = parseFloat(formData.semestral_weighted_average);
 
     if (isNaN(totalUnits) || totalUnits < 1 || totalUnits > 30) {
       setError('Total units must be between 1 and 30');
       return;
     }
 
-    if (isNaN(gwa) || gwa < 65 || gwa > 100) {
-      setError('General Weighted Average must be between 65% and 100%');
+    // Validate GWA is in point scale (1.00 - 5.00) - accepts any decimal format
+    if (isNaN(gwa) || gwa < 1.0 || gwa > 5.0) {
+      setError('General Weighted Average must be between 1.0 and 5.0 (point scale). Examples: 1, 1.5, 1.75, 2.0, 2.35');
       return;
     }
 
-    if (isNaN(swa) || swa < 65 || swa > 100) {
-      setError('Semestral Weighted Average must be between 65% and 100%');
+    // Validate file upload
+    if (!formData.grade_sheet || !(formData.grade_sheet instanceof File)) {
+      setError('Please upload your grade sheet file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (formData.grade_sheet.size > maxSize) {
+      setError('File size must be less than 10MB');
       return;
     }
 
@@ -153,11 +159,23 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       submitFormData.append('academic_year', formData.academic_year);
       submitFormData.append('total_units', formData.total_units);
       submitFormData.append('general_weighted_average', formData.general_weighted_average);
-      submitFormData.append('semestral_weighted_average', formData.semestral_weighted_average);
       submitFormData.append('has_failing_grades', formData.has_failing_grades.toString());
       submitFormData.append('has_incomplete_grades', formData.has_incomplete_grades.toString());
       submitFormData.append('has_dropped_subjects', formData.has_dropped_subjects.toString());
       submitFormData.append('grade_sheet', formData.grade_sheet);
+
+      // Debug logging
+      console.log('Submitting grade with data:', {
+        semester: formData.semester,
+        academic_year: formData.academic_year,
+        total_units: formData.total_units,
+        general_weighted_average: formData.general_weighted_average,
+        has_failing_grades: formData.has_failing_grades,
+        has_incomplete_grades: formData.has_incomplete_grades,
+        has_dropped_subjects: formData.has_dropped_subjects,
+        grade_sheet: formData.grade_sheet?.name,
+        grade_sheet_size: formData.grade_sheet?.size
+      });
 
       await apiClient.post('/grades/', submitFormData, {
         headers: {
@@ -171,7 +189,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         academic_year: '',
         total_units: '',
         general_weighted_average: '',
-        semestral_weighted_average: '',
         has_failing_grades: false,
         has_incomplete_grades: false,
         has_dropped_subjects: false,
@@ -192,7 +209,34 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
 
     } catch (error: any) {
       console.error('Error submitting grades:', error);
-      setError(error.response?.data?.detail || 'Failed to submit grades');
+      console.error('Error response:', error.response);
+      
+      // Extract detailed error message
+      let errorMessage = 'Failed to submit grades';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.general_weighted_average) {
+          errorMessage = `GWA Error: ${error.response.data.general_weighted_average[0]}`;
+        } else if (error.response.data.non_field_errors) {
+          errorMessage = error.response.data.non_field_errors[0];
+        } else {
+          // Try to extract first error from any field
+          const firstError = Object.values(error.response.data).find(val => Array.isArray(val) || typeof val === 'string');
+          if (firstError) {
+            errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -348,41 +392,52 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label htmlFor="general_weighted_average">General Weighted Average (%) *</label>
+            <label htmlFor="general_weighted_average">General Weighted Average (GWA) *</label>
             <input
               type="number"
               id="general_weighted_average"
               name="general_weighted_average"
               value={formData.general_weighted_average}
               onChange={handleInputChange}
-              min="65"
-              max="100"
-              step="0.01"
-              placeholder="e.g., 85.50"
+              min="1"
+              max="5"
+              step="any"
+              placeholder="e.g., 1.75, 1.7, 2, 2.35"
               required
               className="form-input"
             />
-            <small>Your overall GWA for the academic year (65-100%)</small>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="semestral_weighted_average">Semestral Weighted Average (%) *</label>
-            <input
-              type="number"
-              id="semestral_weighted_average"
-              name="semestral_weighted_average"
-              value={formData.semestral_weighted_average}
-              onChange={handleInputChange}
-              min="65"
-              max="100"
-              step="0.01"
-              placeholder="e.g., 87.25"
-              required
-              className="form-input"
-            />
-            <small>Your SWA for this specific semester (65-100%)</small>
+            <small>Enter any GWA between 1.0 and 5.0 (Examples: 1, 1.5, 1.75, 2.0, 2.35, 3.5)</small>
+            <div className="grading-scale-hint">
+              <details>
+                <summary>📊 Official University Grading Scale</summary>
+                <div className="scale-table">
+                  <div className="scale-header">
+                    <span><strong>Grade</strong></span>
+                    <span></span>
+                    <span><strong>%</strong></span>
+                    <span><strong>Remarks</strong></span>
+                    <span><strong>Eligibility</strong></span>
+                  </div>
+                  <div className="scale-row merit"><span>1.0</span> <span>=</span> <span>96-100</span> <span>Excellent</span> <span>✅ Merit + Basic</span></div>
+                  <div className="scale-row merit"><span>1.25</span> <span>=</span> <span>93-95</span> <span>Very Good</span> <span>✅ Merit + Basic</span></div>
+                  <div className="scale-row merit"><span>1.5</span> <span>=</span> <span>90-92</span> <span>Good</span> <span>✅ Merit + Basic</span></div>
+                  <div className="scale-row merit"><span>1.75</span> <span>=</span> <span>87-89</span> <span>Satisfactory</span> <span>✅ Merit + Basic</span></div>
+                  <div className="scale-row basic"><span>2.0</span> <span>=</span> <span>84-86</span> <span>Fair</span> <span>✓ Basic Only</span></div>
+                  <div className="scale-row basic"><span>2.25</span> <span>=</span> <span>81-83</span> <span>Average</span> <span>✓ Basic Only</span></div>
+                  <div className="scale-row"><span>2.5</span> <span>=</span> <span>78-80</span> <span>Below Avg</span> <span>❌ None</span></div>
+                  <div className="scale-row"><span>2.75</span> <span>=</span> <span>75-77</span> <span>Passing</span> <span>❌ None</span></div>
+                  <div className="scale-row"><span>3.0</span> <span>=</span> <span>70-74</span> <span>Min. Pass</span> <span>❌ None</span></div>
+                  <div className="scale-row"><span>5.0</span> <span>=</span> <span>&lt;70</span> <span>Failing</span> <span>❌ None</span></div>
+                </div>
+                <div className="eligibility-note">
+                  <small>
+                    <strong>Basic Allowance:</strong> Requires ≥80% (GWA ≤2.25) + ≥15 units + no fails/inc/drops<br/>
+                    <strong>Merit Incentive:</strong> Requires ≥88% (GWA ≤1.75) + ≥15 units + no fails/inc/drops<br/>
+                    <em>Note: System accepts any decimal format (1, 1.0, 1.75, 1.91, etc.)</em>
+                  </small>
+                </div>
+              </details>
+            </div>
           </div>
         </div>
 
@@ -451,7 +506,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
             type="submit"
             className="btn-primary"
             disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || 
-                     !formData.total_units || !formData.general_weighted_average || !formData.semestral_weighted_average || !formData.grade_sheet}
+                     !formData.total_units || !formData.general_weighted_average || !formData.grade_sheet}
           >
             {loading ? (
               <>

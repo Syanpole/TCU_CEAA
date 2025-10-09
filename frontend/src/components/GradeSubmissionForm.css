@@ -783,3 +783,124 @@
 .ai-confidence-note strong {
   color: #fb2424;
 }
+
+/* Grading Scale Reference */
+.grading-scale-hint {
+  margin-top: 8px;
+}
+
+.grading-scale-hint details {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+  border: 1px solid #667eea;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.grading-scale-hint summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #667eea;
+  font-size: 13px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grading-scale-hint summary:hover {
+  color: #5568d3;
+}
+
+.scale-table {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.scale-header {
+  display: grid;
+  grid-template-columns: 60px 20px 70px 90px 1fr;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #667eea;
+  color: white;
+  border-radius: 6px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.scale-row {
+  display: grid;
+  grid-template-columns: 60px 20px 70px 90px 1fr;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+  font-size: 11px;
+}
+
+.scale-row.merit {
+  background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
+  border-color: #fbbf24;
+}
+
+.scale-row.basic {
+  background: linear-gradient(135deg, #f0f9ff 0%, #f8fbff 100%);
+  border-color: #60a5fa;
+}
+
+.scale-row span:first-child {
+  font-weight: 600;
+  color: #334155;
+}
+
+.scale-row span:nth-child(2) {
+  text-align: center;
+  color: #94a3b8;
+}
+
+.scale-row span:nth-child(3) {
+  font-weight: 500;
+  color: #334155;
+}
+
+.scale-row span:last-child {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.scale-row:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.scale-row.merit:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.scale-row.basic:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.eligibility-note {
+  margin-top: 12px;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.eligibility-note small {
+  color: #475569;
+  line-height: 1.6;
+}

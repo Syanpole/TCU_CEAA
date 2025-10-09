@@ -73,6 +73,128 @@
   padding: 24px;
 }
 
+/* Merit Incentive Section */
+.merit-incentive-section {
+  margin-bottom: 32px;
+  border: 3px solid var(--taguig-yellow);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.merit-header {
+  background: linear-gradient(135deg, var(--taguig-yellow) 0%, #d97706 100%);
+  color: white;
+  padding: 16px 20px;
+  margin-bottom: 0 !important;
+}
+
+.merit-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.merit-content {
+  background: #fffbeb;
+  padding: 24px;
+  line-height: 1.7;
+}
+
+.document-requirements.dark-theme .merit-content {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.merit-content p {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  color: var(--light-text);
+}
+
+.document-requirements.dark-theme .merit-content p {
+  color: var(--dark-text);
+}
+
+.merit-note {
+  background: white;
+  padding: 16px;
+  border-left: 4px solid var(--taguig-yellow);
+  border-radius: 4px;
+  margin-top: 12px;
+  font-style: italic;
+}
+
+.document-requirements.dark-theme .merit-note {
+  background: #374151;
+}
+
+/* Applicant Type Note */
+.applicant-type-note {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid var(--taguig-yellow);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.document-requirements.dark-theme .applicant-type-note {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.applicant-type-note .note-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.note-content {
+  flex: 1;
+}
+
+.note-content strong {
+  color: var(--taguig-red);
+  font-weight: 700;
+}
+
+.note-content ul {
+  margin: 12px 0 0 0;
+  padding-left: 24px;
+}
+
+.note-content li {
+  margin: 8px 0;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+/* Section Subheader */
+.section-subheader {
+  margin: 24px 0 20px 0;
+}
+
+.section-subheader h3 {
+  color: var(--taguig-blue);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(30, 64, 175, 0.05);
+  border-left: 4px solid var(--taguig-blue);
+  border-radius: 4px;
+}
+
+.document-requirements.dark-theme .section-subheader h3 {
+  background: rgba(30, 64, 175, 0.15);
+  color: #93c5fd;
+}
+
 .requirements-section {
   margin-bottom: 32px;
 }
@@ -405,6 +527,19 @@
   .announcement-header h1 {
     font-size: 24px;
   }
+  
+  .merit-header h2 {
+    font-size: 18px;
+  }
+  
+  .applicant-type-note {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .applicant-type-note .note-icon {
+    font-size: 24px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -418,5 +553,17 @@
   
   .section-header h2 {
     font-size: 16px;
+  }
+  
+  .merit-content {
+    padding: 16px;
+  }
+  
+  .applicant-type-note {
+    padding: 16px;
+  }
+  
+  .note-content ul {
+    padding-left: 20px;
   }
 }
