@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import Privacy from './components/Privacy';
+import FAQ from './components/FAQ';
+import HelpCenter from './components/HelpCenter';
+import TermsOfService from './components/TermsOfService';
 import Modal from './components/Modal';
 import LoginModal from './components/LoginModal';
 import StudentRegistrationModal from './components/StudentRegistrationModal';
@@ -18,6 +21,9 @@ import './App.css';
 const AppContent: React.FC = () => {
   const { user, loading, isAdmin } = useAuth();
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showFAQ, setShowFAQ] = useState(false);
+  const [showHelpCenter, setShowHelpCenter] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'profile'
@@ -26,8 +32,23 @@ const AppContent: React.FC = () => {
     setShowPrivacy(true);
   };
 
+  const showFAQPage = () => {
+    setShowFAQ(true);
+  };
+
+  const showHelpCenterPage = () => {
+    setShowHelpCenter(true);
+  };
+
+  const showTermsPage = () => {
+    setShowTerms(true);
+  };
+
   const handleBackToLanding = () => {
     setShowPrivacy(false);
+    setShowFAQ(false);
+    setShowHelpCenter(false);
+    setShowTerms(false);
   };
 
   const handleLoginClick = () => {
@@ -70,12 +91,27 @@ const AppContent: React.FC = () => {
       return <Privacy onBackToHome={handleBackToLanding} />;
     }
     
+    if (showFAQ) {
+      return <FAQ onBackToHome={handleBackToLanding} />;
+    }
+    
+    if (showHelpCenter) {
+      return <HelpCenter onBackToHome={handleBackToLanding} />;
+    }
+    
+    if (showTerms) {
+      return <TermsOfService onBackToHome={handleBackToLanding} />;
+    }
+    
     return (
       <>
         <LandingPage 
           onLoginClick={handleLoginClick}
           onRegisterClick={handleRegisterClick}
           onPrivacyClick={showPrivacyPage}
+          onFAQClick={showFAQPage}
+          onHelpCenterClick={showHelpCenterPage}
+          onTermsClick={showTermsPage}
         />
         
         <Modal isOpen={showLoginModal} onClose={closeLoginModal}>

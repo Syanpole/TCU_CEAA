@@ -5,9 +5,19 @@ interface LandingPageProps {
   onLoginClick: () => void;
   onRegisterClick: () => void;
   onPrivacyClick: () => void;
+  onFAQClick: () => void;
+  onHelpCenterClick: () => void;
+  onTermsClick: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick, onPrivacyClick }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ 
+  onLoginClick, 
+  onRegisterClick, 
+  onPrivacyClick,
+  onFAQClick,
+  onHelpCenterClick,
+  onTermsClick
+}) => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -388,10 +398,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick
           <div className="footer-section">
             <h4>Support</h4>
             <ul>
-              <li><a href="#faq">FAQ</a></li>
-              <li><a href="#help">Help Center</a></li>
+              <li><button onClick={onFAQClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>FAQ</button></li>
+              <li><button onClick={onHelpCenterClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>Help Center</button></li>
               <li><button onClick={onPrivacyClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>Privacy Policy</button></li>
-              <li><a href="#terms">Terms of Service</a></li>
+              <li><button onClick={onTermsClick} style={{background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', textDecoration: 'none', fontSize: 'inherit', fontFamily: 'inherit', padding: 0}}>Terms of Service</button></li>
             </ul>
           </div>
         </div>

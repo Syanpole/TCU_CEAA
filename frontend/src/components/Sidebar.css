@@ -284,6 +284,9 @@
 .sidebar-logout-button .sidebar-icon {
   background: #fee2e2;
   color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar.dark-theme .sidebar-logout-button .sidebar-icon {
