@@ -85,6 +85,8 @@
   opacity: 0.3;
 }
 
+
+
 /* Sidebar Header */
 .sidebar-header {
   padding: 24px 20px;
@@ -161,7 +163,6 @@
   outline: none;
 }
 
-/* Sidebar Icon Styles */
 .sidebar-icon {
   display: flex;
   align-items: center;
@@ -169,44 +170,10 @@
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  min-width: 36px;
-  min-height: 36px;
   border-radius: 10px;
   background: #e2e8f0;
   color: #475569;
   transition: all 0.2s ease;
-  padding: 0;
-}
-
-.sidebar-icon > * {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin: 0 auto;
-}
-
-.sidebar-icon svg {
-  width: 18px !important;
-  height: 18px !important;
-  max-width: 18px !important;
-  max-height: 18px !important;
-  flex-shrink: 0;
-  display: block;
-}
-
-.sidebar-icon .icon {
-  width: 18px !important;
-  height: 18px !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sidebar-icon .icon svg {
-  width: 18px !important;
-  height: 18px !important;
 }
 
 .sidebar.dark-theme .sidebar-icon {
@@ -295,7 +262,6 @@
   border-radius: 8px;
 }
 
-/* Profile Button */
 .sidebar-profile-button .sidebar-icon {
   background: #e2e8f0;
   color: #64748b;
@@ -306,7 +272,6 @@
   color: #94a3b8;
 }
 
-/* Logout Button */
 .sidebar-logout-button {
   color: #dc2626 !important;
   margin-top: 4px;
@@ -317,21 +282,24 @@
 }
 
 .sidebar-logout-button .sidebar-icon {
-  background: #fee2e2 !important;
-  color: #dc2626 !important;
+  background: #fee2e2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar.dark-theme .sidebar-logout-button .sidebar-icon {
-  background: rgba(239, 68, 68, 0.15) !important;
-  color: #ef4444 !important;
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
 }
 
 .sidebar-logout-button:hover {
-  background: #ef4444 !important;
+  background: #fef2f2 !important;
 }
 
 .sidebar.dark-theme .sidebar-logout-button:hover {
-  background: rgba(239, 68, 68, 0.2) !important;
+  background: rgba(220, 38, 38, 0.15) !important;
 }
 
 .sidebar-logout-button .sidebar-label {
@@ -339,7 +307,7 @@
 }
 
 .sidebar.dark-theme .sidebar-logout-button .sidebar-label {
-  color: #ef4444;
+  color: #f87171;
 }
 
 /* Responsive */
