@@ -16,6 +16,7 @@ import StudentsManagement from './components/StudentsManagement';
 import DocumentsManagement from './components/DocumentsManagement';
 import GradesManagement from './components/GradesManagement';
 import ApplicationsManagement from './components/ApplicationsManagement';
+import AdminAIDashboard from './components/AdminAIDashboard';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -166,6 +167,8 @@ const AppContent: React.FC = () => {
         <GradesManagement onViewChange={setCurrentView} />
       ) : currentView === 'applications' ? (
         <ApplicationsManagement onViewChange={setCurrentView} />
+      ) : currentView === 'ai-dashboard' ? (
+        <AdminAIDashboard />
       ) : (
         <Dashboard onViewChange={setCurrentView} />
       )}

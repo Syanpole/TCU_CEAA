@@ -1,0 +1,125 @@
+{
+  "document_type": "school_id",
+  "version": "2024.1",
+  "description": "Student ID Template - University/High School Format",
+  "required_fields": {
+    "school_header": {
+      "region": [0, 0, 1.0, 0.25],
+      "text_patterns": [
+        "STUDENT ID",
+        "IDENTIFICATION CARD",
+        "STUDENT IDENTIFICATION"
+      ],
+      "required": true,
+      "confidence_threshold": 0.8
+    },
+    "school_name": {
+      "region": [0, 0.05, 1.0, 0.2],
+      "text_patterns": [
+        "UNIVERSITY",
+        "COLLEGE", 
+        "HIGH SCHOOL",
+        "ACADEMY"
+      ],
+      "required": true
+    },
+    "student_photo": {
+      "region": [0.05, 0.25, 0.45, 0.65],
+      "type": "face_photo",
+      "required": true,
+      "validation": "face_detection"
+    },
+    "student_name": {
+      "region": [0.5, 0.25, 0.95, 0.4],
+      "text_patterns": [
+        "NAME:",
+        "STUDENT NAME:",
+        "FULL NAME:"
+      ],
+      "required": true,
+      "confidence_threshold": 0.9
+    },
+    "student_id_number": {
+      "region": [0.5, 0.4, 0.95, 0.5],
+      "text_patterns": [
+        "ID NO:",
+        "STUDENT NO:",
+        "ID NUMBER:"
+      ],
+      "format_regex": "\\d{2}-\\d{5}|\\d{8,10}",
+      "required": true
+    },
+    "course_program": {
+      "region": [0.5, 0.5, 0.95, 0.6],
+      "text_patterns": [
+        "COURSE:",
+        "PROGRAM:",
+        "GRADE:"
+      ],
+      "required": false
+    },
+    "validity_dates": {
+      "region": [0.05, 0.7, 0.95, 0.85],
+      "text_patterns": [
+        "VALID UNTIL:",
+        "EXPIRES:",
+        "ACADEMIC YEAR:"
+      ],
+      "format_regex": "\\d{4}-\\d{4}|\\d{1,2}/\\d{1,2}/\\d{4}",
+      "required": false
+    }
+  },
+  "security_features": {
+    "hologram": {
+      "type": "security_hologram",
+      "location": "corner",
+      "required": false
+    },
+    "lamination": {
+      "type": "professional_lamination",
+      "required": true
+    },
+    "school_seal": {
+      "type": "embossed_seal",
+      "location": "bottom_center",
+      "required": false
+    },
+    "barcode_qr": {
+      "type": "barcode_or_qr",
+      "location": "back_or_bottom",
+      "required": false
+    }
+  },
+  "quality_requirements": {
+    "min_resolution": 200,
+    "min_width": 600,
+    "min_height": 400,
+    "min_contrast": 0.6,
+    "face_photo_quality": {
+      "min_face_size": 100,
+      "face_visibility": 0.8,
+      "lighting_quality": 0.6
+    }
+  },
+  "validation_rules": {
+    "text_extraction_confidence": 0.7,
+    "face_detection_confidence": 0.8,
+    "structure_match_confidence": 0.7,
+    "overall_confidence_threshold": 0.75
+  },
+  "common_variations": [
+    "university_id_format",
+    "high_school_id_format", 
+    "elementary_id_format",
+    "government_school_format",
+    "private_school_format"
+  ],
+  "fraud_indicators": [
+    "poor_photo_quality",
+    "inconsistent_fonts",
+    "home_printer_quality",
+    "missing_lamination",
+    "blurry_text",
+    "wrong_card_dimensions"
+  ]
+}

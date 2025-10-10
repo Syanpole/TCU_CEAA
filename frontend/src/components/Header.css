@@ -136,6 +136,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -168,6 +169,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;

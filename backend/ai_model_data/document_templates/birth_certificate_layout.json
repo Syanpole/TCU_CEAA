@@ -1,0 +1,113 @@
+{
+  "document_type": "birth_certificate",
+  "version": "2024.1",
+  "description": "PSA Birth Certificate Template - Standard Format",
+  "required_fields": {
+    "header": {
+      "region": [0, 0, 1.0, 0.15],
+      "text_patterns": [
+        "REPUBLIC OF THE PHILIPPINES",
+        "PHILIPPINE STATISTICS AUTHORITY",
+        "CIVIL REGISTRATION"
+      ],
+      "required": true,
+      "confidence_threshold": 0.8
+    },
+    "registry_number": {
+      "region": [0.6, 0.15, 1.0, 0.25],
+      "text_patterns": ["REGISTRY NO", "REG. NO"],
+      "format_regex": "\\d{4}-\\d{8}",
+      "required": true
+    },
+    "name_field": {
+      "region": [0.1, 0.3, 0.9, 0.45],
+      "text_patterns": [
+        "NAME:",
+        "CHILD'S NAME:",
+        "FULL NAME:"
+      ],
+      "required": true,
+      "confidence_threshold": 0.9
+    },
+    "date_of_birth": {
+      "region": [0.1, 0.45, 0.9, 0.55],
+      "text_patterns": [
+        "DATE OF BIRTH:",
+        "BORN ON:",
+        "BIRTH DATE:"
+      ],
+      "format_regex": "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{4}|\\w+ \\d{1,2}, \\d{4})",
+      "required": true
+    },
+    "place_of_birth": {
+      "region": [0.1, 0.55, 0.9, 0.65], 
+      "text_patterns": [
+        "PLACE OF BIRTH:",
+        "BORN IN:",
+        "BIRTH PLACE:"
+      ],
+      "required": true
+    },
+    "parents_names": {
+      "region": [0.1, 0.65, 0.9, 0.8],
+      "text_patterns": [
+        "FATHER:",
+        "MOTHER:",
+        "PARENTS:"
+      ],
+      "required": true
+    }
+  },
+  "security_features": {
+    "watermark": {
+      "type": "background_pattern",
+      "location": "full_document",
+      "pattern_file": "psa_watermark.png",
+      "required": true
+    },
+    "official_seal": {
+      "type": "circular_seal", 
+      "location": "bottom_right",
+      "seal_file": "psa_seal.png",
+      "required": true
+    },
+    "security_paper": {
+      "type": "special_paper",
+      "features": ["security_threads", "color_changing_ink"],
+      "required": false
+    },
+    "digital_signature": {
+      "type": "qr_code",
+      "location": "bottom_left", 
+      "verification_url": "verify.psa.gov.ph",
+      "required": false
+    }
+  },
+  "quality_requirements": {
+    "min_resolution": 300,
+    "min_width": 800,
+    "min_height": 600,
+    "min_contrast": 0.7,
+    "max_blur_threshold": 50,
+    "color_requirements": "full_color_preferred"
+  },
+  "validation_rules": {
+    "text_extraction_confidence": 0.75,
+    "structure_match_confidence": 0.8,
+    "security_feature_confidence": 0.7,
+    "overall_confidence_threshold": 0.8
+  },
+  "common_variations": [
+    "regional_civil_registry_format",
+    "old_nso_format", 
+    "certified_true_copy_format"
+  ],
+  "fraud_indicators": [
+    "missing_security_features",
+    "incorrect_text_patterns",
+    "poor_print_quality",
+    "wrong_paper_type",
+    "inconsistent_fonts",
+    "missing_official_seals"
+  ]
+}
