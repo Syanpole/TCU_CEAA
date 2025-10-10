@@ -579,14 +579,63 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
                           'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by']
 
 class GradeSubmissionCreateSerializer(serializers.ModelSerializer):
+    # Make SWA optional since frontend now only collects GWA
+    semestral_weighted_average = serializers.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        required=False, 
+        allow_null=True,
+        help_text="Optional: Will use GWA if not provided"
+    )
+    
     class Meta:
         model = GradeSubmission
         fields = ['academic_year', 'semester', 'total_units', 'general_weighted_average', 
                  'semestral_weighted_average', 'grade_sheet', 'has_failing_grades', 
                  'has_incomplete_grades', 'has_dropped_subjects']
     
+    def validate_general_weighted_average(self, value):
+        """
+        Validate GWA - accepts both point scale (1.00-5.00) and percentage (65-100)
+        """
+        value_float = float(value)
+        
+        # Check if it's in point scale (1.00-5.00)
+        if 1.00 <= value_float <= 5.00:
+            return value
+        
+        # Check if it's in percentage scale (65-100)
+        if 65.0 <= value_float <= 100.0:
+            return value
+        
+        raise serializers.ValidationError(
+            'GWA must be either in point scale (1.00-5.00) or percentage (65-100). '
+            'For point scale: 1.00 is highest, 5.00 is failing.'
+        )
+    
     def validate(self, data):
         user = self.context['request'].user
+        
+        # If SWA not provided, use GWA value
+        if 'semestral_weighted_average' not in data or data.get('semestral_weighted_average') is None:
+            data['semestral_weighted_average'] = data.get('general_weighted_average')
+        
+        # Check for duplicate submission (same student, academic year, semester)
+        academic_year = data.get('academic_year')
+        semester = data.get('semester')
+        
+        existing_submission = GradeSubmission.objects.filter(
+            student=user,
+            academic_year=academic_year,
+            semester=semester
+        ).first()
+        
+        if existing_submission:
+            raise serializers.ValidationError(
+                f'You have already submitted grades for {academic_year} {semester} semester. '
+                f'Your previous submission is currently "{existing_submission.status}". '
+                f'Please contact the admin if you need to update your grades.'
+            )
         
         # Check if user has at least 2 approved documents
         approved_documents = DocumentSubmission.objects.filter(

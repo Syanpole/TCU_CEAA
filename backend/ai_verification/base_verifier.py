@@ -75,7 +75,8 @@ class DocumentTypeDetector:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        # Enhanced document patterns with balanced validation (more lenient for legitimate documents)
+        # ENHANCED STRICT document patterns with HIGH thresholds to prevent fraud
+        # Fixed issue: School ID being accepted instead of Transcript of Records
         self.document_signatures = {
             'birth_certificate': {
                 'required_keywords': {
@@ -83,14 +84,14 @@ class DocumentTypeDetector:
                     'supporting': ['born', 'child', 'parent', 'mother', 'father', 'date of birth', 'place of birth'],
                     'official': ['republic', 'philippines', 'civil registrar', 'psa', 'nso']
                 },
-                'forbidden_keywords': ['school', 'student', 'grade', 'transcript', 'diploma', 'enrollment'],
+                'forbidden_keywords': ['school', 'student', 'grade', 'transcript', 'diploma', 'enrollment', 'semester', 'id card', 'identification'],
                 'layout_features': {
                     'expected_structure': ['header', 'personal_info', 'parent_info', 'registry_info', 'seal'],
                     'text_density': 'medium',
                     'has_official_seal': True
                 },
-                'confidence_threshold': 0.30,  # Lowered from 0.75 to 0.30
-                'strict_mode': False  # Changed to False for more lenient processing
+                'confidence_threshold': 0.70,  # INCREASED from 0.30 to 0.70 for strict validation
+                'strict_mode': True  # ENABLED strict mode
             },
             'school_id': {
                 'required_keywords': {
@@ -98,29 +99,29 @@ class DocumentTypeDetector:
                     'supporting': ['name', 'student number', 'photo', 'signature', 'valid until'],
                     'official': ['tcu', 'trinity college', 'university']
                 },
-                'forbidden_keywords': ['birth', 'civil', 'registry', 'marriage', 'death'],
+                'forbidden_keywords': ['birth', 'civil', 'registry', 'marriage', 'death', 'transcript of records', 'tor', 'grades', 'registrar', 'semester', 'academic record'],
                 'layout_features': {
                     'expected_structure': ['photo', 'student_info', 'id_number', 'validity'],
                     'text_density': 'low',
                     'has_photo': True
                 },
-                'confidence_threshold': 0.25,  # Lowered from 0.70 to 0.25
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.65,  # INCREASED from 0.25 to 0.65
+                'strict_mode': True  # ENABLED strict mode
             },
             'report_card': {
                 'required_keywords': {
-                    'primary': ['grade', 'report', 'transcript', 'academic', 'semester'],
+                    'primary': ['grade', 'report', 'card', 'academic', 'semester'],
                     'supporting': ['subject', 'gwa', 'swa', 'units', 'credit', 'average', 'final grade'],
                     'official': ['registrar', 'school', 'university', 'college']
                 },
-                'forbidden_keywords': ['birth', 'civil', 'marriage', 'death', 'clearance'],
+                'forbidden_keywords': ['birth', 'civil', 'marriage', 'death', 'clearance', 'student id', 'identification card', 'id number'],
                 'layout_features': {
                     'expected_structure': ['header', 'student_info', 'grades_table', 'summary'],
                     'text_density': 'high',
                     'has_table_structure': True
                 },
-                'confidence_threshold': 0.35,  # Lowered from 0.80 to 0.35
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.75,  # INCREASED from 0.35 to 0.75
+                'strict_mode': True  # ENABLED strict mode
             },
             'enrollment_certificate': {
                 'required_keywords': {
@@ -128,14 +129,14 @@ class DocumentTypeDetector:
                     'supporting': ['semester', 'academic year', 'units', 'status', 'enrolled in'],
                     'official': ['registrar', 'school', 'university', 'college']
                 },
-                'forbidden_keywords': ['birth', 'civil', 'marriage', 'death', 'grade'],
+                'forbidden_keywords': ['birth', 'civil', 'marriage', 'death', 'grade', 'transcript', 'student id', 'identification card'],
                 'layout_features': {
                     'expected_structure': ['header', 'student_info', 'enrollment_details', 'official_signature'],
                     'text_density': 'medium',
                     'has_official_seal': True
                 },
-                'confidence_threshold': 0.30,  # Lowered from 0.75 to 0.30
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.70,  # INCREASED from 0.30 to 0.70
+                'strict_mode': True  # ENABLED strict mode
             },
             'barangay_clearance': {
                 'required_keywords': {
@@ -143,14 +144,14 @@ class DocumentTypeDetector:
                     'supporting': ['resident', 'good moral', 'character', 'issued to', 'purpose'],
                     'official': ['barangay', 'captain', 'chairman', 'official']
                 },
-                'forbidden_keywords': ['birth', 'school', 'student', 'grade', 'transcript'],
+                'forbidden_keywords': ['birth', 'school', 'student', 'grade', 'transcript', 'enrollment', 'student id'],
                 'layout_features': {
                     'expected_structure': ['header', 'recipient_info', 'purpose', 'official_signature'],
                     'text_density': 'medium',
                     'has_official_seal': True
                 },
-                'confidence_threshold': 0.25,  # Lowered from 0.70 to 0.25
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.65,  # INCREASED from 0.25 to 0.65
+                'strict_mode': True  # ENABLED strict mode
             },
             'parents_id': {
                 'required_keywords': {
@@ -158,14 +159,14 @@ class DocumentTypeDetector:
                     'supporting': ['name', 'address', 'signature', 'photo', 'valid until'],
                     'official': ['government', 'issued', 'republic', 'philippines']
                 },
-                'forbidden_keywords': ['student', 'school', 'birth', 'grade', 'enrollment'],
+                'forbidden_keywords': ['student', 'school', 'birth', 'grade', 'enrollment', 'transcript', 'semester'],
                 'layout_features': {
                     'expected_structure': ['photo', 'personal_info', 'id_number', 'validity'],
                     'text_density': 'low',
                     'has_photo': True
                 },
-                'confidence_threshold': 0.20,  # Lowered from 0.65 to 0.20
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.60,  # INCREASED from 0.20 to 0.60
+                'strict_mode': True  # ENABLED strict mode
             },
             'voter_certification': {
                 'required_keywords': {
@@ -173,25 +174,48 @@ class DocumentTypeDetector:
                     'supporting': ['comelec', 'election', 'precinct', 'registered voter'],
                     'official': ['commission', 'elections', 'comelec', 'government']
                 },
-                'forbidden_keywords': ['student', 'school', 'birth', 'grade', 'enrollment'],
+                'forbidden_keywords': ['student', 'school', 'birth', 'grade', 'enrollment', 'transcript', 'student id'],
                 'layout_features': {
                     'expected_structure': ['header', 'voter_info', 'registration_details', 'official_seal'],
                     'text_density': 'medium',
                     'has_official_seal': True
                 },
-                'confidence_threshold': 0.30,  # Lowered from 0.75 to 0.30
-                'strict_mode': False  # Changed to False
+                'confidence_threshold': 0.70,  # INCREASED from 0.30 to 0.70
+                'strict_mode': True  # ENABLED strict mode
+            },
+            # NEW: Transcript of Records (TOR) - separate from report card with stricter validation
+            'transcript_of_records': {
+                'required_keywords': {
+                    'primary': ['transcript', 'records', 'tor', 'registrar', 'academic'],
+                    'supporting': ['semester', 'course', 'subject', 'units', 'grades', 'gwa', 'earned', 'completed'],
+                    'official': ['university', 'college', 'registrar', 'official']
+                },
+                'forbidden_keywords': ['student id', 'identification card', 'id number', 'valid until', 'photo', 'birth certificate', 'clearance'],
+                'layout_features': {
+                    'expected_structure': ['header', 'student_info', 'grades_table', 'summary', 'registrar_signature'],
+                    'text_density': 'high',
+                    'has_table_structure': True
+                },
+                'document_structure': {
+                    'has_table': True,
+                    'min_lines': 15,
+                    'min_words': 100,
+                    'has_grades': True,
+                    'text_density': 'high'
+                },
+                'confidence_threshold': 0.75,  # HIGH threshold for critical academic document
+                'strict_mode': True  # ENABLED strict mode
             }
         }
         
-        # Image quality thresholds for different document types (more lenient)
+        # STRICTER Image quality thresholds to ensure document authenticity
         self.quality_thresholds = {
-            'min_resolution': (400, 300),      # Lowered from (800, 600) to (400, 300)
-            'min_file_size': 10 * 1024,        # Lowered from 50KB to 10KB
-            'max_file_size': 15 * 1024 * 1024, # Increased from 10MB to 15MB
-            'min_text_confidence': 30,          # Lowered from 60 to 30
-            'blur_threshold': 50,               # Lowered from 100 to 50 (more lenient)
-            'brightness_range': (20, 240),     # Expanded from (30, 225) to (20, 240)
+            'min_resolution': (600, 450),      # INCREASED from (400, 300) to (600, 450) for better OCR
+            'min_file_size': 30 * 1024,        # INCREASED from 10KB to 30KB to prevent low-quality images
+            'max_file_size': 10 * 1024 * 1024, # Set to 10MB (reasonable for documents)
+            'min_text_confidence': 50,          # INCREASED from 30 to 50 for reliable text extraction
+            'blur_threshold': 80,               # INCREASED from 50 to 80 (less lenient, clearer images)
+            'brightness_range': (30, 220),     # TIGHTENED from (20, 240) to (30, 220) for proper exposure
         }
 
     def verify_document_type(self, document_submission, uploaded_file) -> Dict[str, Any]:
@@ -785,7 +809,7 @@ class DocumentTypeDetector:
         return verification
 
     def _analyze_keywords(self, text: str, signature: Dict) -> Dict[str, Any]:
-        """Analyze keyword presence and calculate scores"""
+        """Analyze keyword presence and calculate scores with STRICT forbidden keyword penalty"""
         keyword_analysis = {
             'primary_score': 0.0,
             'supporting_score': 0.0,
@@ -803,25 +827,34 @@ class DocumentTypeDetector:
         primary_keywords = signature['required_keywords']['primary']
         primary_found = [kw for kw in primary_keywords if kw in text]
         keyword_analysis['found_keywords']['primary'] = primary_found
-        keyword_analysis['primary_score'] = len(primary_found) / len(primary_keywords)
+        keyword_analysis['primary_score'] = len(primary_found) / len(primary_keywords) if primary_keywords else 0.0
         
         # Check supporting keywords
         supporting_keywords = signature['required_keywords']['supporting']
         supporting_found = [kw for kw in supporting_keywords if kw in text]
         keyword_analysis['found_keywords']['supporting'] = supporting_found
-        keyword_analysis['supporting_score'] = len(supporting_found) / len(supporting_keywords)
+        keyword_analysis['supporting_score'] = len(supporting_found) / len(supporting_keywords) if supporting_keywords else 0.0
         
         # Check official keywords
         official_keywords = signature['required_keywords']['official']
         official_found = [kw for kw in official_keywords if kw in text]
         keyword_analysis['found_keywords']['official'] = official_found
-        keyword_analysis['official_score'] = len(official_found) / len(official_keywords)
+        keyword_analysis['official_score'] = len(official_found) / len(official_keywords) if official_keywords else 0.0
         
-        # Check forbidden keywords (penalty)
+        # Check forbidden keywords (STRICT PENALTY - indicates wrong document type)
         forbidden_keywords = signature.get('forbidden_keywords', [])
         forbidden_found = [kw for kw in forbidden_keywords if kw in text]
         keyword_analysis['found_keywords']['forbidden'] = forbidden_found
-        keyword_analysis['forbidden_penalty'] = len(forbidden_found) * 0.2  # 20% penalty per forbidden keyword
+        
+        # ENHANCED PENALTY: Each forbidden keyword = 50% penalty (was 20%)
+        # Just 2 forbidden keywords = 100% penalty = confidence becomes 0
+        if forbidden_found:
+            keyword_analysis['forbidden_penalty'] = len(forbidden_found) * 0.5
+            # Log warning about forbidden keywords
+            self.logger.warning(
+                f"⚠️ FORBIDDEN KEYWORDS DETECTED: {forbidden_found} - "
+                f"This indicates the document is NOT the correct type!"
+            )
         
         return keyword_analysis
 
@@ -994,9 +1027,9 @@ class DocumentTypeDetector:
         return quality_analysis
 
     def _make_final_decision(self, verification_result: Dict, declared_type: str) -> Dict[str, Any]:
-        """Make final decision on document verification (more lenient approach)"""
+        """Make final decision on document verification (STRICT APPROACH to prevent fraud)"""
         decision = {
-            'recommendation': 'auto_approve',  # Default to approval unless clear fraud
+            'recommendation': 'reject',  # Default to REJECT for safety
             'final_confidence': 0.0,
             'decision_reasoning': []
         }
@@ -1008,38 +1041,92 @@ class DocumentTypeDetector:
             document_type_match = verification_result.get('document_type_match', False)
             
             # Calculate final confidence considering fraud risk
-            final_confidence = max(0.0, confidence_score - (fraud_risk * 0.5))  # Reduce fraud penalty
+            final_confidence = max(0.0, confidence_score - (fraud_risk * 0.8))  # STRICT fraud penalty
             decision['final_confidence'] = final_confidence
             
-            # More lenient decision logic - focus on preventing obvious fraud only
-            if fraud_risk >= 0.8:  # Only reject very high fraud risk (was 0.7)
+            # STRICT REJECTION RULES - Prevent document type fraud
+            
+            # Rule 1: High fraud risk = IMMEDIATE REJECTION
+            if fraud_risk >= 0.7:
                 decision['recommendation'] = 'reject'
-                decision['decision_reasoning'].append("Very high fraud risk detected")
-            elif fraud_risk >= 0.6 and confidence_score < 0.1:  # Both high fraud AND very low confidence
+                decision['decision_reasoning'].append("❌ REJECTED: High fraud risk detected")
+                return decision
+            
+            # Rule 2: Document type mismatch = IMMEDIATE REJECTION
+            if not document_type_match:
                 decision['recommendation'] = 'reject'
-                decision['decision_reasoning'].append("High fraud risk with very low confidence")
-            elif not is_acceptable_quality and confidence_score < 0.1:  # Poor quality AND very low confidence
+                decision['decision_reasoning'].append(
+                    f"❌ REJECTED: Document does not match declared type '{declared_type}'"
+                )
+                decision['decision_reasoning'].append(
+                    f"   Confidence: {confidence_score:.1%} is below required threshold"
+                )
+                return decision
+            
+            # Rule 3: Low confidence even with type match = REJECT
+            if confidence_score < 0.50:  # STRICT threshold
+                decision['recommendation'] = 'reject'
+                decision['decision_reasoning'].append(
+                    f"❌ REJECTED: Confidence too low ({confidence_score:.1%}) for {declared_type}"
+                )
+                decision['decision_reasoning'].append(
+                    "   Document quality or content insufficient for verification"
+                )
+                return decision
+            
+            # Rule 4: Poor quality + moderate fraud risk = REJECT
+            if not is_acceptable_quality and fraud_risk >= 0.4:
+                decision['recommendation'] = 'reject'
+                decision['decision_reasoning'].append("❌ REJECTED: Poor document quality with fraud concerns")
+                return decision
+            
+            # APPROVAL RULES - Only approve when confident
+            
+            # Excellent match: High confidence, correct type, good quality, no fraud
+            if document_type_match and confidence_score >= 0.80 and is_acceptable_quality and fraud_risk < 0.2:
+                decision['recommendation'] = 'auto_approve'
+                decision['decision_reasoning'].append(
+                    f"✅ AUTO-APPROVED: Excellent verification ({confidence_score:.1%} confidence)"
+                )
+                decision['decision_reasoning'].append(
+                    f"   Document verified as {declared_type} with high confidence"
+                )
+            
+            # Good match: Good confidence, correct type, acceptable quality
+            elif document_type_match and confidence_score >= 0.65 and is_acceptable_quality and fraud_risk < 0.3:
+                decision['recommendation'] = 'auto_approve'
+                decision['decision_reasoning'].append(
+                    f"✅ AUTO-APPROVED: Good verification ({confidence_score:.1%} confidence)"
+                )
+            
+            # Acceptable match: Moderate confidence, correct type
+            elif document_type_match and confidence_score >= 0.50 and fraud_risk < 0.4:
                 decision['recommendation'] = 'manual_review'
-                decision['decision_reasoning'].append("Document quality concerns - manual review recommended")
-            elif document_type_match and confidence_score >= 0.3:  # Good type match
-                decision['recommendation'] = 'auto_approve'
-                decision['decision_reasoning'].append("Document type verified - auto approved")
-            elif confidence_score >= 0.2:  # Reasonable confidence even without perfect type match
-                decision['recommendation'] = 'auto_approve'
-                decision['decision_reasoning'].append("Reasonable confidence - auto approved")
-            elif confidence_score >= 0.1:  # Low but not zero confidence
-                decision['recommendation'] = 'auto_approve'
-                decision['decision_reasoning'].append("Basic verification passed - auto approved")
-            elif fraud_risk < 0.3:  # Low fraud risk, approve even with low confidence
-                decision['recommendation'] = 'auto_approve'
-                decision['decision_reasoning'].append("Low fraud risk - auto approved")
+                decision['decision_reasoning'].append(
+                    f"⏳ MANUAL REVIEW: Borderline confidence ({confidence_score:.1%})"
+                )
+                decision['decision_reasoning'].append(
+                    "   Document type matches but manual verification recommended"
+                )
+            
+            # All other cases: Reject for safety
             else:
-                decision['recommendation'] = 'manual_review'
-                decision['decision_reasoning'].append("Manual review recommended for verification")
+                decision['recommendation'] = 'reject'
+                decision['decision_reasoning'].append(
+                    "❌ REJECTED: Did not meet verification requirements"
+                )
+                if not document_type_match:
+                    decision['decision_reasoning'].append("   • Document type mismatch")
+                if confidence_score < 0.50:
+                    decision['decision_reasoning'].append(f"   • Low confidence ({confidence_score:.1%})")
+                if not is_acceptable_quality:
+                    decision['decision_reasoning'].append("   • Poor document quality")
+                if fraud_risk >= 0.4:
+                    decision['decision_reasoning'].append(f"   • Elevated fraud risk ({fraud_risk:.1%})")
             
         except Exception as e:
-            decision['recommendation'] = 'auto_approve'  # Default to approval on errors
-            decision['decision_reasoning'].append(f"Decision error - defaulting to approval: {str(e)}")
+            decision['recommendation'] = 'manual_review'
+            decision['decision_reasoning'].append(f"⚠️ Decision error - manual review required: {str(e)}")
         
         return decision
 

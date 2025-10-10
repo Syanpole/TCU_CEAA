@@ -47,6 +47,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [semesterFilter, setSemesterFilter] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [deletingGradeId, setDeletingGradeId] = useState<number | null>(null);
 
   // Helper function to safely format percentage values
   const safePercentage = (value: number | string): string => {
@@ -116,6 +117,29 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
 
   const handleCloseDetails = () => {
     setSelectedGrade(null);
+  };
+
+  const handleDeleteGrade = async (gradeId: number, studentName: string) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the grade submission for ${studentName}? This action cannot be undone.`
+    );
+    
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingGradeId(gradeId);
+      await apiClient.delete(`/grades/${gradeId}/`);
+      
+      // Remove the grade from the local state
+      setGrades(grades.filter(g => g.id !== gradeId));
+      
+      alert('Grade submission deleted successfully!');
+    } catch (err) {
+      console.error('Error deleting grade:', err);
+      alert('Failed to delete grade submission. Please try again.');
+    } finally {
+      setDeletingGradeId(null);
+    }
   };
 
   if (loading) {
@@ -294,7 +318,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                     <button 
                       className="action-btn view-btn"
                       onClick={() => handleViewDetails(grade.id)}
-                      disabled={loadingDetails}
+                      disabled={loadingDetails || deletingGradeId === grade.id}
                     >
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -304,13 +328,19 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                     </button>
                     {grade.status === 'pending' && (
                       <>
-                        <button className="action-btn approve-btn">
+                        <button 
+                          className="action-btn approve-btn"
+                          disabled={deletingGradeId === grade.id}
+                        >
                           <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           Approve
                         </button>
-                        <button className="action-btn reject-btn">
+                        <button 
+                          className="action-btn reject-btn"
+                          disabled={deletingGradeId === grade.id}
+                        >
                           <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
@@ -318,6 +348,16 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                         </button>
                       </>
                     )}
+                    <button 
+                      className="action-btn delete-btn"
+                      onClick={() => handleDeleteGrade(grade.id, grade.student_name)}
+                      disabled={deletingGradeId === grade.id}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd" />
+                      </svg>
+                      {deletingGradeId === grade.id ? 'Deleting...' : 'Delete'}
+                    </button>
                   </div>
                 </div>
               </div>

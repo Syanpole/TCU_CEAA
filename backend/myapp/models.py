@@ -184,10 +184,14 @@ class GradeSubmission(models.Model):
     
     # Grade details
     total_units = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(30)])
+    # GWA in point scale: 1.00-5.00 (1.00 is highest, 5.00 is failing)
+    # Note: Backend validation will accept both percentage (65-100) and point scale (1.00-5.00)
     general_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
-                                                 validators=[MinValueValidator(65.0), MaxValueValidator(100.0)])
+                                                 validators=[MinValueValidator(1.0), MaxValueValidator(100.0)])
+    # DEPRECATED: SWA field kept for backward compatibility but not used in frontend
     semestral_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
-                                                   validators=[MinValueValidator(65.0), MaxValueValidator(100.0)])
+                                                   validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
+                                                   null=True, blank=True, default=None)
     
     # Grade sheet upload
     grade_sheet = models.FileField(upload_to='grades/%Y/%m/')
@@ -219,6 +223,81 @@ class GradeSubmission(models.Model):
     class Meta:
         ordering = ['-submitted_at']
         unique_together = ['student', 'academic_year', 'semester']
+    
+    def _convert_to_percentage(self, gwa_value):
+        """
+        Convert GWA from point scale (1.0-5.0) to percentage scale (0-100)
+        Uses official university grading scale with linear interpolation.
+        
+        Official Grading Scale (Midpoint of Ranges):
+        1.0 = 98% (96-100)     → Excellent
+        1.25 = 94% (93-95)     → Very Good
+        1.5 = 91% (90-92)      → Good
+        1.75 = 88% (87-89)     → Satisfactory
+        2.0 = 85% (84-86)      → Fair
+        2.25 = 82% (81-83)     → Average
+        2.5 = 79% (78-80)      → Below Average
+        2.75 = 76% (75-77)     → Passing
+        3.0 = 72% (70-74)      → Minimum Passing
+        5.0 = 40% (Below 70)   → Failing
+        
+        Accepts any decimal format (1, 1.0, 1.00, 1.75, 1.91, etc.)
+        If value is already in percentage (60-100), return as-is
+        """
+        if gwa_value >= 60:
+            # Already in percentage scale
+            return float(gwa_value)
+        
+        # Official university grading scale conversion table (using midpoint of ranges)
+        conversion_table = [
+            (1.0, 98.0),    # 96-100 → Excellent
+            (1.25, 94.0),   # 93-95 → Very Good
+            (1.5, 91.0),    # 90-92 → Good
+            (1.75, 88.0),   # 87-89 → Satisfactory
+            (2.0, 85.0),    # 84-86 → Fair
+            (2.25, 82.0),   # 81-83 → Average
+            (2.5, 79.0),    # 78-80 → Below Average
+            (2.75, 76.0),   # 75-77 → Passing
+            (3.0, 72.0),    # 70-74 → Minimum Passing
+            (5.0, 40.0),    # Below 70 → Failing
+        ]
+        
+        # Check for exact match (with floating point tolerance)
+        for point, percent in conversion_table:
+            if abs(gwa_value - point) < 0.01:
+                return percent
+        
+        # Linear interpolation between two nearest points
+        for i in range(len(conversion_table) - 1):
+            point1, percent1 = conversion_table[i]
+            point2, percent2 = conversion_table[i + 1]
+            
+            if point1 <= gwa_value <= point2:
+                # Linear interpolation formula
+                ratio = (gwa_value - point1) / (point2 - point1)
+                interpolated = percent1 + ratio * (percent2 - percent1)
+                return round(interpolated, 2)
+        
+        # If below 1.0, treat as 98% (excellent)
+        if gwa_value < 1.0:
+            return 98.0
+        
+        # If above 5.0, treat as failing (below 40%)
+        if gwa_value > 5.0:
+            return 0.0
+        
+        return 40.0
+    
+    def get_gwa_percentage(self):
+        """Get GWA as percentage, converting from point scale if necessary"""
+        return self._convert_to_percentage(float(self.general_weighted_average))
+    
+    def get_swa_percentage(self):
+        """Get SWA as percentage, converting from point scale if necessary"""
+        if self.semestral_weighted_average:
+            return self._convert_to_percentage(float(self.semestral_weighted_average))
+        # If no SWA provided, use GWA (since frontend now only collects GWA)
+        return self.get_gwa_percentage()
     
     def calculate_allowance_eligibility(self):
         """AI-based calculation of allowance eligibility - Enhanced Autonomous version"""
@@ -256,18 +335,24 @@ class GradeSubmission(models.Model):
     
     def _basic_allowance_calculation_autonomous(self):
         """Fallback basic calculation method - Autonomous processing"""
+        # Convert GWA to percentage for calculation
+        gwa_percent = self.get_gwa_percentage()
+        swa_percent = self.get_swa_percentage()
+        
         # Basic Educational Assistance (₱5,000): GWA ≥ 80%, no fails/inc/drops, ≥15 units
         basic_eligible = (
-            self.general_weighted_average >= 80.0 and
+            gwa_percent >= 80.0 and
             self.total_units >= 15 and
             not self.has_failing_grades and
             not self.has_incomplete_grades and
             not self.has_dropped_subjects
         )
         
-        # Merit Incentive (₱5,000): SWA ≥ 88.75%, no fails/inc/drops, ≥15 units
+        # Merit Incentive (₱5,000): SWA ≥ 88% (GWA ≤1.75), no fails/inc/drops, ≥15 units
+        # Note: SWA now uses GWA value if SWA not provided
+        # 1.75 GWA = 88% (87-89 range)
         merit_eligible = (
-            self.semestral_weighted_average >= 88.75 and
+            swa_percent >= 88.0 and
             self.total_units >= 15 and
             not self.has_failing_grades and
             not self.has_incomplete_grades and
@@ -291,8 +376,8 @@ class GradeSubmission(models.Model):
             notes.append("✅ Qualifies for Basic Educational Assistance (₱5,000)")
         else:
             reasons = []
-            if self.general_weighted_average < 80.0:
-                reasons.append(f"GWA {self.general_weighted_average}% < 80%")
+            if gwa_percent < 80.0:
+                reasons.append(f"GWA {gwa_percent:.2f}% < 80% (Point: {self.general_weighted_average})")
             if self.total_units < 15:
                 reasons.append(f"Units {self.total_units} < 15")
             if self.has_failing_grades:
@@ -307,8 +392,8 @@ class GradeSubmission(models.Model):
             notes.append("✅ Qualifies for Merit Incentive (₱5,000)")
         else:
             reasons = []
-            if self.semestral_weighted_average < 88.75:
-                reasons.append(f"SWA {self.semestral_weighted_average}% < 88.75%")
+            if swa_percent < 84.5:
+                reasons.append(f"GWA {swa_percent:.2f}% < 84.5% (Point: {self.general_weighted_average})")
             if self.total_units < 15:
                 reasons.append(f"Units {self.total_units} < 15")
             if self.has_failing_grades:

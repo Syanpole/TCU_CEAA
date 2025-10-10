@@ -10,20 +10,22 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
   const newApplicantDocs = [
     {
       id: 1,
-      title: "Junior High School Certificate/Grade 10 Report Card/Certification from Principal",
-      description: "of the school that the applicant graduated from",
-      required: true
+      title: "Junior High School Completion Certificate",
+      description: "(for New Applicant)",
+      required: true,
+      forNewOnly: true
     },
     {
       id: 2,
-      title: "Senior High School Diploma/Grade 12 Report Card/Certification from Principal",
-      description: "of the school that the applicant graduated from",
-      required: true
+      title: "Senior High School Diploma/Certification from Principal",
+      description: "(for New Applicant)",
+      required: true,
+      forNewOnly: true
     },
     {
       id: 3,
       title: "School ID or any VALID Government-issued ID",
-      description: "(within the validity period, photocopied back-to-back on a single page)",
+      description: "(back-to-back photocopy in a single page)",
       required: true,
       acceptableIds: [
         "e-Card/UMID Card", "Driver's License", "Passport", "SSS ID", "Voter's ID", "BIR (TIN ID)",
@@ -33,36 +35,38 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
     },
     {
       id: 4,
+      title: "Proof that ONE of the parents is an active Taguig Voter",
+      description: "",
+      required: true
+    },
+    {
+      id: 5,
+      title: "Proof that applicant is an active Taguig Voter",
+      description: "(if 18 years old and up)",
+      required: false
+    },
+    {
+      id: 6,
       title: "Birth Certificate",
-      description: "(issued by PSA/NSO/Civil Registry Office)",
+      description: "",
       required: true
     }
   ];
 
   const otherNecessaryDocs = [
     {
-      title: "Certified True Copy of Elementary and/or High School Form 137",
-      description: "(for those who took but did not complete their Junior High School in Taguig or nearby and contiguous LGU in Metro Manila but graduated Senior High School in Taguig or nearby and contiguous LGU in Metro Manila)",
+      title: "Death Certificate (Parent)",
+      description: "(if deceased)",
       required: false
     },
     {
       title: "ALS Certificate",
-      description: "(if ALS Graduate)",
+      description: "(in appropriate cases)",
       required: false
     },
     {
-      title: "Death Certificate",
-      description: "(Parents, if claimed to be deceased, issued by PSA/NSO/Civil Registry Office)",
-      required: false
-    },
-    {
-      title: "Work Contract/VISA/Passport",
-      description: "(if any of both parents are OFWs)",
-      required: false
-    },
-    {
-      title: "Original copy and one (1) photocopy of Comelec Stub",
-      description: "issued after May 2022 Elections (for applicants and/or their parents who are newly registered or those who have applied for reactivation)",
+      title: "Others",
+      description: "(as needed in some cases, like Form 137)",
       required: false
     }
   ];
@@ -80,7 +84,48 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
       </div>
 
       <div className="requirements-content">
+        {/* Merit Incentive Section */}
+        <div className="merit-incentive-section">
+          <div className="section-header merit-header">
+            <h2>🏆 MERIT INCENTIVE</h2>
+          </div>
+          <div className="merit-content">
+            <p>
+              The Ordinance also provides for a <strong>Merit Incentive of ₱5,000 per semester or ₱10,000 per year</strong>, 
+              to qualified TCU students who, at the end of the semester, have a Grade Point Average (G.P.A.) of at least <strong>"1.75" or higher</strong>, 
+              with at least <strong>15 credit units earned</strong>, with <strong>NO failing marks, incomplete, blank or no grade subjects, or dropped subjects</strong>.
+            </p>
+            <p className="merit-note">
+              <strong>Note:</strong> Grades for P.E. & NSTP are not included in the computation. 
+              This is to encourage diligent study and foster excellence among students.
+            </p>
+          </div>
+        </div>
+
+        {/* Documents to be Submitted Section */}
         <div className="requirements-section new-applicants">
+          <div className="section-header">
+            <h2>DOCUMENTS TO BE SUBMITTED</h2>
+          </div>
+
+          <div className="applicant-type-note">
+            <div className="note-icon">⚠️</div>
+            <div className="note-content">
+              <strong>IMPORTANT:</strong> You will be checked if you are a <strong>NEW APPLICANT</strong> or <strong>RENEWING APPLICANT</strong>.
+              <br/>
+              For <strong>NEW APPLICANTS</strong>, you must submit <strong>at least 3 documents</strong>:
+              <ul>
+                <li>Junior High School (JHS) Report Card OR Senior High School (SHS) Report Card</li>
+                <li>School ID or Valid Government-issued ID</li>
+                <li>Birth Certificate</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="section-subheader">
+            <h3>Checklist of documents needed to be submitted, after applying online, and on specified dates:</h3>
+          </div>
+
           <div className="section-header">
             <h2>REQUIREMENTS TO BE SUBMITTED <span className="subtitle">(FOR NEW APPLICANTS)</span></h2>
           </div>
