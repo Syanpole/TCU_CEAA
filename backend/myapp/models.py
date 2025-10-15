@@ -19,6 +19,7 @@ class CustomUser(AbstractUser):
     middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
     profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
     
     def is_admin(self):
         return self.role == 'admin'
@@ -152,6 +153,7 @@ class DocumentSubmission(models.Model):
     ai_recommendations = models.JSONField(default=list, blank=True)
     ai_auto_approved = models.BooleanField(default=False)
     ai_analysis_notes = models.TextField(blank=True, null=True)
+    address_match_score = models.FloatField(default=0.0, help_text="Address matching confidence score (0.0-1.0)")
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)

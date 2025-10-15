@@ -84,6 +84,7 @@ class LightningFastDocumentVerifier:
         """
         Lightning document verification with strict document type matching
         Prioritizes accuracy and prevents fraudulent submissions
+        NOW INCLUDES: Student name verification to prevent fraud
         """
         start_time = time.time()
         
@@ -91,6 +92,7 @@ class LightningFastDocumentVerifier:
         result = {
             'is_valid_document': False,
             'document_type_match': False,
+            'name_verification_passed': False,
             'confidence_score': 0.0,
             'fraud_indicators': [],
             'quality_issues': [],
@@ -149,6 +151,27 @@ class LightningFastDocumentVerifier:
                 result['document_type_match'] = True
                 result['confidence_score'] = content_check.get('confidence', 0.85)
                 result['matched_keywords'] = content_check.get('matched_keywords', [])
+                
+                # 🔒 CRITICAL SECURITY: Verify student name on document matches submitting student
+                name_verification = self._verify_student_name(
+                    uploaded_file, 
+                    document_submission,
+                    content_check.get('extracted_text', '')
+                )
+                
+                if not name_verification.get('name_match', False):
+                    result['name_verification_passed'] = False
+                    result['fraud_indicators'].append('Student name mismatch - possible fraud')
+                    result['rejection_reason'] = f"🚨 SECURITY ALERT: {name_verification.get('mismatch_reason', 'The name on this document does not match your account. Please submit your own documents only.')}"
+                    result['expected_name'] = name_verification.get('expected_name', '')
+                    result['found_names'] = name_verification.get('found_names', [])
+                    result['processing_time'] = time.time() - start_time
+                    return result
+                
+                # Name verification passed
+                result['name_verification_passed'] = True
+                result['verified_name'] = name_verification.get('matched_name', '')
+                result['name_confidence'] = name_verification.get('confidence', 0.0)
                 
             except Exception as check_error:
                 # If verification fails, reject for safety
@@ -286,13 +309,15 @@ class LightningFastDocumentVerifier:
         """
         Verify document content matches declared type using OCR
         Returns type_match status and confidence score
+        NOW ALSO RETURNS: extracted_text for name verification
         """
         result = {
             'type_match': False,
             'confidence': 0.0,
             'mismatch_reason': '',
             'detected_type': 'Unknown',
-            'matched_keywords': []
+            'matched_keywords': [],
+            'extracted_text': ''  # Store for name verification
         }
         
         try:
@@ -323,6 +348,7 @@ class LightningFastDocumentVerifier:
                 # Extract text using Tesseract OCR
                 try:
                     extracted_text = pytesseract.image_to_string(img).lower()
+                    result['extracted_text'] = extracted_text  # Store for name verification
                 except Exception as tesseract_error:
                     # Tesseract not installed or not in PATH - use fallback
                     img.close()
@@ -418,19 +444,190 @@ class LightningFastDocumentVerifier:
         
         return result
     
+    def _verify_student_name(self, uploaded_file, document_submission, extracted_text: str = None) -> Dict[str, Any]:
+        """
+        🔒 CRITICAL SECURITY: Verify that the student name on the document matches the submitting student
+        This prevents students from submitting other people's documents
+        """
+        result = {
+            'name_match': False,
+            'confidence': 0.0,
+            'mismatch_reason': '',
+            'expected_name': '',
+            'found_names': [],
+            'matched_name': ''
+        }
+        
+        try:
+            # Get student information from document submission
+            student = document_submission.student
+            
+            # Get student's names in various formats
+            first_name = student.first_name.lower().strip() if student.first_name else ''
+            last_name = student.last_name.lower().strip() if student.last_name else ''
+            full_name = f"{first_name} {last_name}".strip()
+            reverse_name = f"{last_name} {first_name}".strip()
+            full_name_no_space = f"{first_name}{last_name}"
+            
+            # Also check username as fallback (some students use their name as username)
+            username = student.username.lower().strip() if student.username else ''
+            
+            result['expected_name'] = full_name
+            
+            # If we don't have student names, REJECT (can't verify)
+            if not first_name or not last_name:
+                self.logger.warning(f"Student {student.username} has incomplete name information")
+                result['name_match'] = False
+                result['confidence'] = 0.0
+                result['mismatch_reason'] = '⚠️ Your profile name is incomplete. Please update your First Name and Last Name in your profile settings before submitting documents. This is required for verification.'
+                return result
+            
+            # Get or extract text from document
+            if not extracted_text:
+                # Extract text using OCR
+                if hasattr(uploaded_file, 'temporary_file_path'):
+                    img_path = uploaded_file.temporary_file_path()
+                else:
+                    # For in-memory files
+                    import tempfile
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                    for chunk in uploaded_file.chunks():
+                        temp_file.write(chunk)
+                    temp_file.close()
+                    img_path = temp_file.name
+                
+                try:
+                    img = Image.open(img_path)
+                    
+                    # Resize if too large
+                    max_size = 2000
+                    if img.width > max_size or img.height > max_size:
+                        ratio = min(max_size / img.width, max_size / img.height)
+                        new_size = (int(img.width * ratio), int(img.height * ratio))
+                        img = img.resize(new_size, Image.Resampling.LANCZOS)
+                    
+                    # Extract text
+                    try:
+                        extracted_text = pytesseract.image_to_string(img).lower()
+                    except Exception as tesseract_error:
+                        # Tesseract not available - CRITICAL: Cannot verify names without OCR
+                        self.logger.warning(f"Tesseract OCR not available for name verification: {str(tesseract_error)}")
+                        img.close()
+                        
+                        # ⚠️ WITHOUT OCR, WE CANNOT VERIFY NAMES - MUST REJECT FOR SECURITY
+                        result['name_match'] = False
+                        result['confidence'] = 0.0
+                        result['mismatch_reason'] = f'🔒 SECURITY: OCR text extraction is not available on this server. Document verification requires OCR to read student names. Please contact the administrator to install Tesseract OCR. Error: {str(tesseract_error)}'
+                        result['fallback_mode'] = True
+                        return result
+                    
+                    img.close()
+                    
+                except Exception as img_error:
+                    self.logger.error(f"Image processing error during name verification: {str(img_error)}")
+                    # Don't reject if we have technical issues
+                    result['name_match'] = True
+                    result['confidence'] = 0.40
+                    result['mismatch_reason'] = f'Technical issue during name verification: {str(img_error)}'
+                    return result
+            
+            # Now verify name in extracted text
+            if not extracted_text or len(extracted_text.strip()) < 10:
+                # Not enough text extracted
+                self.logger.warning("Minimal text extracted for name verification")
+                result['name_match'] = True
+                result['confidence'] = 0.50
+                result['mismatch_reason'] = 'Minimal text extracted - name verification limited'
+                return result
+            
+            # Clean up the text
+            extracted_text_cleaned = re.sub(r'[^a-z\s]', ' ', extracted_text.lower())
+            extracted_text_cleaned = re.sub(r'\s+', ' ', extracted_text_cleaned).strip()
+            
+            # Check for name matches with various formats
+            name_found = False
+            confidence = 0.0
+            matched_format = ''
+            
+            # Check full name (highest confidence)
+            if full_name in extracted_text_cleaned:
+                name_found = True
+                confidence = 0.95
+                matched_format = full_name
+            # Check reverse name format
+            elif reverse_name in extracted_text_cleaned:
+                name_found = True
+                confidence = 0.90
+                matched_format = reverse_name
+            # Check if both first and last name appear separately in text
+            elif first_name in extracted_text_cleaned and last_name in extracted_text_cleaned:
+                name_found = True
+                confidence = 0.85
+                matched_format = f"{first_name} and {last_name} (separate)"
+            # Check username if it's name-like
+            elif len(username) > 4 and username in extracted_text_cleaned:
+                name_found = True
+                confidence = 0.75
+                matched_format = username
+            # Check name without spaces
+            elif len(full_name_no_space) > 6 and full_name_no_space in extracted_text_cleaned.replace(' ', ''):
+                name_found = True
+                confidence = 0.80
+                matched_format = full_name_no_space
+            
+            # Also look for potential other names (fraud detection)
+            # Common Filipino/English name patterns
+            potential_names = re.findall(r'\b[a-z]{3,}\s+[a-z]{3,}\b', extracted_text_cleaned)
+            result['found_names'] = list(set(potential_names))[:5]  # Limit to 5 names
+            
+            if name_found:
+                result['name_match'] = True
+                result['confidence'] = confidence
+                result['matched_name'] = matched_format
+            else:
+                # Name NOT found - potential fraud
+                result['name_match'] = False
+                result['confidence'] = 0.0
+                result['mismatch_reason'] = f"Your name '{full_name.title()}' was not found on this document. Please submit only YOUR OWN documents."
+                
+                # If we found other names, mention them
+                if result['found_names']:
+                    other_names = ', '.join([n.title() for n in result['found_names'][:3]])
+                    result['mismatch_reason'] += f" Found other names: {other_names}"
+            
+        except Exception as e:
+            self.logger.error(f"Name verification error: {str(e)}")
+            # On error, don't reject to avoid false positives, but log it
+            result['name_match'] = True
+            result['confidence'] = 0.30
+            result['mismatch_reason'] = f'Name verification had technical issues: {str(e)}'
+        
+        return result
+    
     def _make_strict_decision(self, result: Dict[str, Any], declared_type: str) -> Dict[str, Any]:
-        """Make strict decision - only approve if document type matches"""
+        """Make strict decision - only approve if document type matches AND name verified"""
         
         total_issues = len(result.get('quality_issues', []))
         fraud_indicators = len(result.get('fraud_indicators', []))
         
-        # Critical check: Document type must match
+        # Critical check 1: Document type must match
         if not result.get('document_type_match', False):
             result.update({
                 'is_valid_document': False,
                 'auto_approved': False,
                 'quality_rating': 'rejected',
                 'approval_reason': None
+            })
+            return result
+        
+        # 🔒 Critical check 2: Student name must match (FRAUD PREVENTION)
+        if not result.get('name_verification_passed', False):
+            result.update({
+                'is_valid_document': False,
+                'auto_approved': False,
+                'quality_rating': 'rejected_fraud',
+                'approval_reason': None,
+                'security_flag': 'name_mismatch'
             })
             return result
         

@@ -1,3 +1,6 @@
+## Moved to ai_detection/ai_generated_detector.py
+
+# (Original file content will be inserted here in the next step)
 """
 🤖 AI-Generated Content Detector
 Advanced detection system for identifying AI-generated images and documents

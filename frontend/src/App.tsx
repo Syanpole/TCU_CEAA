@@ -134,7 +134,7 @@ const AppContent: React.FC = () => {
   }
 
   // For students, don't show the Header as StudentDashboard has its own integrated sidebar
-  if (!isAdmin) {
+  if (user?.role === 'student') {
     return (
       <div className="app-authenticated">
         {currentView === 'dashboard' ? (

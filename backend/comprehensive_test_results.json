@@ -1,9 +1,0 @@
-{
-  "server_connectivity": false,
-  "authentication": false,
-  "enhanced_face_verifier": false,
-  "enhanced_fraud_detector": false,
-  "api_integration": false,
-  "performance_test": false,
-  "overall_status": "POOR"
-}
