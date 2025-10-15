@@ -23,7 +23,6 @@ class TestCIDependencyResolution(unittest.TestCase):
             'PIL',
             'PyPDF2',
             'docx',
-            'pdfplumber',
             'numpy'
         ]
         
@@ -31,7 +30,8 @@ class TestCIDependencyResolution(unittest.TestCase):
             'cv2',
             'pytesseract',
             'nltk',
-            'textblob'
+            'textblob',
+            'pdfplumber'
         ]
 
     def test_critical_dependencies_available(self):
@@ -69,6 +69,13 @@ class TestCIDependencyResolution(unittest.TestCase):
         print("🔍 Testing Django environment setup...")
         
         try:
+            # Add backend directory to Python path for Django imports
+            test_dir = os.path.dirname(__file__)
+            backend_dir = os.path.join(test_dir, '..', '..', '..', 'backend')
+            backend_abs_path = os.path.abspath(backend_dir)
+            if backend_abs_path not in sys.path:
+                sys.path.insert(0, backend_abs_path)
+            
             # Set up Django environment
             os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
             
@@ -140,7 +147,10 @@ class TestCIDependencyResolution(unittest.TestCase):
         """Test that requirements-ci.txt is valid and installable"""
         print("🔍 Testing requirements file validity...")
         
-        requirements_path = os.path.join(os.path.dirname(__file__), 'requirements-ci.txt')
+        # Look for requirements file in backend directory (relative to test location)
+        test_dir = os.path.dirname(__file__)
+        backend_dir = os.path.join(test_dir, '..', '..', '..', 'backend')
+        requirements_path = os.path.join(backend_dir, 'requirements-ci.txt')
         
         if os.path.exists(requirements_path):
             print(f"   ✅ requirements-ci.txt: Found")
