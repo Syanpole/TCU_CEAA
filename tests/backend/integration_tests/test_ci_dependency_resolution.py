@@ -36,37 +36,37 @@ class TestCIDependencyResolution(unittest.TestCase):
 
     def test_critical_dependencies_available(self):
         """Test that all critical dependencies are available"""
-        print("🔍 Testing critical dependencies...")
+        print("Testing Testing critical dependencies...")
         
         missing_deps = []
         for dep in self.critical_dependencies:
             try:
                 importlib.import_module(dep)
-                print(f"   ✅ {dep}: Available")
+                print(f"   OK {dep}: Available")
             except ImportError as e:
                 missing_deps.append(dep)
-                print(f"   ❌ {dep}: Missing - {e}")
+                print(f"   FAIL {dep}: Missing - {e}")
         
         self.assertEqual(len(missing_deps), 0, 
                         f"Critical dependencies missing: {missing_deps}")
 
     def test_optional_dependencies_graceful_fallback(self):
         """Test that optional dependencies fail gracefully"""
-        print("🔍 Testing optional dependencies fallback...")
+        print("Testing Testing optional dependencies fallback...")
         
         for dep in self.optional_dependencies:
             try:
                 importlib.import_module(dep)
-                print(f"   ✅ {dep}: Available")
+                print(f"   OK {dep}: Available")
             except ImportError:
-                print(f"   ⚠️  {dep}: Not available (graceful fallback)")
+                print(f"   WARN  {dep}: Not available (graceful fallback)")
         
         # This test always passes - we just log availability
         self.assertTrue(True, "Optional dependencies handled gracefully")
 
     def test_django_setup_compatibility(self):
         """Test Django environment setup works correctly"""
-        print("🔍 Testing Django environment setup...")
+        print("Testing Testing Django environment setup...")
         
         try:
             # Add backend directory to Python path for Django imports
@@ -85,16 +85,16 @@ class TestCIDependencyResolution(unittest.TestCase):
             if not settings.configured:
                 django.setup()
             
-            print(f"   ✅ Django {django.get_version()}: Configured successfully")
+            print(f"   OK Django {django.get_version()}: Configured successfully")
             
             # Test database connection - handle gracefully if DB is not available
             try:
                 from django.db import connection
                 cursor = connection.cursor()
-                print(f"   ✅ Database: {connection.vendor} connection successful")
+                print(f"   OK Database: {connection.vendor} connection successful")
             except Exception as db_error:
                 # Database connection is optional in CI - gracefully handle
-                print(f"   ⚠️  Database: Not available (OK for CI) - {type(db_error).__name__}")
+                print(f"   WARN  Database: Not available (OK for CI) - {type(db_error).__name__}")
                 print(f"      This is expected if PostgreSQL service is not running")
             
             self.assertTrue(True)
@@ -104,19 +104,19 @@ class TestCIDependencyResolution(unittest.TestCase):
             if "connection" not in str(e).lower() and "database" not in str(e).lower():
                 self.fail(f"Django setup failed: {e}")
             else:
-                print(f"   ⚠️  Database connection issue (non-critical): {type(e).__name__}")
+                print(f"   WARN  Database connection issue (non-critical): {type(e).__name__}")
                 self.assertTrue(True, "Django setup successful, database optional")
 
     def test_ai_package_compatibility(self):
         """Test AI/ML package compatibility"""
-        print("🔍 Testing AI/ML package compatibility...")
+        print("Testing Testing AI/ML package compatibility...")
         
         # Test NumPy
         try:
             import numpy as np
             test_array = np.array([1, 2, 3])
             self.assertEqual(len(test_array), 3)
-            print(f"   ✅ NumPy {np.__version__}: Working correctly")
+            print(f"   OK NumPy {np.__version__}: Working correctly")
         except Exception as e:
             self.fail(f"NumPy compatibility test failed: {e}")
         
@@ -126,26 +126,26 @@ class TestCIDependencyResolution(unittest.TestCase):
             # Create a simple test image
             test_img = Image.new('RGB', (100, 100), color='red')
             self.assertEqual(test_img.size, (100, 100))
-            print(f"   ✅ Pillow: Working correctly")
+            print(f"   OK Pillow: Working correctly")
         except Exception as e:
             self.fail(f"Pillow compatibility test failed: {e}")
         
         # Test PDF processing
         try:
             import PyPDF2
-            print(f"   ✅ PyPDF2: Available for PDF processing")
+            print(f"   OK PyPDF2: Available for PDF processing")
         except ImportError:
-            print(f"   ⚠️  PyPDF2: Not available")
+            print(f"   WARN  PyPDF2: Not available")
         
         try:
             import pdfplumber
-            print(f"   ✅ pdfplumber: Available for PDF processing")
+            print(f"   OK pdfplumber: Available for PDF processing")
         except ImportError:
-            print(f"   ⚠️  pdfplumber: Not available")
+            print(f"   WARN  pdfplumber: Not available")
 
     def test_requirements_file_validity(self):
         """Test that requirements-ci.txt is valid and installable"""
-        print("🔍 Testing requirements file validity...")
+        print("Testing Testing requirements file validity...")
         
         # Look for requirements file in backend directory (relative to test location)
         test_dir = os.path.dirname(__file__)
@@ -153,7 +153,7 @@ class TestCIDependencyResolution(unittest.TestCase):
         requirements_path = os.path.join(backend_dir, 'requirements-ci.txt')
         
         if os.path.exists(requirements_path):
-            print(f"   ✅ requirements-ci.txt: Found")
+            print(f"   OK requirements-ci.txt: Found")
             
             # Read and validate requirements format
             with open(requirements_path, 'r') as f:
@@ -166,26 +166,26 @@ class TestCIDependencyResolution(unittest.TestCase):
             
             self.assertEqual(len(invalid_lines), 0, 
                            f"Invalid requirement lines: {invalid_lines}")
-            print(f"   ✅ Requirements format: Valid ({len(lines)} packages)")
+            print(f"   OK Requirements format: Valid ({len(lines)} packages)")
         else:
-            print(f"   ⚠️  requirements-ci.txt: Not found, using default requirements")
+            print(f"   WARN  requirements-ci.txt: Not found, using default requirements")
 
     def test_python_version_compatibility(self):
         """Test Python version compatibility"""
-        print("🔍 Testing Python version compatibility...")
+        print("Testing Testing Python version compatibility...")
         
         python_version = sys.version_info
-        print(f"   ℹ️  Python version: {python_version.major}.{python_version.minor}.{python_version.micro}")
+        print(f"   INFO  Python version: {python_version.major}.{python_version.minor}.{python_version.micro}")
         
         # Ensure minimum Python 3.8 support
         self.assertGreaterEqual(python_version.major, 3)
         self.assertGreaterEqual(python_version.minor, 8)
         
-        print(f"   ✅ Python version: Compatible")
+        print(f"   OK Python version: Compatible")
 
     def test_environment_variables(self):
         """Test required environment variables"""
-        print("🔍 Testing environment variables...")
+        print("Testing Testing environment variables...")
         
         required_vars = ['DJANGO_SETTINGS_MODULE']
         optional_vars = ['DEBUG', 'SECRET_KEY']
@@ -193,21 +193,21 @@ class TestCIDependencyResolution(unittest.TestCase):
         for var in required_vars:
             value = os.environ.get(var)
             if value:
-                print(f"   ✅ {var}: Set")
+                print(f"   OK {var}: Set")
             else:
-                print(f"   ⚠️  {var}: Not set (will use default)")
+                print(f"   WARN  {var}: Not set (will use default)")
         
         for var in optional_vars:
             value = os.environ.get(var)
             if value:
-                print(f"   ✅ {var}: Set")
+                print(f"   OK {var}: Set")
             else:
-                print(f"   ℹ️  {var}: Not set (optional)")
+                print(f"   INFO  {var}: Not set (optional)")
 
 
 def run_dependency_tests():
     """Run all dependency tests with detailed output"""
-    print("🧪 CI Dependency Resolution Test Suite")
+    print("TEST CI Dependency Resolution Test Suite")
     print("=" * 50)
     
     # Create test suite
@@ -218,25 +218,25 @@ def run_dependency_tests():
     result = runner.run(suite)
     
     print("\n" + "=" * 50)
-    print("📊 Test Summary:")
+    print("Summary Test Summary:")
     print(f"   Tests run: {result.testsRun}")
     print(f"   Failures: {len(result.failures)}")
     print(f"   Errors: {len(result.errors)}")
     
     if result.failures:
-        print("\n❌ Failures:")
+        print("\nFAIL Failures:")
         for test, traceback in result.failures:
             print(f"   - {test}: {traceback}")
     
     if result.errors:
-        print("\n💥 Errors:")
+        print("\nERROR Errors:")
         for test, traceback in result.errors:
             print(f"   - {test}: {traceback}")
     
     if result.wasSuccessful():
-        print("\n🎉 All dependency tests passed! CI environment is ready.")
+        print("\nSUCCESS All dependency tests passed! CI environment is ready.")
     else:
-        print("\n⚠️  Some dependency tests failed. Check logs above.")
+        print("\nWARN  Some dependency tests failed. Check logs above.")
     
     return result.wasSuccessful()
 
