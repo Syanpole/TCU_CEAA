@@ -16,8 +16,10 @@ pytesseract==0.3.13
 python-Levenshtein==0.25.1  # Levenshtein distance for fuzzy matching
 
 # 3. Grade Verifier - GWA Calculation + Pattern Detection
+# NOTE: Install these first with --only-binary to avoid long compilation
+# Run: pip install --only-binary=:all: numpy scipy
 numpy==1.26.4
-scipy==1.13.1
+scipy==1.14.1  # Updated to 1.14.1 for better Python 3.13 wheel support
 
 # 4. Face Verifier - OpenCV Face Detection
 opencv-python==4.10.0.84
