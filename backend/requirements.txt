@@ -13,7 +13,7 @@ Pillow==10.4.0
 pytesseract==0.3.13
 
 # 2. Cross-Document Matcher - Fuzzy String Matching
-python-Levenshtein==0.25.1  # Levenshtein distance for fuzzy matching
+python-Levenshtein==0.26.1  # Updated for Python 3.13 compatibility
 
 # 3. Grade Verifier - GWA Calculation + Pattern Detection
 # NOTE: Install these first with --only-binary to avoid long compilation
