@@ -1,6 +1,7 @@
 """
 AI Service for TCU-CEAA Document and Grade Analysis
 This module provides advanced AI capabilities for analyzing student documents and grades.
+Now includes Autonomous AI (EasyOCR) for grade sheet name verification!
 """
 
 import os
@@ -8,11 +9,14 @@ import re
 import json
 import base64
 import hashlib
+import logging
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any
 from decimal import Decimal
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 def check_optional_imports(imports):
     try:
@@ -546,12 +550,14 @@ class AIGradeAnalyzer:
     def analyze_grades(self, grade_submission) -> Dict[str, Any]:
         """
         Comprehensive AI analysis of grade submission
+        NOW INCLUDES: Student name verification on grade sheet (fraud prevention)
         """
         analysis_result = {
             'basic_allowance_analysis': {},
             'merit_incentive_analysis': {},
             'grade_validation': {},
             'extracted_grades': {},
+            'name_verification': {},
             'recommendations': [],
             'total_allowance': 0,
             'analysis_notes': [],
@@ -562,6 +568,20 @@ class AIGradeAnalyzer:
             # Validate input grades
             validation_result = self._validate_grade_inputs(grade_submission)
             analysis_result['grade_validation'] = validation_result
+            
+            # 🔒 CRITICAL: Verify student name on grade sheet (fraud prevention)
+            if grade_submission.grade_sheet:
+                name_verification = self._verify_grade_sheet_ownership(grade_submission)
+                analysis_result['name_verification'] = name_verification
+                
+                # If name doesn't match, REJECT immediately
+                if not name_verification.get('name_match', False):
+                    analysis_result['grade_validation']['issues'].append('🚨 FRAUD ALERT: Student name on grade sheet does not match your account')
+                    analysis_result['confidence_score'] = 0.0
+                    analysis_result['analysis_notes'].append(
+                        f"⛔ SECURITY REJECTION: {name_verification.get('mismatch_reason', 'Name verification failed')}"
+                    )
+                    return analysis_result
             
             # Analyze grade sheet file if provided
             if grade_submission.grade_sheet:
@@ -706,6 +726,202 @@ class AIGradeAnalyzer:
             extracted_data['text_extracted'] = f"Error extracting text: {str(e)}"
         
         return extracted_data
+    
+    def _verify_grade_sheet_ownership(self, grade_submission) -> Dict[str, Any]:
+        """
+        🔒 CRITICAL SECURITY: Verify student name on grade sheet matches submitting student
+        Prevents students from submitting other people's grades
+        
+        NOW USES: Autonomous AI (EasyOCR) - no Tesseract needed!
+        """
+        result = {
+            'name_match': False,
+            'confidence': 0.0,
+            'mismatch_reason': '',
+            'expected_name': '',
+            'found_names': [],
+            'matched_name': '',
+            'verification_method': 'none'
+        }
+        
+        try:
+            from PIL import Image
+            import re
+            
+            # Get student information
+            student = grade_submission.student
+            first_name = student.first_name.lower().strip() if student.first_name else ''
+            last_name = student.last_name.lower().strip() if student.last_name else ''
+            full_name = f"{first_name} {last_name}".strip()
+            reverse_name = f"{last_name} {first_name}".strip()
+            username = student.username.lower().strip() if student.username else ''
+            
+            result['expected_name'] = full_name
+            
+            # If no name set, REJECT for security (can't verify without name)
+            if not first_name or not last_name:
+                result['name_match'] = False
+                result['confidence'] = 0.0
+                result['mismatch_reason'] = '⚠️ Your profile name is incomplete. Please update your First Name and Last Name in your profile settings before submitting grades. This is required for document verification.'
+                return result
+            
+            # Get grade sheet file
+            grade_sheet_file = grade_submission.grade_sheet
+            
+            # Get file path
+            if hasattr(grade_sheet_file, 'path'):
+                file_path = grade_sheet_file.path
+            else:
+                # File might be uploaded but not saved yet
+                import tempfile
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                for chunk in grade_sheet_file.chunks():
+                    temp_file.write(chunk)
+                temp_file.close()
+                file_path = temp_file.name
+            
+            # 🤖 AUTONOMOUS AI VERIFICATION - Try EasyOCR first (preferred)
+            extracted_text = None
+            ocr_method = None
+            
+            try:
+                import easyocr
+                import numpy as np
+                
+                # Load image
+                img = Image.open(file_path)
+                
+                # Resize if needed
+                max_size = 2000
+                if img.width > max_size or img.height > max_size:
+                    ratio = min(max_size / img.width, max_size / img.height)
+                    new_size = (int(img.width * ratio), int(img.height * ratio))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                
+                # Convert to numpy array
+                img_array = np.array(img)
+                
+                # Initialize EasyOCR
+                reader = easyocr.Reader(['en'], gpu=False)
+                
+                # Extract text
+                results = reader.readtext(img_array)
+                extracted_text = ' '.join([text for (bbox, text, conf) in results]).lower()
+                
+                ocr_method = 'autonomous_ai_easyocr'
+                result['verification_method'] = 'autonomous_ai'
+                
+                img.close()
+                
+                logger.info(f"✅ Autonomous AI (EasyOCR) extracted {len(extracted_text)} characters from grade sheet")
+                
+            except Exception as easyocr_error:
+                logger.warning(f"EasyOCR failed: {str(easyocr_error)}, trying Tesseract fallback...")
+                
+                # Fallback to Tesseract OCR
+                try:
+                    import pytesseract
+                    
+                    # Configure Tesseract path
+                    tesseract_paths = [
+                        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+                        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+                        r'C:\Users\Public\tesseract\tesseract.exe'
+                    ]
+                    
+                    for path in tesseract_paths:
+                        if os.path.exists(path):
+                            pytesseract.pytesseract.tesseract_cmd = path
+                            logger.info(f"📄 Using Tesseract at: {path}")
+                            break
+                    
+                    img = Image.open(file_path)
+                    
+                    # Resize if needed
+                    max_size = 2000
+                    if img.width > max_size or img.height > max_size:
+                        ratio = min(max_size / img.width, max_size / img.height)
+                        new_size = (int(img.width * ratio), int(img.height * ratio))
+                        img = img.resize(new_size, Image.Resampling.LANCZOS)
+                    
+                    extracted_text = pytesseract.image_to_string(img).lower()
+                    ocr_method = 'tesseract_ocr'
+                    result['verification_method'] = 'tesseract_fallback'
+                    
+                    img.close()
+                    
+                    logger.info(f"✅ Tesseract OCR extracted {len(extracted_text)} characters from grade sheet")
+                    
+                except Exception as tesseract_error:
+                    # BOTH OCR METHODS FAILED - CRITICAL SECURITY ISSUE
+                    
+                    # ⚠️ WITHOUT OCR, WE CANNOT VERIFY NAMES - MUST REJECT FOR SECURITY
+                    result['name_match'] = False
+                    result['confidence'] = 0.0
+                    result['mismatch_reason'] = f'🔒 SECURITY REJECTION: Cannot verify student name on grade sheet. OCR text extraction failed (tried EasyOCR and Tesseract). This is required to prevent fraud. Please ensure your grade sheet image is clear and readable. Technical details: EasyOCR error: {str(easyocr_error)[:50]}, Tesseract error: {str(tesseract_error)[:50]}'
+                    result['verification_method'] = 'failed_both_ocr_methods'
+                    return result
+            
+            # Validate extracted text
+            if not extracted_text or len(extracted_text.strip()) < 20:
+                result['name_match'] = False
+                result['confidence'] = 0.0
+                result['mismatch_reason'] = f'🔒 SECURITY REJECTION: Insufficient text extracted from grade sheet (only {len(extracted_text if extracted_text else 0)} characters). Cannot verify student name. Please upload a clearer, higher quality image of your grade sheet.'
+                return result
+                
+            # Clean text
+            text_cleaned = re.sub(r'[^a-z\s]', ' ', extracted_text.lower())
+            text_cleaned = re.sub(r'\s+', ' ', text_cleaned).strip()
+            
+            # Look for name matches
+            name_found = False
+            confidence = 0.0
+            matched_format = ''
+            
+            # Check various name formats
+            if full_name in text_cleaned:
+                name_found = True
+                confidence = 0.95
+                matched_format = full_name
+            elif reverse_name in text_cleaned:
+                name_found = True
+                confidence = 0.90
+                matched_format = reverse_name
+            elif first_name in text_cleaned and last_name in text_cleaned:
+                name_found = True
+                confidence = 0.85
+                matched_format = f"{first_name} and {last_name}"
+            elif len(username) > 4 and username in text_cleaned:
+                name_found = True
+                confidence = 0.75
+                matched_format = username
+            
+            # Find potential other names (fraud detection)
+            potential_names = re.findall(r'\b[a-z]{3,}\s+[a-z]{3,}\b', text_cleaned)
+            result['found_names'] = list(set(potential_names))[:5]
+            
+            if name_found:
+                result['name_match'] = True
+                result['confidence'] = confidence
+                result['matched_name'] = matched_format
+            else:
+                # 🚨 NAME NOT FOUND - FRAUD DETECTED - REJECT IMMEDIATELY
+                result['name_match'] = False
+                result['confidence'] = 0.0
+                result['mismatch_reason'] = f"🚨 SECURITY REJECTION: Your name '{full_name.title()}' was not found on this grade sheet. You can only submit YOUR OWN grades. Submitting someone else's grades is considered academic fraud."
+                
+                if result['found_names']:
+                    other_names = ', '.join([n.title() for n in result['found_names'][:3]])
+                    result['mismatch_reason'] += f" This grade sheet appears to belong to: {other_names}."
+            
+        except Exception as e:
+            # 🔒 CRITICAL: Any error during verification = REJECT for security
+            # We cannot take risks with name verification - if unsure, REJECT
+            result['name_match'] = False
+            result['confidence'] = 0.0
+            result['mismatch_reason'] = f'🔒 SECURITY REJECTION: Grade sheet verification failed due to technical error. Cannot verify if this is your grade sheet. Please try uploading a clearer image or contact support. Error: {str(e)}'
+        
+        return result
 
     def _cross_validate_grades(self, grade_submission, extracted_grades: Dict[str, Any]) -> Dict[str, Any]:
         """Cross-validate submitted grades with extracted grades"""

@@ -1077,6 +1077,9 @@ class CosineSimilarityAnalyzer:
         return result
 
 
+# Import the AI Generated Detector
+from .ai_generated_detector import AIGeneratedDetector
+
 # Export main classes
 __all__ = [
     'DocumentValidator',
@@ -1085,5 +1088,6 @@ __all__ = [
     'FaceVerifier',
     'FraudDetector',
     'AIVerificationManager',
-    'CosineSimilarityAnalyzer'
+    'CosineSimilarityAnalyzer',
+    'AIGeneratedDetector'
 ]

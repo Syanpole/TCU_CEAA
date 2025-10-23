@@ -1,0 +1,114 @@
+{
+  "ai_model_data_config": {
+    "version": "1.0.0",
+    "last_updated": "2024-10-10",
+    "description": "AI Model Data Configuration for TCU-CEAA Document Verification System"
+  },
+  "paths": {
+    "base_path": "ai_model_data",
+    "reference_documents": "ai_model_data/reference_documents",
+    "document_templates": "ai_model_data/document_templates", 
+    "watermarks": "ai_model_data/watermarks",
+    "trained_models": "ai_model_data/trained_models",
+    "validation_datasets": "ai_model_data/validation_datasets",
+    "signatures": "ai_model_data/signatures"
+  },
+  "supported_document_types": {
+    "birth_certificate": {
+      "template_file": "birth_certificate_layout.json",
+      "reference_samples": "reference_documents/birth_certificates/",
+      "watermark_templates": "watermarks/government_seals/psa_seal.png",
+      "fraud_model": "trained_models/fraud_detection/birth_cert_detector.pkl",
+      "confidence_threshold": 0.8
+    },
+    "school_id": {
+      "template_file": "school_id_layout.json",
+      "reference_samples": "reference_documents/school_ids/",
+      "watermark_templates": "watermarks/institutional_logos/",
+      "fraud_model": "trained_models/fraud_detection/id_card_detector.pkl",
+      "confidence_threshold": 0.75
+    },
+    "report_card": {
+      "template_file": "report_card_layout.json",
+      "reference_samples": "reference_documents/report_cards/",
+      "watermark_templates": "watermarks/government_seals/deped_seal.png",
+      "fraud_model": "trained_models/fraud_detection/grade_detector.pkl",
+      "confidence_threshold": 0.78
+    },
+    "grade_10_report_card": {
+      "template_file": "report_card_layout.json",
+      "reference_samples": "reference_documents/report_cards/",
+      "watermark_templates": "watermarks/government_seals/deped_seal.png",
+      "fraud_model": "trained_models/fraud_detection/grade_detector.pkl",
+      "confidence_threshold": 0.78
+    },
+    "grade_12_report_card": {
+      "template_file": "report_card_layout.json", 
+      "reference_samples": "reference_documents/report_cards/",
+      "watermark_templates": "watermarks/government_seals/deped_seal.png",
+      "fraud_model": "trained_models/fraud_detection/grade_detector.pkl",
+      "confidence_threshold": 0.78
+    },
+    "government_id": {
+      "template_file": "government_id_layout.json",
+      "reference_samples": "reference_documents/government_ids/",
+      "watermark_templates": "watermarks/government_seals/",
+      "fraud_model": "trained_models/fraud_detection/gov_id_detector.pkl",
+      "confidence_threshold": 0.85
+    }
+  },
+  "ai_models": {
+    "document_classifier": {
+      "model_file": "trained_models/document_classifier/document_type_classifier.pkl",
+      "vectorizer_file": "trained_models/text_similarity/tfidf_vectorizer.pkl",
+      "accuracy": 0.94,
+      "last_trained": "2024-10-01"
+    },
+    "fraud_detector": {
+      "tampering_model": "trained_models/fraud_detection/tampering_detector.pkl",
+      "metadata_analyzer": "trained_models/fraud_detection/metadata_analyzer.pkl",
+      "accuracy": 0.89,
+      "last_trained": "2024-10-01"
+    },
+    "face_recognition": {
+      "face_encoder": "trained_models/face_recognition/face_encoder.pkl",
+      "quality_assessor": "trained_models/face_recognition/quality_assessor.pkl",
+      "accuracy": 0.91,
+      "last_trained": "2024-09-15"
+    },
+    "text_similarity": {
+      "cosine_vectorizer": "trained_models/text_similarity/tfidf_vectorizer.pkl",
+      "similarity_thresholds": "trained_models/text_similarity/similarity_thresholds.json",
+      "accuracy": 0.87,
+      "last_trained": "2024-09-20"
+    }
+  },
+  "validation_settings": {
+    "default_confidence_threshold": 0.8,
+    "minimum_image_resolution": 300,
+    "maximum_file_size_mb": 10,
+    "supported_formats": ["pdf", "jpg", "jpeg", "png", "tiff"],
+    "ocr_languages": ["eng", "fil"],
+    "processing_timeout_seconds": 30
+  },
+  "security_settings": {
+    "watermark_detection_sensitivity": 0.7,
+    "tampering_detection_sensitivity": 0.8,
+    "metadata_analysis_depth": "full",
+    "signature_verification": true,
+    "fraud_alert_threshold": 0.6
+  },
+  "performance_settings": {
+    "enable_caching": true,
+    "cache_duration_hours": 24,
+    "parallel_processing": true,
+    "max_concurrent_jobs": 4,
+    "memory_limit_mb": 2048
+  },
+  "logging": {
+    "log_level": "INFO",
+    "log_validation_results": true,
+    "log_performance_metrics": true,
+    "retention_days": 30
+  }
+}

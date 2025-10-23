@@ -19,6 +19,7 @@ class CustomUser(AbstractUser):
     middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
     profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
     
     def is_admin(self):
         return self.role == 'admin'
@@ -152,6 +153,7 @@ class DocumentSubmission(models.Model):
     ai_recommendations = models.JSONField(default=list, blank=True)
     ai_auto_approved = models.BooleanField(default=False)
     ai_analysis_notes = models.TextField(blank=True, null=True)
+    address_match_score = models.FloatField(default=0.0, help_text="Address matching confidence score (0.0-1.0)")
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -334,21 +336,19 @@ class GradeSubmission(models.Model):
             return self._basic_allowance_calculation_autonomous()
     
     def _basic_allowance_calculation_autonomous(self):
-        """Fallback basic calculation method - Autonomous processing"""
+        """
+        Fallback basic calculation method - Autonomous processing
+        NEW RULE: Name verification success = Auto approve = ₱5,000 basic allowance
+        """
         # Convert GWA to percentage for calculation
         gwa_percent = self.get_gwa_percentage()
         swa_percent = self.get_swa_percentage()
         
-        # Basic Educational Assistance (₱5,000): GWA ≥ 80%, no fails/inc/drops, ≥15 units
-        basic_eligible = (
-            gwa_percent >= 80.0 and
-            self.total_units >= 15 and
-            not self.has_failing_grades and
-            not self.has_incomplete_grades and
-            not self.has_dropped_subjects
-        )
+        # ✅ SIMPLE RULE: If we reach this method, name verification passed
+        # Automatically qualify for basic allowance (₱5,000)
+        basic_eligible = True
         
-        # Merit Incentive (₱5,000): SWA ≥ 88% (GWA ≤1.75), no fails/inc/drops, ≥15 units
+        # Merit Incentive (₱5,000): Still requires SWA ≥ 88% (GWA ≤1.75), no fails/inc/drops, ≥15 units
         # Note: SWA now uses GWA value if SWA not provided
         # 1.75 GWA = 88% (87-89 range)
         merit_eligible = (
@@ -371,29 +371,16 @@ class GradeSubmission(models.Model):
         notes = []
         notes.append("🤖 Autonomous AI Processing - Auto-Approved")
         notes.append("=" * 40)
-        
-        if basic_eligible:
-            notes.append("✅ Qualifies for Basic Educational Assistance (₱5,000)")
-        else:
-            reasons = []
-            if gwa_percent < 80.0:
-                reasons.append(f"GWA {gwa_percent:.2f}% < 80% (Point: {self.general_weighted_average})")
-            if self.total_units < 15:
-                reasons.append(f"Units {self.total_units} < 15")
-            if self.has_failing_grades:
-                reasons.append("Has failing grades")
-            if self.has_incomplete_grades:
-                reasons.append("Has incomplete grades")
-            if self.has_dropped_subjects:
-                reasons.append("Has dropped subjects")
-            notes.append(f"❌ Does not qualify for Basic Allowance: {', '.join(reasons)}")
+        notes.append("✅ NAME VERIFIED: Your identity has been confirmed on the grade sheet")
+        notes.append("🎉 AUTO-APPROVED: ₱5,000 Basic Allowance automatically granted")
+        notes.append("")
         
         if merit_eligible:
             notes.append("✅ Qualifies for Merit Incentive (₱5,000)")
         else:
             reasons = []
-            if swa_percent < 84.5:
-                reasons.append(f"GWA {swa_percent:.2f}% < 84.5% (Point: {self.general_weighted_average})")
+            if swa_percent < 88.0:
+                reasons.append(f"GWA {swa_percent:.2f}% < 88% (Point: {self.general_weighted_average})")
             if self.total_units < 15:
                 reasons.append(f"Units {self.total_units} < 15")
             if self.has_failing_grades:
@@ -403,6 +390,7 @@ class GradeSubmission(models.Model):
             if self.has_dropped_subjects:
                 reasons.append("Has dropped subjects")
             notes.append(f"❌ Does not qualify for Merit Incentive: {', '.join(reasons)}")
+
         
         total_allowance = 0
         if basic_eligible:

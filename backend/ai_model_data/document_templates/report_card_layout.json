@@ -1,0 +1,144 @@
+{
+  "document_type": "report_card",
+  "version": "2024.1", 
+  "description": "DepEd Report Card Template - Grade 10/12 Format",
+  "required_fields": {
+    "deped_header": {
+      "region": [0, 0, 1.0, 0.15],
+      "text_patterns": [
+        "DEPARTMENT OF EDUCATION",
+        "DEPED",
+        "REPORT CARD",
+        "STUDENT REPORT CARD"
+      ],
+      "required": true,
+      "confidence_threshold": 0.8
+    },
+    "school_info": {
+      "region": [0, 0.15, 1.0, 0.25],
+      "text_patterns": [
+        "SCHOOL:",
+        "SCHOOL NAME:",
+        "INSTITUTION:"
+      ],
+      "required": true
+    },
+    "student_info": {
+      "region": [0, 0.25, 1.0, 0.4],
+      "text_patterns": [
+        "STUDENT NAME:",
+        "LEARNER'S NAME:",
+        "NAME:"
+      ],
+      "required": true,
+      "confidence_threshold": 0.9
+    },
+    "grade_level": {
+      "region": [0, 0.4, 0.5, 0.5],
+      "text_patterns": [
+        "GRADE:",
+        "GRADE LEVEL:",
+        "YEAR LEVEL:"
+      ],
+      "format_regex": "(GRADE )?\\d{1,2}",
+      "required": true
+    },
+    "academic_year": {
+      "region": [0.5, 0.4, 1.0, 0.5],
+      "text_patterns": [
+        "SCHOOL YEAR:",
+        "ACADEMIC YEAR:",
+        "S.Y."
+      ],
+      "format_regex": "\\d{4}-\\d{4}",
+      "required": true
+    },
+    "subjects_grades": {
+      "region": [0, 0.5, 1.0, 0.85],
+      "type": "grades_table",
+      "text_patterns": [
+        "SUBJECT",
+        "GRADES",
+        "QUARTERLY GRADES",
+        "FINAL GRADE"
+      ],
+      "required": true,
+      "validation": "grade_extraction"
+    },
+    "gwa_section": {
+      "region": [0, 0.85, 1.0, 0.95],
+      "text_patterns": [
+        "GENERAL WEIGHTED AVERAGE",
+        "GWA:",
+        "AVERAGE:",
+        "OVERALL AVERAGE"
+      ],
+      "format_regex": "\\d{1,2}(\\.\\d{1,2})?",
+      "required": true
+    }
+  },
+  "security_features": {
+    "deped_seal": {
+      "type": "official_seal",
+      "location": "header",
+      "seal_file": "deped_seal.png",
+      "required": true
+    },
+    "school_seal": {
+      "type": "school_seal",
+      "location": "header_or_footer",
+      "required": false
+    },
+    "principal_signature": {
+      "type": "handwritten_signature",
+      "location": "bottom_right",
+      "required": true
+    },
+    "dry_seal": {
+      "type": "embossed_seal",
+      "location": "signature_area",
+      "required": false
+    }
+  },
+  "quality_requirements": {
+    "min_resolution": 300,
+    "min_width": 800,
+    "min_height": 1000,
+    "min_contrast": 0.7,
+    "table_readability": 0.8
+  },
+  "validation_rules": {
+    "text_extraction_confidence": 0.75,
+    "grade_extraction_confidence": 0.8,
+    "structure_match_confidence": 0.8,
+    "signature_detection_confidence": 0.6,
+    "overall_confidence_threshold": 0.78
+  },
+  "grade_validation": {
+    "valid_grade_range": [65, 100],
+    "grade_format": "numeric",
+    "decimal_places": [0, 2],
+    "suspicious_patterns": {
+      "too_many_perfect_scores": 0.8,
+      "unrealistic_improvement": 20,
+      "uniform_grades": 0.1
+    }
+  },
+  "common_variations": [
+    "grade_10_format",
+    "grade_12_format", 
+    "junior_high_format",
+    "senior_high_format",
+    "k12_format",
+    "old_curriculum_format"
+  ],
+  "fraud_indicators": [
+    "missing_deped_seal",
+    "incorrect_grade_ranges",
+    "suspicious_grade_patterns",
+    "missing_signatures",
+    "wrong_paper_format",
+    "inconsistent_fonts",
+    "altered_grades"
+  ]
+}
