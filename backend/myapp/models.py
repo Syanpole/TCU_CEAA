@@ -18,6 +18,7 @@ class CustomUser(AbstractUser):
     student_id = models.CharField(max_length=8, unique=True, null=True, blank=True, help_text="Format: YY-XXXXX (e.g., 22-00001)")
     middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
     profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
+    is_email_verified = models.BooleanField(default=False, help_text="Email verification status")
     created_at = models.DateTimeField(auto_now_add=True)
     
     def is_admin(self):
@@ -233,7 +234,7 @@ class GradeSubmission(models.Model):
         1.0 = 98% (96-100)     → Excellent
         1.25 = 94% (93-95)     → Very Good
         1.5 = 91% (90-92)      → Good
-        1.75 = 88% (87-89)     → Satisfactory
+        1.75 = 87% (87-89)     → Satisfactory (Merit threshold)
         2.0 = 85% (84-86)      → Fair
         2.25 = 82% (81-83)     → Average
         2.5 = 79% (78-80)      → Below Average
@@ -253,7 +254,7 @@ class GradeSubmission(models.Model):
             (1.0, 98.0),    # 96-100 → Excellent
             (1.25, 94.0),   # 93-95 → Very Good
             (1.5, 91.0),    # 90-92 → Good
-            (1.75, 88.0),   # 87-89 → Satisfactory
+            (1.75, 87.0),   # 87-89 → Satisfactory (Merit threshold)
             (2.0, 85.0),    # 84-86 → Fair
             (2.25, 82.0),   # 81-83 → Average
             (2.5, 79.0),    # 78-80 → Below Average
@@ -338,21 +339,32 @@ class GradeSubmission(models.Model):
         # Convert GWA to percentage for calculation
         gwa_percent = self.get_gwa_percentage()
         swa_percent = self.get_swa_percentage()
+        gwa_value = float(self.general_weighted_average)
         
-        # Basic Educational Assistance (₱5,000): GWA ≥ 80%, no fails/inc/drops, ≥15 units
+        # OFFICIAL TCU-CEAA GRADING ELIGIBILITY CRITERIA:
+        # ==================================================
+        # GWA 1.0 to 1.75  → Basic (₱5,000) + Merit (₱5,000) = ₱10,000
+        # GWA 1.76 to 2.5  → Basic (₱5,000) ONLY
+        # GWA 2.51 and above → NOT ELIGIBLE
+        
+        # Basic Educational Assistance (₱5,000): GWA ≤ 2.5 (80%), no fails/inc/drops, ≥15 units
+        # GWA 2.5 = 80% is the cutoff - anything 2.5 or better (lower number) qualifies
         basic_eligible = (
-            gwa_percent >= 80.0 and
+            gwa_value <= 2.5 and
             self.total_units >= 15 and
             not self.has_failing_grades and
             not self.has_incomplete_grades and
             not self.has_dropped_subjects
         )
         
-        # Merit Incentive (₱5,000): SWA ≥ 88% (GWA ≤1.75), no fails/inc/drops, ≥15 units
-        # Note: SWA now uses GWA value if SWA not provided
-        # 1.75 GWA = 88% (87-89 range)
+        # Merit Incentive (₱5,000): GWA ≤ 1.75 (87%) on 10-point scale
+        # Only students with GWA 1.0 to 1.75 qualify for Merit
+        # 1.0 GWA = 98% → Merit + Basic
+        # 1.5 GWA = 91% → Merit + Basic
+        # 1.75 GWA = 87% → Merit + Basic
+        # 1.76+ GWA = Below Merit threshold → Basic ONLY
         merit_eligible = (
-            swa_percent >= 88.0 and
+            gwa_value <= 1.75 and
             self.total_units >= 15 and
             not self.has_failing_grades and
             not self.has_incomplete_grades and
@@ -376,8 +388,8 @@ class GradeSubmission(models.Model):
             notes.append("✅ Qualifies for Basic Educational Assistance (₱5,000)")
         else:
             reasons = []
-            if gwa_percent < 80.0:
-                reasons.append(f"GWA {gwa_percent:.2f}% < 80% (Point: {self.general_weighted_average})")
+            if gwa_value > 2.5:
+                reasons.append(f"GWA {self.general_weighted_average} > 2.5 ({gwa_percent:.2f}% < 80%)")
             if self.total_units < 15:
                 reasons.append(f"Units {self.total_units} < 15")
             if self.has_failing_grades:
@@ -392,8 +404,8 @@ class GradeSubmission(models.Model):
             notes.append("✅ Qualifies for Merit Incentive (₱5,000)")
         else:
             reasons = []
-            if swa_percent < 84.5:
-                reasons.append(f"GWA {swa_percent:.2f}% < 84.5% (Point: {self.general_weighted_average})")
+            if gwa_value > 1.75:
+                reasons.append(f"GWA {self.general_weighted_average} > 1.75 ({gwa_percent:.2f}%)")
             if self.total_units < 15:
                 reasons.append(f"Units {self.total_units} < 15")
             if self.has_failing_grades:
@@ -704,4 +716,67 @@ class SystemAnalytics(models.Model):
         
         analytics.save()
         return analytics
+
+
+class EmailVerificationCode(models.Model):
+    """
+    Model to store email verification codes for new user registration.
+    Codes expire after 10 minutes for security.
+    """
+    email = models.EmailField(db_index=True)
+    code = models.CharField(max_length=6)  # 6-digit verification code
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)  # Track verification attempts
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def is_valid(self):
+        """Check if code is still valid (not expired and not used)"""
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    def is_expired(self):
+        """Check if code has expired"""
+        return timezone.now() >= self.expires_at
+    
+    def increment_attempts(self):
+        """Increment verification attempts"""
+        self.attempts += 1
+        self.save()
+    
+    def mark_as_used(self):
+        """Mark verification code as used"""
+        self.is_used = True
+        self.save()
+    
+    @staticmethod
+    def generate_code():
+        """Generate a random 6-digit verification code"""
+        import random
+        return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    
+    @classmethod
+    def create_verification_code(cls, email):
+        """Create a new verification code for an email, only mark expired codes as used"""
+        from datetime import timedelta
+        now = timezone.now()
+        # Only mark expired codes as used
+        cls.objects.filter(email=email, is_used=False, expires_at__lt=now).update(is_used=True)
+        # Generate new code
+        code = cls.generate_code()
+        expires_at = now + timedelta(minutes=10)
+        return cls.objects.create(
+            email=email,
+            code=code,
+            expires_at=expires_at
+        )
+    
+    def __str__(self):
+        return f"Verification code for {self.email} - {'Used' if self.is_used else 'Active'}"
 

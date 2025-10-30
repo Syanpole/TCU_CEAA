@@ -243,13 +243,31 @@ const StudentDashboard: React.FC = () => {
     setShowNotification(true);
   };
 
+  const handleGradesRefresh = async () => {
+    try {
+      const response = await apiClient.get('/grades/');
+      setGrades((response.data as GradeSubmission[]) || []);
+    } catch (err) {
+      console.error('Error refreshing grades:', err);
+    }
+  };
+
   const handleAllowanceApplicationSuccess = () => {
     setShowAllowanceForm(false);
     
     setNotificationType('success');
     setNotificationTitle('Application Submitted Successfully');
-    setNotificationMessage('Your allowance application has been submitted and is under review.');
+    setNotificationMessage('Your allowance application has been submitted and is under review. You will receive an email notification at your registered email address once your application is approved by the admin.');
     setShowNotification(true);
+  };
+
+  const handleApplicationsRefresh = async () => {
+    try {
+      const response = await apiClient.get('/applications/');
+      setApplications((response.data as AllowanceApplication[]) || []);
+    } catch (err) {
+      console.error('Error refreshing applications:', err);
+    }
   };
 
   if (loading) {
@@ -345,6 +363,7 @@ const StudentDashboard: React.FC = () => {
             darkMode={darkMode}
             canSubmitGrades={canSubmitGrades}
             onGradeSubmissionSuccess={handleGradeSubmissionSuccess}
+            onRefresh={handleGradesRefresh}
           />
         );
       case 'application-details':
@@ -354,6 +373,7 @@ const StudentDashboard: React.FC = () => {
             darkMode={darkMode}
             canApplyForAllowance={canApplyForAllowance}
             onAllowanceApplicationSuccess={handleAllowanceApplicationSuccess}
+            onRefresh={handleApplicationsRefresh}
           />
         );
       case 'profile':

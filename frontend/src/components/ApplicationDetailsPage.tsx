@@ -17,13 +17,15 @@ interface ApplicationDetailsPageProps {
   darkMode: boolean;
   canApplyForAllowance: boolean;
   onAllowanceApplicationSuccess: () => void;
+  onRefresh: () => void;
 }
 
 const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({ 
   applications, 
   darkMode, 
   canApplyForAllowance,
-  onAllowanceApplicationSuccess 
+  onAllowanceApplicationSuccess,
+  onRefresh 
 }) => {
   const [showAllowanceForm, setShowAllowanceForm] = useState(false);
 
@@ -72,8 +74,21 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
     onAllowanceApplicationSuccess();
   };
 
+  const handleRefresh = () => {
+    onRefresh();
+  };
+
   return (
     <div className={`application-details-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Refresh Button - Always Visible */}
+      <button 
+          className="refresh-button-corner"
+          onClick={handleRefresh}
+          title="Refresh to see updated data"
+        >
+          🔄
+        </button>
+      
       <div className="page-header">
         <h1>Application Details</h1>
         <p>Track your allowance applications and their status</p>

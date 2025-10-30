@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
+import { sendVerificationCode, verifyEmailCode, resendVerificationCode } from '../services/verificationService';
+import EmailVerificationModal from './EmailVerificationModal';
 import './StudentRegistration.css';
 
 interface StudentRegistrationProps {
@@ -23,6 +25,11 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Email verification states
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState<string>('');
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const validateStudentId = (id: string): boolean => {
     const pattern = /^\d{2}-\d{5}$/;
@@ -81,6 +88,51 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
+    // Step 1: Send verification code to email
+    try {
+      const result = await sendVerificationCode(formData.email);
+      
+      if (result.success) {
+        setShowVerificationModal(true);
+        setLoading(false);
+      } else {
+        setError(result.message);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Error sending verification code:', error);
+      setError('Failed to send verification code. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleEmailVerified = async (code: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Step 2: Verify the code
+      const verifyResult = await verifyEmailCode(formData.email, code);
+      
+      if (verifyResult.success) {
+        setVerificationCode(code);
+        setEmailVerified(true);
+        setShowVerificationModal(false);
+        
+        // Step 3: Complete registration with verified email
+        await completeRegistration(code);
+      } else {
+        setError(verifyResult.message);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Verification error:', error);
+      setError('Verification failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const completeRegistration = async (code: string) => {
     try {
       await authService.register({
         username: formData.username,
@@ -91,7 +143,8 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         last_name: formData.lastName.trim(),
         middle_initial: formData.middleInitial.trim() || '',
         student_id: formData.studentId,
-        role: 'student'
+        role: 'student',
+        verification_code: code
       });
 
       setSuccess(true);
@@ -115,6 +168,17 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    const result = await resendVerificationCode(formData.email);
+    return result;
+  };
+
+  const handleCancelVerification = () => {
+    setShowVerificationModal(false);
+    setLoading(false);
+    setError('');
   };
 
   if (success) {
@@ -210,6 +274,16 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
 
   return (
     <div className="student-registration-container">
+      {/* Email Verification Modal */}
+      {showVerificationModal && (
+        <EmailVerificationModal
+          email={formData.email}
+          onVerified={handleEmailVerified}
+          onCancel={handleCancelVerification}
+          onResend={handleResendVerification}
+        />
+      )}
+
       <div className="registration-card">
         <div className="registration-header">
           <div className="tcu-logo">

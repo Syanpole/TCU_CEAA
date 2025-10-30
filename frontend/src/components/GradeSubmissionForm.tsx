@@ -432,7 +432,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
                 <div className="eligibility-note">
                   <small>
                     <strong>Basic Allowance:</strong> Requires ≥80% (GWA ≤2.25) + ≥15 units + no fails/inc/drops<br/>
-                    <strong>Merit Incentive:</strong> Requires ≥88% (GWA ≤1.75) + ≥15 units + no fails/inc/drops<br/>
+                    <strong>Merit Incentive:</strong> Requires ≥87% (GWA ≤1.75) + ≥15 units + no fails/inc/drops<br/>
                     <em>Note: System accepts any decimal format (1, 1.0, 1.75, 1.91, etc.)</em>
                   </small>
                 </div>

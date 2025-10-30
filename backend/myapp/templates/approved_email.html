@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>TCU-CEAA Application Approved</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      color: #333;
+      line-height: 1.6;
+      background-color: #f9f9f9;
+      padding: 20px;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo img {
+      width: 100px;
+    }
+    .content h2 {
+      color: #8b0000;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      margin-top: 30px;
+    }
+    ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    li {
+      margin: 5px 0;
+    }
+    a {
+      color: #8b0000;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .highlight {
+      background-color: #fff3cd;
+      padding: 15px;
+      border-radius: 5px;
+      border-left: 4px solid #8b0000;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="logo">
+      <!-- TCU Logo - You can replace with actual hosted logo URL -->
+      <div style="font-size: 48px;">🎓</div>
+      <h3 style="color: #8b0000; margin: 5px 0;">Taguig City University</h3>
+    </div>
+
+    <div class="content">
+      <h2>Congratulations! Your TCU-CEAA Application Has Been Approved!</h2>
+
+      <p>Dear {{ student_name }},</p>
+
+      <p>Congratulations! We are happy to inform you that your application for the <strong>Taguig City University – City Educational Assistance Allowance (TCU-CEAA)</strong> has been approved.</p>
+
+      <div class="highlight">
+        <p style="margin: 0;"><strong>✅ Application Status:</strong> APPROVED</p>
+        <p style="margin: 5px 0 0 0;"><strong>📋 Application Type:</strong> {{ application_type }}</p>
+        <p style="margin: 5px 0 0 0;"><strong>💰 Amount:</strong> {{ amount }}</p>
+      </div>
+
+      <p>Your documents have been reviewed and verified. You are now an official beneficiary of the TCU-CEAA program, which provides educational support to qualified students of Taguig City University.</p>
+
+      <h4>Next Steps:</h4>
+      <ul>
+        <li>Wait for further instructions regarding the release schedule of your allowance.</li>
+        <li>Make sure your student information is updated in the university portal.</li>
+        <li>Check your dashboard regularly for updates on the disbursement status.</li>
+        <li>Ensure your contact information and bank details (if applicable) are up to date.</li>
+      </ul>
+
+      <p>For questions or assistance, you may contact <a href="mailto:ceaainfo@tcu.edu.ph">ceaainfo@tcu.edu.ph</a> or visit the Student Affairs Office during office hours.</p>
+
+      <p>Once again, congratulations, and we wish you continued success in your studies!</p>
+
+      <p>
+        Best regards,<br>
+        <strong>Scholarship and Financial Assistance Office</strong><br>
+        Taguig City University (TCU-CEAA)<br>
+        📧 <a href="mailto:ceaainfo@tcu.edu.ph">ceaainfo@tcu.edu.ph</a> | 🌐 <a href="https://www.tcu.edu.ph">www.tcu.edu.ph</a>
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>© 2025 Taguig City University – City Educational Assistance Allowance</p>
+      <p>This is an automated message. Please do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>

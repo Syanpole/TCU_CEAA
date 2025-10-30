@@ -21,13 +21,15 @@ interface GradesPageProps {
   darkMode: boolean;
   canSubmitGrades: boolean;
   onGradeSubmissionSuccess: () => void;
+  onRefresh: () => void;
 }
 
 const GradesPage: React.FC<GradesPageProps> = ({ 
   grades, 
   darkMode, 
   canSubmitGrades,
-  onGradeSubmissionSuccess 
+  onGradeSubmissionSuccess,
+  onRefresh 
 }) => {
   const [showGradeForm, setShowGradeForm] = useState(false);
 
@@ -75,8 +77,21 @@ const GradesPage: React.FC<GradesPageProps> = ({
     onGradeSubmissionSuccess();
   };
 
+  const handleRefresh = () => {
+    onRefresh();
+  };
+
   return (
     <div className={`grades-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Refresh Button - Always Visible */}
+      <button 
+        className="refresh-button-corner"
+        onClick={handleRefresh}
+        title="Refresh to see updated data"
+      >
+        🔄
+      </button>
+      
       <div className="page-header">
         <h1>Submit Grades</h1>
         <p>Submit your grades for each semester to qualify for allowances</p>

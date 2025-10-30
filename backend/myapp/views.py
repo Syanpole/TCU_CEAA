@@ -6,11 +6,17 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
 from django.utils import timezone
+from django.db import models
+from django.conf import settings
 from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
                          AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer)
+from .email_utils import send_approval_email, send_verification_code_email
+import logging
+
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -18,7 +24,25 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        
+        # Check if email is verified (only for students)
+        if user.role == 'student' and not user.is_email_verified:
+            return Response({
+                'error': 'Please verify your email address before logging in. Check your email for the verification code.',
+                'email_not_verified': True,
+                'email': user.email
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         token, created = Token.objects.get_or_create(user=user)
+        
+        # Log successful login
+        AuditLog.log_action(
+            action_type='user_login',
+            description=f'User {user.username} logged in successfully',
+            user=user,
+            severity='info',
+            request=request
+        )
         
         return Response({
             'token': token.key,
@@ -41,15 +65,50 @@ def logout_view(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
+    """
+    Register a new user after email verification.
+    Requires: verification_code to confirm email was verified.
+    """
+    from .models import EmailVerificationCode
+    
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
+        email = serializer.validated_data.get('email', '').lower()
+        verification_code = request.data.get('verification_code', '').strip()
+        
+        # Verification code is required
+        if not verification_code:
+            return Response({
+                'error': 'Email verification code is required',
+                'requires_verification': True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify the code one more time during registration
+        # Check for a recently used valid code (within last 15 minutes)
+        recent_verification = EmailVerificationCode.objects.filter(
+            email=email,
+            code=verification_code,
+            is_used=True,
+            created_at__gte=timezone.now() - timezone.timedelta(minutes=15)
+        ).first()
+        
+        if not recent_verification:
+            return Response({
+                'error': 'Invalid or expired verification code. Please verify your email again.',
+                'requires_verification': True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create user with verified email
         user = serializer.save()
+        user.is_email_verified = True
+        user.save()
+        
         token, created = Token.objects.get_or_create(user=user)
         
         return Response({
             'token': token.key,
             'user': UserSerializer(user, context={'request': request}).data,
-            'message': 'Registration successful'
+            'message': 'Registration successful! Your email has been verified.'
         }, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -268,14 +327,37 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
         if new_status not in ['approved', 'rejected', 'disbursed']:
             return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
         
+        old_status = application.status
         application.status = new_status
         application.admin_notes = admin_notes
         application.processed_at = timezone.now()
         application.processed_by = request.user
         application.save()
         
+        # Send approval email if status changed to approved
+        email_sent = False
+        email_error = None
+        if new_status == 'approved' and old_status != 'approved':
+            try:
+                success, error = send_approval_email(application)
+                email_sent = success
+                if not success:
+                    email_error = error
+                    logger.warning(f"Failed to send approval email for application {application.id}: {error}")
+            except Exception as e:
+                email_error = str(e)
+                logger.error(f"Exception while sending approval email for application {application.id}: {e}")
+        
         serializer = self.get_serializer(application)
-        return Response(serializer.data)
+        response_data = serializer.data
+        
+        # Add email status to response
+        if new_status == 'approved':
+            response_data['email_sent'] = email_sent
+            if email_error:
+                response_data['email_error'] = email_error
+        
+        return Response(response_data)
 
 # Dashboard endpoints
 @api_view(['GET'])
@@ -553,3 +635,213 @@ def ai_stats(request):
         'average_confidence': float(average_confidence),
         'recent_activities': recent_activities
     })
+
+
+# Email Verification Endpoints
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_verification_code(request):
+    """
+    Send email verification code to user's email.
+    This is called during registration before account creation.
+    """
+    from .models import EmailVerificationCode
+    from .email_utils import send_verification_code_email
+    
+    email = request.data.get('email', '').lower().strip()
+    
+    if not email:
+        return Response({
+            'error': 'Email is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate email format
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        return Response({
+            'error': 'Invalid email format'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if email already registered
+    if CustomUser.objects.filter(email=email).exists():
+        return Response({
+            'error': 'This email is already registered. Please login instead.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Rate limiting: Check if user has requested too many codes recently
+    from datetime import timedelta
+    recent_codes = EmailVerificationCode.objects.filter(
+        email=email,
+        created_at__gte=timezone.now() - timedelta(minutes=5)
+    ).count()
+    
+    # TEMPORARILY DISABLED FOR TESTING - Re-enable in production
+    # if recent_codes >= 3:
+    #     return Response({
+    #         'error': 'Too many verification code requests. Please wait 5 minutes and try again.'
+    #     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    
+    try:
+        # Create verification code
+        verification = EmailVerificationCode.create_verification_code(email)
+        
+        # Send email with verification code (SECURE: code never exposed to frontend)
+        success, error = send_verification_code_email(email, verification.code)
+        
+        if not success:
+            logger.error(f"Failed to send verification email to {email}: {error}")
+            return Response({
+                'error': 'Failed to send verification email. Please try again or contact support.',
+                'technical_error': error if settings.DEBUG else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        logger.info(f"Verification code sent successfully to {email}")
+        
+        # For security: DO NOT return the actual code to frontend
+        return Response({
+            'message': 'Verification code sent to your email! Please check your inbox.',
+            'email': email,
+            'expires_in_minutes': 10,
+            'code_sent': True
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error generating verification code for {email}: {str(e)}")
+        return Response({
+            'error': 'Failed to generate verification code. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email_code(request):
+    """
+    Verify the email verification code entered by user.
+    Returns success if code is valid.
+    """
+    from .models import EmailVerificationCode
+    
+    email = request.data.get('email', '').lower().strip()
+    code = request.data.get('code', '').strip()
+    
+    if not email or not code:
+        return Response({
+            'error': 'Email and verification code are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Find the most recent unused code for this email
+        verification = EmailVerificationCode.objects.filter(
+            email=email,
+            code=code,
+            is_used=False
+        ).order_by('-created_at').first()
+        
+        if not verification:
+            # Check if code exists but was already used
+            used_code = EmailVerificationCode.objects.filter(
+                email=email,
+                code=code,
+                is_used=True
+            ).exists()
+            
+            if used_code:
+                return Response({
+                    'error': 'This verification code has already been used. Please request a new code.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Increment failed attempts for all codes of this email
+            EmailVerificationCode.objects.filter(
+                email=email,
+                is_used=False
+            ).update(attempts=models.F('attempts') + 1)
+            
+            return Response({
+                'error': 'Invalid verification code. Please check and try again.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if code is expired
+        if not verification.is_valid():
+            return Response({
+                'error': 'This verification code has expired. Please request a new code.',
+                'expired': True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark code as used
+        verification.mark_as_used()
+        
+        logger.info(f"Email verified successfully for {email}")
+        
+        return Response({
+            'message': 'Email verified successfully! You can now complete your registration.',
+            'email': email,
+            'verified': True
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error verifying code for {email}: {str(e)}")
+        return Response({
+            'error': 'Verification failed. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_code(request):
+    """
+    Resend verification code to user's email.
+    """
+    from .models import EmailVerificationCode
+    from .email_utils import send_verification_code_email
+    
+    email = request.data.get('email', '').lower().strip()
+    
+    if not email:
+        return Response({
+            'error': 'Email is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Rate limiting
+    from datetime import timedelta
+    recent_codes = EmailVerificationCode.objects.filter(
+        email=email,
+        created_at__gte=timezone.now() - timedelta(minutes=2)
+    ).count()
+    
+    # TEMPORARILY DISABLED FOR TESTING - Re-enable in production
+    # if recent_codes >= 1:
+    #     return Response({
+    #         'error': 'Please wait at least 2 minutes before requesting a new code.'
+    #     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    
+    try:
+        # Create new verification code
+        verification = EmailVerificationCode.create_verification_code(email)
+        
+        # Send email with verification code (SECURE: code never exposed to frontend)
+        success, error = send_verification_code_email(email, verification.code)
+        
+        if not success:
+            logger.error(f"Failed to resend verification email to {email}: {error}")
+            return Response({
+                'error': 'Failed to send verification email. Please try again or contact support.',
+                'technical_error': error if settings.DEBUG else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        logger.info(f"Verification code resent successfully to {email}")
+        
+        # For security: DO NOT return the actual code to frontend
+        return Response({
+            'message': 'New verification code sent to your email! Please check your inbox.',
+            'email': email,
+            'expires_in_minutes': 10,
+            'code_sent': True
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error resending verification code for {email}: {str(e)}")
+        return Response({
+            'error': 'Failed to resend verification code. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

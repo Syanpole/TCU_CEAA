@@ -408,6 +408,22 @@
   transform: translateY(-1px);
 }
 
+.delete-btn {
+  background: #dc2626;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 /* Empty State */
 .empty-state {
   grid-column: 1 / -1;
@@ -719,6 +735,17 @@
   background: #7c3aed;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.modal-action-btn.delete {
+  background: #dc2626;
+  color: white;
+}
+
+.modal-action-btn.delete:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 /* Responsive Modal */
