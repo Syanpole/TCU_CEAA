@@ -6,7 +6,6 @@ import '@testing-library/jest-dom';
 
 // Mock IntersectionObserver for tests
 (global as any).IntersectionObserver = class IntersectionObserver {
-  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {}
   disconnect() {}
   observe() {}
   unobserve() {}

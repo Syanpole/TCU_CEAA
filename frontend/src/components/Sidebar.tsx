@@ -6,7 +6,6 @@ import {
   DocumentIcon, 
   GradeIcon, 
   ApplicationIcon, 
-  RequirementsIcon, 
   SettingsIcon, 
   LogoutIcon,
 } from './Icons';
