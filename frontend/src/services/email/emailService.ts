@@ -1,4 +1,4 @@
-﻿import emailjs from '@emailjs/browser';
+import emailjs from '@emailjs/browser';
 
 emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY || '');
 
@@ -86,4 +86,5 @@ export const sendCustomEmail = async (
   }
 };
 
-export default { sendApplicationConfirmationEmail, sendApprovalEmail, sendCustomEmail };
+const emailService = { sendApplicationConfirmationEmail, sendApprovalEmail, sendCustomEmail };
+export default emailService;

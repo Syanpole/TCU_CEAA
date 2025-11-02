@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
-import { safeToFixed, formatCurrency } from '../utils/numberUtils';
+import { formatCurrency } from '../utils/numberUtils';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {

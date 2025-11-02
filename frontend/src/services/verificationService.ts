@@ -99,8 +99,10 @@ export const resendVerificationCode = async (email: string): Promise<Verificatio
   }
 };
 
-export default {
+const verificationService = {
   sendVerificationCode,
   verifyEmailCode,
   resendVerificationCode
 };
+
+export default verificationService;
