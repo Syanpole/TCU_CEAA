@@ -123,26 +123,51 @@ export const documentService = {
     }
   },
 
-  // Document type labels
+  // Document type labels - SYNCED WITH BACKEND
   getDocumentTypeLabel(documentType: string): string {
     const labels: { [key: string]: string } = {
-      birth_certificate: 'Birth Certificate',
-      school_id: 'School ID',
-      report_card: 'Report Card/Grades',
+      // Simplified Required Documents
+      academic_records: 'Academic Records (Grade 10/12 Report Card, Certificate, or Diploma)',
+      valid_id: 'Valid ID (School ID, Birth Certificate, or Government-issued ID)',
       certificate_of_enrollment: 'Certificate of Enrollment',
-      enrollment_certificate: 'Certificate of Enrollment', // Legacy support
       transcript_of_records: 'Transcript of Records',
+      
+      // Required Documents (New Applicants)
+      junior_hs_certificate: 'Junior High School Certificate/Grade 10 Report Card',
+      senior_hs_diploma: 'Senior High School Diploma/Grade 12 Report Card',
+      school_id: 'School ID or Valid Government-issued ID',
+      birth_certificate: 'Birth Certificate (PSA/NSO/Civil Registry)',
       grade_10_report_card: 'Grade 10 Report Card',
       grade_12_report_card: 'Grade 12 Report Card',
       diploma: 'Diploma',
+      
+      // Other Necessary Documents
+      form_137: 'Form 137 (Certified True Copy)',
+      als_certificate: 'ALS Certificate',
+      death_certificate: 'Death Certificate (PSA/NSO/Civil Registry)',
+      work_contract_visa: 'Work Contract/VISA/Passport (OFW)',
+      comelec_stub: 'Comelec Stub (after May 2022)',
+      
+      // Valid Government-issued IDs
+      umid_card: 'UMID Card',
+      drivers_license: 'Driver\'s License',
+      passport: 'Passport',
+      sss_id: 'SSS ID',
+      voters_id: 'Voter\'s ID',
+      bir_tin_id: 'BIR (TIN) ID',
+      pag_ibig_id: 'Pag-IBIG ID',
+      company_id: 'Company ID',
+      postal_id: 'Postal ID',
+      philhealth_id: 'PhilHealth ID',
+      philsys_id: 'Philippine National ID (PhilSys)',
+      afp_beneficiary_id: 'AFP Beneficiary/Dependent\'s ID',
+      
+      // Legacy support
+      enrollment_certificate: 'Certificate of Enrollment',
+      report_card: 'Report Card/Grades',
       barangay_clearance: 'Barangay Clearance',
       parents_id: 'Parent\'s Valid ID',
       voter_certification: 'Voter\'s Certification',
-      academic_records: 'Academic Records',
-      valid_id: 'Valid ID',
-      junior_hs_certificate: 'Junior High School Certificate',
-      senior_hs_diploma: 'Senior High School Diploma',
-      form_137: 'Form 137',
       other: 'Other Document',
       others: 'Others'
     };

@@ -20,6 +20,7 @@ class CustomUser(AbstractUser):
     profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
     is_email_verified = models.BooleanField(default=False, help_text="Email verification status")
     created_at = models.DateTimeField(auto_now_add=True)
+    ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
     
     def is_admin(self):
         return self.role == 'admin'
@@ -153,6 +154,7 @@ class DocumentSubmission(models.Model):
     ai_recommendations = models.JSONField(default=list, blank=True)
     ai_auto_approved = models.BooleanField(default=False)
     ai_analysis_notes = models.TextField(blank=True, null=True)
+    address_match_score = models.FloatField(default=0.0, help_text="Address matching confidence score (0.0-1.0)")
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -335,7 +337,10 @@ class GradeSubmission(models.Model):
             return self._basic_allowance_calculation_autonomous()
     
     def _basic_allowance_calculation_autonomous(self):
-        """Fallback basic calculation method - Autonomous processing"""
+        """
+        Fallback basic calculation method - Autonomous processing
+        NEW RULE: Name verification success = Auto approve = ₱5,000 basic allowance
+        """
         # Convert GWA to percentage for calculation
         gwa_percent = self.get_gwa_percentage()
         swa_percent = self.get_swa_percentage()
@@ -346,9 +351,14 @@ class GradeSubmission(models.Model):
         # GWA 1.0 to 1.75  → Basic (₱5,000) + Merit (₱5,000) = ₱10,000
         # GWA 1.76 to 2.5  → Basic (₱5,000) ONLY
         # GWA 2.51 and above → NOT ELIGIBLE
-        
+        #
+        # If name verification (AI) passes, auto-approve for basic allowance (₱5,000)
+        #
         # Basic Educational Assistance (₱5,000): GWA ≤ 2.5 (80%), no fails/inc/drops, ≥15 units
         # GWA 2.5 = 80% is the cutoff - anything 2.5 or better (lower number) qualifies
+        #
+        # If AI name verification is enabled and passed, override to auto-approve basic_eligible
+        # Otherwise, use the strict rule
         basic_eligible = (
             gwa_value <= 2.5 and
             self.total_units >= 15 and
@@ -356,13 +366,18 @@ class GradeSubmission(models.Model):
             not self.has_incomplete_grades and
             not self.has_dropped_subjects
         )
-        
+        # If AI name verification is enabled and passed, override:
+        if getattr(self, 'ai_verification_score', 0.0) >= 0.75:
+            basic_eligible = True
+        #
         # Merit Incentive (₱5,000): GWA ≤ 1.75 (87%) on 10-point scale
-        # Only students with GWA 1.0 to 1.75 qualify for Merit
-        # 1.0 GWA = 98% → Merit + Basic
-        # 1.5 GWA = 91% → Merit + Basic
-        # 1.75 GWA = 87% → Merit + Basic
-        # 1.76+ GWA = Below Merit threshold → Basic ONLY
+        merit_eligible = (
+            gwa_value <= 1.75 and
+            self.total_units >= 15 and
+            not self.has_failing_grades and
+            not self.has_incomplete_grades and
+            not self.has_dropped_subjects
+        )
         merit_eligible = (
             gwa_value <= 1.75 and
             self.total_units >= 15 and
@@ -374,16 +389,15 @@ class GradeSubmission(models.Model):
         self.qualifies_for_basic_allowance = basic_eligible
         self.qualifies_for_merit_incentive = merit_eligible
         self.ai_evaluation_completed = True
-        
-        # Autonomous approval
         self.status = 'approved'
         self.reviewed_at = timezone.now()
-        
-        # Generate basic evaluation notes
         notes = []
         notes.append("🤖 Autonomous AI Processing - Auto-Approved")
         notes.append("=" * 40)
-        
+        if getattr(self, 'ai_verification_score', 0.0) >= 0.75:
+            notes.append("✅ NAME VERIFIED: Your identity has been confirmed on the grade sheet")
+            notes.append("🎉 AUTO-APPROVED: ₱5,000 Basic Allowance automatically granted")
+            notes.append("")
         if basic_eligible:
             notes.append("✅ Qualifies for Basic Educational Assistance (₱5,000)")
         else:
@@ -415,6 +429,7 @@ class GradeSubmission(models.Model):
             if self.has_dropped_subjects:
                 reasons.append("Has dropped subjects")
             notes.append(f"❌ Does not qualify for Merit Incentive: {', '.join(reasons)}")
+
         
         total_allowance = 0
         if basic_eligible:

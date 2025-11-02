@@ -1,10 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
 from .views import (
     TaskViewSet, UserViewSet, DocumentSubmissionViewSet, GradeSubmissionViewSet, AllowanceApplicationViewSet,
     login_view, logout_view, register_view, user_profile, check_admin, students_list,
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
-    send_verification_code, verify_email_code, resend_verification_code
+    send_verification_code, verify_email_code, resend_verification_code,
+    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process
 )
 
 router = DefaultRouter()
@@ -31,5 +33,16 @@ urlpatterns = [
     path('api/audit-logs/', audit_logs_list, name='audit-logs'),
     path('api/analytics/', analytics_overview, name='analytics'),
     path('api/ai-stats/', ai_stats, name='ai-stats'),
+    # 🤖 Comprehensive AI System Endpoints
+    path('api/ai/analyze-document/', ai_document_analysis, name='ai-document-analysis'),
+    path('api/ai/status/<int:document_id>/', ai_analysis_status, name='ai-analysis-status'),
+    path('api/ai/dashboard-stats/', ai_dashboard_stats, name='ai-dashboard-stats'),
+    path('api/ai/batch-process/', ai_batch_process, name='ai-batch-process'),
+    
+    # 🤖 Comprehensive AI System Endpoints
+    path('api/ai/analyze-document/', ai_document_analysis, name='ai-document-analysis'),
+    path('api/ai/status/<int:document_id>/', ai_analysis_status, name='ai-analysis-status'),
+    path('api/ai/dashboard-stats/', ai_dashboard_stats, name='ai-dashboard-stats'),
+    path('api/ai/batch-process/', ai_batch_process, name='ai-batch-process'),
 ]
 

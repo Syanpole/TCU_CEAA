@@ -103,7 +103,7 @@ jobs:
         run: |
           cd backend
           echo "🧪 Running comprehensive dependency tests..."
-          python test_ci_dependency_resolution.py
+          python ../tests/backend/integration_tests/test_ci_dependency_resolution.py
           
           echo "🔍 Checking individual components..."
           python -c "import sys; print(f'Python version: {sys.version}')"

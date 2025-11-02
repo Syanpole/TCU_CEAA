@@ -1,0 +1,246 @@
+"""
+Test suite for CI dependency resolution and compatibility verification.
+This module tests that all required dependencies can be installed and work correctly in CI environment.
+"""
+
+import unittest
+import sys
+import os
+import subprocess
+import importlib
+import json
+
+
+class TestCIDependencyResolution(unittest.TestCase):
+    """Test CI dependency installation and compatibility"""
+
+    def setUp(self):
+        """Set up test environment"""
+        self.critical_dependencies = [
+            'django',
+            'rest_framework', 
+            'corsheaders',
+            'PIL',
+            'PyPDF2',
+            'docx',
+            'numpy'
+        ]
+        
+        self.optional_dependencies = [
+            'cv2',
+            'pytesseract',
+            'nltk',
+            'textblob',
+            'pdfplumber'
+        ]
+
+    def test_critical_dependencies_available(self):
+        """Test that all critical dependencies are available"""
+        print("Testing Testing critical dependencies...")
+        
+        missing_deps = []
+        for dep in self.critical_dependencies:
+            try:
+                importlib.import_module(dep)
+                print(f"   OK {dep}: Available")
+            except ImportError as e:
+                missing_deps.append(dep)
+                print(f"   FAIL {dep}: Missing - {e}")
+        
+        self.assertEqual(len(missing_deps), 0, 
+                        f"Critical dependencies missing: {missing_deps}")
+
+    def test_optional_dependencies_graceful_fallback(self):
+        """Test that optional dependencies fail gracefully"""
+        print("Testing Testing optional dependencies fallback...")
+        
+        for dep in self.optional_dependencies:
+            try:
+                importlib.import_module(dep)
+                print(f"   OK {dep}: Available")
+            except ImportError:
+                print(f"   WARN  {dep}: Not available (graceful fallback)")
+        
+        # This test always passes - we just log availability
+        self.assertTrue(True, "Optional dependencies handled gracefully")
+
+    def test_django_setup_compatibility(self):
+        """Test Django environment setup works correctly"""
+        print("Testing Testing Django environment setup...")
+        
+        try:
+            # Add backend directory to Python path for Django imports
+            test_dir = os.path.dirname(__file__)
+            backend_dir = os.path.join(test_dir, '..', '..', '..', 'backend')
+            backend_abs_path = os.path.abspath(backend_dir)
+            if backend_abs_path not in sys.path:
+                sys.path.insert(0, backend_abs_path)
+            
+            # Set up Django environment
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
+            
+            import django
+            from django.conf import settings
+            
+            if not settings.configured:
+                django.setup()
+            
+            print(f"   OK Django {django.get_version()}: Configured successfully")
+            
+            # Test database connection - handle gracefully if DB is not available
+            try:
+                from django.db import connection
+                cursor = connection.cursor()
+                print(f"   OK Database: {connection.vendor} connection successful")
+            except Exception as db_error:
+                # Database connection is optional in CI - gracefully handle
+                print(f"   WARN  Database: Not available (OK for CI) - {type(db_error).__name__}")
+                print(f"      This is expected if PostgreSQL service is not running")
+            
+            self.assertTrue(True)
+            
+        except Exception as e:
+            # Only fail if it's not a database connection error
+            if "connection" not in str(e).lower() and "database" not in str(e).lower():
+                self.fail(f"Django setup failed: {e}")
+            else:
+                print(f"   WARN  Database connection issue (non-critical): {type(e).__name__}")
+                self.assertTrue(True, "Django setup successful, database optional")
+
+    def test_ai_package_compatibility(self):
+        """Test AI/ML package compatibility"""
+        print("Testing Testing AI/ML package compatibility...")
+        
+        # Test NumPy
+        try:
+            import numpy as np
+            test_array = np.array([1, 2, 3])
+            self.assertEqual(len(test_array), 3)
+            print(f"   OK NumPy {np.__version__}: Working correctly")
+        except Exception as e:
+            self.fail(f"NumPy compatibility test failed: {e}")
+        
+        # Test PIL/Pillow
+        try:
+            from PIL import Image
+            # Create a simple test image
+            test_img = Image.new('RGB', (100, 100), color='red')
+            self.assertEqual(test_img.size, (100, 100))
+            print(f"   OK Pillow: Working correctly")
+        except Exception as e:
+            self.fail(f"Pillow compatibility test failed: {e}")
+        
+        # Test PDF processing
+        try:
+            import PyPDF2
+            print(f"   OK PyPDF2: Available for PDF processing")
+        except ImportError:
+            print(f"   WARN  PyPDF2: Not available")
+        
+        try:
+            import pdfplumber
+            print(f"   OK pdfplumber: Available for PDF processing")
+        except ImportError:
+            print(f"   WARN  pdfplumber: Not available")
+
+    def test_requirements_file_validity(self):
+        """Test that requirements-ci.txt is valid and installable"""
+        print("Testing Testing requirements file validity...")
+        
+        # Look for requirements file in backend directory (relative to test location)
+        test_dir = os.path.dirname(__file__)
+        backend_dir = os.path.join(test_dir, '..', '..', '..', 'backend')
+        requirements_path = os.path.join(backend_dir, 'requirements-ci.txt')
+        
+        if os.path.exists(requirements_path):
+            print(f"   OK requirements-ci.txt: Found")
+            
+            # Read and validate requirements format
+            with open(requirements_path, 'r') as f:
+                lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            
+            invalid_lines = []
+            for line in lines:
+                if '==' not in line and '>=' not in line and not line.isalpha():
+                    invalid_lines.append(line)
+            
+            self.assertEqual(len(invalid_lines), 0, 
+                           f"Invalid requirement lines: {invalid_lines}")
+            print(f"   OK Requirements format: Valid ({len(lines)} packages)")
+        else:
+            print(f"   WARN  requirements-ci.txt: Not found, using default requirements")
+
+    def test_python_version_compatibility(self):
+        """Test Python version compatibility"""
+        print("Testing Testing Python version compatibility...")
+        
+        python_version = sys.version_info
+        print(f"   INFO  Python version: {python_version.major}.{python_version.minor}.{python_version.micro}")
+        
+        # Ensure minimum Python 3.8 support
+        self.assertGreaterEqual(python_version.major, 3)
+        self.assertGreaterEqual(python_version.minor, 8)
+        
+        print(f"   OK Python version: Compatible")
+
+    def test_environment_variables(self):
+        """Test required environment variables"""
+        print("Testing Testing environment variables...")
+        
+        required_vars = ['DJANGO_SETTINGS_MODULE']
+        optional_vars = ['DEBUG', 'SECRET_KEY']
+        
+        for var in required_vars:
+            value = os.environ.get(var)
+            if value:
+                print(f"   OK {var}: Set")
+            else:
+                print(f"   WARN  {var}: Not set (will use default)")
+        
+        for var in optional_vars:
+            value = os.environ.get(var)
+            if value:
+                print(f"   OK {var}: Set")
+            else:
+                print(f"   INFO  {var}: Not set (optional)")
+
+
+def run_dependency_tests():
+    """Run all dependency tests with detailed output"""
+    print("TEST CI Dependency Resolution Test Suite")
+    print("=" * 50)
+    
+    # Create test suite
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestCIDependencyResolution)
+    
+    # Run tests with verbose output
+    runner = unittest.TextTestRunner(verbosity=2, stream=sys.stdout)
+    result = runner.run(suite)
+    
+    print("\n" + "=" * 50)
+    print("Summary Test Summary:")
+    print(f"   Tests run: {result.testsRun}")
+    print(f"   Failures: {len(result.failures)}")
+    print(f"   Errors: {len(result.errors)}")
+    
+    if result.failures:
+        print("\nFAIL Failures:")
+        for test, traceback in result.failures:
+            print(f"   - {test}: {traceback}")
+    
+    if result.errors:
+        print("\nERROR Errors:")
+        for test, traceback in result.errors:
+            print(f"   - {test}: {traceback}")
+    
+    if result.wasSuccessful():
+        print("\nSUCCESS All dependency tests passed! CI environment is ready.")
+    else:
+        print("\nWARN  Some dependency tests failed. Check logs above.")
+    
+    return result.wasSuccessful()
+
+
+if __name__ == '__main__':
+    success = run_dependency_tests()
+    sys.exit(0 if success else 1)

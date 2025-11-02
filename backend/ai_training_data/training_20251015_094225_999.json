@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-10-15T09:42:25.788628",
+  "document_id": 999,
+  "document_type": "birth_certificate",
+  "ocr_results": {
+    "extracted_text": "CERTIFICATE OF LIVE BIRTH REPUBLIC OF THE PHILIPPINES",
+    "similarity_score": 0.85,
+    "confidence_level": "high"
+  },
+  "admin_decision": "approved",
+  "admin_notes": "Test training data",
+  "extracted_text_length": 53,
+  "ocr_similarity": 0.85,
+  "confidence_level": "high"
+}

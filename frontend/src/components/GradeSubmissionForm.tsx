@@ -215,12 +215,37 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       let errorMessage = 'Failed to submit grades';
       
       if (error.response?.data) {
+        // Check for fraud rejection (admin_notes contains rejection reason)
+        if (error.response.data.admin_notes && error.response.data.admin_notes.includes('FRAUD ALERT')) {
+          // Fraud detected by AI - show detailed message
+          errorMessage = error.response.data.admin_notes;
+          setNotificationType('error');
+          setNotificationMessage(errorMessage);
+          setShowNotification(true);
+          return; // Don't set error, use notification modal instead
+        }
+        
         if (typeof error.response.data === 'string') {
           errorMessage = error.response.data;
         } else if (error.response.data.detail) {
           errorMessage = error.response.data.detail;
         } else if (error.response.data.error) {
           errorMessage = error.response.data.error;
+        } else if (error.response.data.grade_sheet) {
+          // Handle grade_sheet field errors (this is where rejection message appears)
+          const gradeSheetError = Array.isArray(error.response.data.grade_sheet) 
+            ? error.response.data.grade_sheet[0] 
+            : error.response.data.grade_sheet;
+          
+          // Check if it's a fraud rejection
+          if (typeof gradeSheetError === 'string' && gradeSheetError.includes('SECURITY REJECTION')) {
+            setNotificationType('error');
+            setNotificationMessage(`🚨 Grade Sheet Rejected\n\n${gradeSheetError}`);
+            setShowNotification(true);
+            return;
+          }
+          
+          errorMessage = `Grade Sheet Error: ${gradeSheetError}`;
         } else if (error.response.data.general_weighted_average) {
           errorMessage = `GWA Error: ${error.response.data.general_weighted_average[0]}`;
         } else if (error.response.data.non_field_errors) {

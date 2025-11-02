@@ -19,6 +19,7 @@ from .advanced_algorithms import (
     AIVerificationManager,
     CosineSimilarityAnalyzer
 )
+from .ai_generated_detector import AIGeneratedDetector
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class IntegratedVerificationService:
         self.fraud_detector = FraudDetector()
         self.verification_manager = AIVerificationManager()
         self.cosine_analyzer = CosineSimilarityAnalyzer()
+        self.ai_generated_detector = AIGeneratedDetector()
         
         logger.info("✅ Integrated AI Verification Service initialized with all 6 algorithms")
     
@@ -96,6 +98,27 @@ class IntegratedVerificationService:
                     cosine_result = self.cosine_analyzer.compare_multi_field(user_data, document_data)
                     result['algorithm_results']['cosine_similarity'] = cosine_result
                     result['algorithms_executed'].append('cosine_similarity')
+            
+            # AI-Generated Content Detection
+            try:
+                ai_detection_result = self.ai_generated_detector.detect_ai_generated(
+                    temp_path, 
+                    'auto'
+                )
+                result['algorithm_results']['ai_generated_detection'] = ai_detection_result
+                result['algorithms_executed'].append('ai_generated_detection')
+                
+                # If high probability of AI generation, flag for review
+                if ai_detection_result.get('ai_probability', 0.0) >= 0.7:
+                    result['recommendations'].append("⚠️ HIGH RISK: Document may be AI-generated")
+                    result['decision'] = 'manual_review'
+                    
+            except Exception as e:
+                logger.warning(f"AI generation detection failed: {e}")
+                result['algorithm_results']['ai_generated_detection'] = {
+                    'error': str(e),
+                    'ai_probability': 0.0
+                }
             
             # Generate comprehensive recommendations
             recommendations = self._generate_recommendations(verification_results, document_submission)
