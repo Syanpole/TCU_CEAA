@@ -2,6 +2,8 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
+from django.utils import timezone
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -20,9 +22,21 @@ class AuthenticationTestCase(TestCase):
 
     def test_user_registration(self):
         """Test user registration with valid data"""
+        # Import EmailVerificationCode model
+        from .models import EmailVerificationCode
+        
+        # Create a valid verification code for testing
+        verification = EmailVerificationCode.objects.create(
+            email='test@tcu.edu',
+            code='123456',
+            expires_at=timezone.now() + timedelta(minutes=10),
+            is_used=True  # Mark as used since verification already passed
+        )
+        
         response = self.client.post('/api/auth/register/', {
             **self.user_data,
-            'password_confirm': 'testpass123'
+            'password_confirm': 'testpass123',
+            'verification_code': '123456'  # Include verification code
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('token', response.data)
@@ -30,8 +44,10 @@ class AuthenticationTestCase(TestCase):
 
     def test_user_login(self):
         """Test user login with valid credentials"""
-        # Create user first
-        User.objects.create_user(**self.user_data)
+        # Create user first with email verified
+        user = User.objects.create_user(**self.user_data)
+        user.is_email_verified = True  # Mark email as verified
+        user.save()
         
         response = self.client.post('/api/auth/login/', {
             'username': 'testuser',

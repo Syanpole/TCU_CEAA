@@ -38,7 +38,8 @@ try:
 except ImportError:
     print("❌ FAIL: EasyOCR not installed")
     print("   Install with: pip install easyocr")
-    sys.exit(1)
+    print("   Note: Skipping EasyOCR tests, will use Tesseract fallback")
+    # Don't exit - allow tests to continue with Tesseract fallback
 
 print()
 

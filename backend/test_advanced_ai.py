@@ -9,8 +9,9 @@ import django
 import json
 from pathlib import Path
 
-# Setup Django
-os.chdir(r'D:\xp\htdocs\TCU_CEAA\backend')
+# Setup Django - use current directory instead of hardcoded path
+current_dir = Path(__file__).parent.absolute()
+os.chdir(str(current_dir))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 django.setup()
 
