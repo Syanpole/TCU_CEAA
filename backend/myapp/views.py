@@ -37,12 +37,11 @@ def login_view(request):
         
     # Log successful login
     audit_logger.log_user_login(user, request, success=True)
-        
-        return Response({
-            'token': token.key,
-            'user': UserSerializer(user, context={'request': request}).data,
-            'message': 'Login successful'
-        }, status=status.HTTP_200_OK)
+    return Response({
+        'token': token.key,
+        'user': UserSerializer(user, context={'request': request}).data,
+        'message': 'Login successful'
+    }, status=status.HTTP_200_OK)
     
     # Log failed login attempt
     username = request.data.get('username', 'unknown')
@@ -726,7 +725,6 @@ def ai_stats(request):
         }
     })
 
-<<<<<<< HEAD
 
 # Email Verification Endpoints
 @api_view(['POST'])
@@ -821,6 +819,7 @@ def verify_email_code(request):
             'error': 'Email and verification code are required'
         }, status=status.HTTP_400_BAD_REQUEST)
     
+    from django.db.models import F
     try:
         # Find the most recent unused code for this email
         verification = EmailVerificationCode.objects.filter(
@@ -846,7 +845,7 @@ def verify_email_code(request):
             EmailVerificationCode.objects.filter(
                 email=email,
                 is_used=False
-            ).update(attempts=models.F('attempts') + 1)
+            ).update(attempts=F('attempts') + 1)
             
             return Response({
                 'error': 'Invalid verification code. Please check and try again.'
@@ -936,7 +935,6 @@ def resend_verification_code(request):
             'error': 'Failed to resend verification code. Please try again.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-=======
 # ============================================================================
 # 🤖 COMPREHENSIVE AI SYSTEM ENDPOINTS
 # ============================================================================
@@ -1252,8 +1250,9 @@ def ai_dashboard_stats(request):
             submitted_at__gte=timezone.now() - timezone.timedelta(days=30)
         )
         
+        from django.db.models import Avg
         avg_confidence = recent_processed.aggregate(
-            avg_confidence=models.Avg('ai_confidence_score')
+            avg_confidence=Avg('ai_confidence_score')
         )['avg_confidence'] or 0.0
         
         # Processing speed metrics
@@ -1348,4 +1347,3 @@ def ai_batch_process(request):
             'error': f'Batch processing failed: {str(e)}',
             'success': False
         }, status=500)
->>>>>>> a49482405785a9850bd80364513da05c8dad1f57
