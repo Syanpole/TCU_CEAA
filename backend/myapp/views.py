@@ -765,11 +765,10 @@ def send_verification_code(request):
         created_at__gte=timezone.now() - timedelta(minutes=5)
     ).count()
     
-    # TEMPORARILY DISABLED FOR TESTING - Re-enable in production
-    # if recent_codes >= 3:
-    #     return Response({
-    #         'error': 'Too many verification code requests. Please wait 5 minutes and try again.'
-    #     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    if recent_codes >= 3:
+        return Response({
+            'error': 'Too many verification code requests. Please wait 5 minutes and try again.'
+        }, status=status.HTTP_429_TOO_MANY_REQUESTS)
     
     try:
         # Create verification code
@@ -899,11 +898,10 @@ def resend_verification_code(request):
         created_at__gte=timezone.now() - timedelta(minutes=2)
     ).count()
     
-    # TEMPORARILY DISABLED FOR TESTING - Re-enable in production
-    # if recent_codes >= 1:
-    #     return Response({
-    #         'error': 'Please wait at least 2 minutes before requesting a new code.'
-    #     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    if recent_codes >= 1:
+        return Response({
+            'error': 'Please wait at least 2 minutes before requesting a new code.'
+        }, status=status.HTTP_429_TOO_MANY_REQUESTS)
     
     try:
         # Create new verification code

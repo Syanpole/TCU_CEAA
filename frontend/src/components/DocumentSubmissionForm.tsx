@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/authService';
-import { RequirementsIcon, WarningIcon } from './Icons';
 import NotificationModal from './NotificationModal';
 import './DocumentSubmissionForm.css';
 

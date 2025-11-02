@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
-import { UploadIcon, CheckIcon } from './Icons';
+import { CheckIcon } from './Icons';
 import './DocumentsPage.css';
 
 interface DocumentSubmission {
