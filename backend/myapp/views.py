@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.db import models
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent
 from .audit_logger import audit_logger
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
@@ -62,6 +62,19 @@ def register_view(request):
         user = serializer.save()
         token, created = Token.objects.get_or_create(user=user)
         
+        # Link verified student record if student_id is provided
+        if user.student_id:
+            try:
+                verified_student = VerifiedStudent.objects.get(
+                    student_id=user.student_id,
+                    is_active=True
+                )
+                verified_student.has_registered = True
+                verified_student.registered_user = user
+                verified_student.save()
+            except VerifiedStudent.DoesNotExist:
+                pass  # Already verified during verification step
+        
         # Log user registration
         audit_logger.log_user_registration(user, request)
         
@@ -72,6 +85,75 @@ def register_view(request):
         }, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_student_view(request):
+    """
+    Verify student information against verified student database before registration.
+    
+    Expected payload:
+    {
+        "student_id": "22-00001",
+        "first_name": "Vennee Jones",
+        "last_name": "Abaigar",
+        "middle_initial": "R"
+    }
+    """
+    student_id = request.data.get('student_id', '').strip()
+    first_name = request.data.get('first_name', '').strip()
+    last_name = request.data.get('last_name', '').strip()
+    middle_initial = request.data.get('middle_initial', '').strip()
+    
+    # Validate required fields
+    if not student_id or not first_name or not last_name:
+        return Response({
+            'verified': False,
+            'message': 'Student ID, First Name, and Last Name are required.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Look up verified student in database
+    try:
+        verified_student = VerifiedStudent.objects.get(
+            student_id=student_id.upper(),
+            is_active=True
+        )
+    except VerifiedStudent.DoesNotExist:
+        return Response({
+            'verified': False,
+            'message': 'Student ID not found in verified records.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Check if student has already registered
+    if verified_student.has_registered:
+        return Response({
+            'verified': False,
+            'message': 'This student has already registered. Please contact the administrator if you need assistance.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Verify identity using the model's method
+    result = verified_student.verify_identity(first_name, last_name, middle_initial)
+    
+    if result['verified']:
+        # Log successful verification (optional)
+        audit_logger.log_action(
+            user=None,
+            action='STUDENT_VERIFIED',
+            description=f"Student {student_id} successfully verified for registration",
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT')
+        )
+        return Response(result, status=status.HTTP_200_OK)
+    else:
+        # Log failed verification attempt
+        audit_logger.log_action(
+            user=None,
+            action='STUDENT_VERIFICATION_FAILED',
+            description=f"Failed verification attempt for student ID {student_id}: {result['message']}",
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT')
+        )
+        return Response(result, status=status.HTTP_403_FORBIDDEN)
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
@@ -688,13 +770,10 @@ def ai_document_analysis(request):
         document.save()
         
         # Import AI services
-        from ai_verification.verification_manager import verification_manager
         from ai_verification.enhanced_document_validator import EnhancedDocumentValidator
-        from ai_verification.base_verifier import BaseDocumentVerifier
         
         # Initialize AI components
         enhanced_validator = EnhancedDocumentValidator()
-        base_verifier = BaseDocumentVerifier()
         
         # Run comprehensive AI analysis
         ai_results = {

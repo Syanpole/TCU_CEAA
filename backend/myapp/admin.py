@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics
+from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -28,6 +28,56 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = ['student_id', 'first_name', 'last_name', 'email', 'enrollment_date']
     list_filter = ['enrollment_date']
     search_fields = ['student_id', 'first_name', 'last_name', 'email']
+
+@admin.register(VerifiedStudent)
+class VerifiedStudentAdmin(admin.ModelAdmin):
+    list_display = ['student_id', 'get_full_name', 'course', 'year_level', 'is_active', 'has_registered', 'added_at']
+    list_filter = ['is_active', 'has_registered', 'course', 'year_level', 'sex', 'added_at']
+    search_fields = ['student_id', 'first_name', 'last_name']
+    readonly_fields = ['added_at', 'updated_at', 'added_by']
+    
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('student_id', 'first_name', 'last_name', 'middle_initial', 'sex')
+        }),
+        ('Academic Information', {
+            'fields': ('course', 'year_level')
+        }),
+        ('Registration Status', {
+            'fields': ('is_active', 'has_registered', 'registered_user')
+        }),
+        ('Audit Information', {
+            'fields': ('added_by', 'added_at', 'updated_at', 'notes'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_full_name(self, obj):
+        mi = f" {obj.middle_initial}." if obj.middle_initial and obj.middle_initial != 'N/A' else ""
+        return f"{obj.first_name}{mi} {obj.last_name}"
+    get_full_name.short_description = 'Full Name'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Only set added_by on creation
+            obj.added_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    actions = ['activate_students', 'deactivate_students', 'reset_registration_status']
+    
+    def activate_students(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'Successfully activated {updated} student(s).')
+    activate_students.short_description = 'Activate selected students'
+    
+    def deactivate_students(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'Successfully deactivated {updated} student(s).')
+    deactivate_students.short_description = 'Deactivate selected students'
+    
+    def reset_registration_status(self, request, queryset):
+        updated = queryset.update(has_registered=False, registered_user=None)
+        self.message_user(request, f'Successfully reset registration status for {updated} student(s).')
+    reset_registration_status.short_description = 'Reset registration status'
 
 @admin.register(DocumentSubmission)
 class DocumentSubmissionAdmin(admin.ModelAdmin):
