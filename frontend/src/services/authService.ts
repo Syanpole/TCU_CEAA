@@ -38,6 +38,20 @@ export interface ProfileImageResponse {
   profile_image?: string;
 }
 
+export interface VerifyStudentResponse {
+  verified: boolean;
+  message: string;
+  student_data?: {
+    student_id: string;
+    first_name: string;
+    last_name: string;
+    middle_initial: string;
+    sex: string;
+    course: string;
+    year: number;
+  };
+}
+
 // Create axios instance with interceptor for authentication
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -57,6 +71,21 @@ export const authService = {
     const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login/`, {
       username,
       password,
+    });
+    return response.data;
+  },
+
+  verifyStudent: async (studentData: {
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    middleInitial: string;
+  }): Promise<VerifyStudentResponse> => {
+    const response = await axios.post<VerifyStudentResponse>(`${API_BASE_URL}/auth/verify-student/`, {
+      student_id: studentData.studentId,
+      first_name: studentData.firstName,
+      last_name: studentData.lastName,
+      middle_initial: studentData.middleInitial,
     });
     return response.data;
   },

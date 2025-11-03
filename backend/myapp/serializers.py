@@ -872,6 +872,40 @@ class GradeSubmissionCreateSerializer(serializers.ModelSerializer):
                  'semestral_weighted_average', 'grade_sheet', 'has_failing_grades', 
                  'has_incomplete_grades', 'has_dropped_subjects']
     
+    def validate_grade_sheet(self, value):
+        """
+        Validate grade sheet file upload with comprehensive security checks.
+        """
+        # Check file size (max 10MB)
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError('File size cannot exceed 10MB.')
+        
+        # Check minimum file size (prevent empty or too small files)
+        if value.size < 1024:  # Less than 1KB
+            raise serializers.ValidationError('File seems too small. Please ensure you uploaded a valid grade sheet.')
+        
+        # Check file type
+        allowed_types = [
+            'application/pdf', 
+            'image/jpeg', 
+            'image/png', 
+            'image/jpg',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
+            'application/vnd.ms-excel'  # .xls
+        ]
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                'Invalid file type. Only PDF, JPG, PNG, XLS, and XLSX files are allowed for grade sheets.'
+            )
+        
+        # Check for executable content (security)
+        filename = value.name.lower() if hasattr(value, 'name') else ''
+        dangerous_extensions = ['.exe', '.bat', '.cmd', '.sh', '.php', '.js', '.vbs']
+        if any(filename.endswith(ext) for ext in dangerous_extensions):
+            raise serializers.ValidationError('This file type is not allowed for security reasons.')
+        
+        return value
+    
     def validate_general_weighted_average(self, value):
         """
         Validate GWA - accepts both point scale (1.00-5.00) and percentage (65-100)

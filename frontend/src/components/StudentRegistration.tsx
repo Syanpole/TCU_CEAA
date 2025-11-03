@@ -62,26 +62,59 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
     setError('');
     setLoading(true);
 
-    // Validation
-    if (!validateStudentId(formData.studentId)) {
-      setError('Student ID must be in format: XX-XXXXX (e.g., 22-00001)');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setLoading(false);
-      return;
-    }
-
     try {
+      // Step 1: Frontend Validation
+      if (!validateStudentId(formData.studentId)) {
+        setError('Student ID must be in format: XX-XXXXX (e.g., 22-00001)');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.password.length < 8) {
+        setError('Password must be at least 8 characters long');
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Verify Student Information
+      try {
+        const verificationResult = await authService.verifyStudent({
+          studentId: formData.studentId,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          middleInitial: formData.middleInitial.replace('.', '').trim()
+        });
+
+        if (!verificationResult.verified) {
+          setError(`Verification failed: ${verificationResult.message}`);
+          setLoading(false);
+          return;
+        }
+      } catch (verificationError: any) {
+        console.error('Verification error:', verificationError);
+        if (verificationError.response?.status === 403) {
+          // Student not verified
+          const errorData = verificationError.response?.data;
+          setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
+        } else if (verificationError.response?.status === 400) {
+          // Bad request
+          const errorData = verificationError.response?.data;
+          setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
+        } else {
+          // Network or other errors
+          setError('Verification failed: Unable to verify student information. Please try again later.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Proceed with Registration (only if verification passed)
       await authService.register({
         username: formData.username,
         email: formData.email,
@@ -95,22 +128,31 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       });
 
       setSuccess(true);
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      if (error.response?.data) {
-        const errorData = error.response.data;
+    } catch (registrationError: any) {
+      console.error('Registration error:', registrationError);
+      
+      // Differentiate between registration errors and verification errors
+      if (registrationError.response?.data) {
+        const errorData = registrationError.response.data;
+        
         if (typeof errorData === 'string') {
-          setError(errorData);
+          setError(`Registration failed: ${errorData}`);
         } else if (errorData.detail) {
-          setError(errorData.detail);
+          setError(`Registration failed: ${errorData.detail}`);
+        } else if (errorData.username) {
+          setError('Registration failed: This username is already taken. Please choose a different username.');
+        } else if (errorData.email) {
+          setError('Registration failed: This email is already registered.');
+        } else if (errorData.student_id) {
+          setError('Registration failed: This student ID is already registered.');
         } else if (errorData.non_field_errors) {
-          setError(errorData.non_field_errors[0]);
+          setError(`Registration failed: ${errorData.non_field_errors[0]}`);
         } else {
           const errorMessages = Object.values(errorData).flat();
-          setError(errorMessages.join(', '));
+          setError(`Registration failed: ${errorMessages.join(', ')}`);
         }
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Registration failed: An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);

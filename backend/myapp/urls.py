@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     TaskViewSet, UserViewSet, DocumentSubmissionViewSet, GradeSubmissionViewSet, AllowanceApplicationViewSet,
-    login_view, logout_view, register_view, user_profile, check_admin, students_list,
+    login_view, logout_view, register_view, verify_student_view, user_profile, check_admin, students_list,
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
     # 🤖 AI System Views
     ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process
@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/auth/login/', login_view, name='login'),
     path('api/auth/logout/', logout_view, name='logout'),
     path('api/auth/register/', register_view, name='register'),
+    path('api/auth/verify-student/', verify_student_view, name='verify-student'),
     path('api/auth/profile/', user_profile, name='profile'),
     path('api/auth/profile/image/', profile_image, name='profile-image'),
     path('api/auth/check-admin/', check_admin, name='check_admin'),
