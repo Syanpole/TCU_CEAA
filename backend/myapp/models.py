@@ -918,3 +918,101 @@ class EmailVerificationCode(models.Model):
     def __str__(self):
         return f"Verification code for {self.email} - {'Used' if self.is_used else 'Active'}"
 
+
+class BasicQualification(models.Model):
+    """
+    Stores the basic qualification criteria responses for students.
+    This must be completed before students can access documents and grades pages.
+    """
+    APPLICANT_TYPE_CHOICES = [
+        ('new', 'New Applicant'),
+        ('renewing', 'Renewing Applicant'),
+    ]
+    
+    student = models.OneToOneField(
+        CustomUser, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'role': 'student'},
+        related_name='basic_qualification'
+    )
+    
+    # Basic Qualification Questions
+    is_enrolled = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="Currently enrolled at Taguig City University"
+    )
+    is_resident = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="Bona fide resident of Taguig City for at least 3 years"
+    )
+    is_eighteen_or_older = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="18 years old or older"
+    )
+    is_registered_voter = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="Registered voter of the City"
+    )
+    parent_is_voter = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="One parent is an active voter of Taguig City"
+    )
+    has_good_moral_character = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="Possesses good moral character"
+    )
+    is_committed = models.BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="Committed to love and serve Taguig City"
+    )
+    
+    # Applicant Type
+    applicant_type = models.CharField(
+        max_length=10,
+        choices=APPLICANT_TYPE_CHOICES,
+        default='new'
+    )
+    
+    # Status and timestamps
+    is_qualified = models.BooleanField(
+        default=False,
+        help_text="Automatically set to True if all criteria are met"
+    )
+    completed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Basic Qualification"
+        verbose_name_plural = "Basic Qualifications"
+        ordering = ['-completed_at']
+    
+    def save(self, *args, **kwargs):
+        # Automatically determine if qualified based on all answers being True
+        self.is_qualified = all([
+            self.is_enrolled,
+            self.is_resident,
+            self.is_eighteen_or_older,
+            self.is_registered_voter,
+            self.parent_is_voter,
+            self.has_good_moral_character,
+            self.is_committed
+        ])
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Qualification for {self.student.username} - {'Qualified' if self.is_qualified else 'Not Qualified'}"
+

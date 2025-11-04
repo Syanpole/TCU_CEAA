@@ -1,26 +1,28 @@
-/* Documents Management CSS */
+/* Documents Management CSS - White and Red Theme */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary-bg: #1e293b;
-  --secondary-bg: #334155;
-  --card-bg: #475569;
-  --surface-bg: #64748b;
-  --border-color: #64748b;
-  --text-primary: #f8fafc;
-  --text-secondary: #e2e8f0;
-  --text-muted: #cbd5e1;
-  --accent-blue: #3b82f6;
+  --primary-bg: #ffffff;
+  --secondary-bg: #fef2f2;
+  --card-bg: #ffffff;
+  --surface-bg: #fef2f2;
+  --border-color: #fecaca;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent-red: #dc2626;
+  --accent-red-dark: #991b1b;
+  --accent-red-light: #ef4444;
   --accent-green: #10b981;
   --accent-orange: #f59e0b;
-  --accent-red: #ef4444;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --accent-blue: #3b82f6;
+  --shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(220, 38, 38, 0.1);
 }
 
 .documents-management-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+  background: var(--primary-bg);
   font-family: 'Inter', sans-serif;
   color: var(--text-primary);
   padding: 2rem;

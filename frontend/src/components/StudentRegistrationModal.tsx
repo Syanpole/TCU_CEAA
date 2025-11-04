@@ -244,8 +244,7 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
               <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo-img-modal" />
             </div>
           </div>
-          <h1>Taguig City University</h1>
-          <h2>Student Registration</h2>
+          <h1>Student Registration</h1>
           <p>Create your student account to access TCU-CEAA</p>
         </div>
 

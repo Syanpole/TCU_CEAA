@@ -10,6 +10,9 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
+  ai_analysis_notes?: string;
+  ai_confidence_score?: number;
+  ai_auto_approved?: boolean;
 }
 
 interface DocumentsPageProps {
@@ -24,6 +27,7 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
   onDocumentSubmissionSuccess 
 }) => {
   const [showDocumentForm, setShowDocumentForm] = useState(false);
+  const [selectedDocForDetails, setSelectedDocForDetails] = useState<DocumentSubmission | null>(null);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -85,6 +89,15 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
                 >
                   {doc.status_display}
                 </span>
+                {doc.ai_analysis_notes && (
+                  <button 
+                    className="ai-details-button"
+                    onClick={() => setSelectedDocForDetails(doc)}
+                    title="View AI Analysis Details"
+                  >
+                    AI Details
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -112,6 +125,53 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
           onCancel={() => setShowDocumentForm(false)}
           onSubmissionSuccess={handleFormSuccess}
         />
+      )}
+
+      {/* AI Analysis Details Modal */}
+      {selectedDocForDetails && (
+        <div className="ai-details-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
+          <div className="ai-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <h2>🤖 AI Document Analysis</h2>
+              <button 
+                className="close-button"
+                onClick={() => setSelectedDocForDetails(null)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="ai-modal-content">
+              <div className="ai-doc-info">
+                <h3>{selectedDocForDetails.document_type_display}</h3>
+                <div className="ai-doc-meta">
+                  <span>📅 Submitted: {new Date(selectedDocForDetails.submitted_at).toLocaleString()}</span>
+                  {selectedDocForDetails.ai_auto_approved !== undefined && (
+                    <span>🔄 {selectedDocForDetails.ai_auto_approved ? 'Auto-Approved by AI' : 'Auto-Rejected by AI'}</span>
+                  )}
+                  {selectedDocForDetails.ai_confidence_score !== undefined && (
+                    <span>📊 Confidence: {(selectedDocForDetails.ai_confidence_score * 100).toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+
+              {selectedDocForDetails.ai_analysis_notes && (
+                <div className="ai-analysis-details">
+                  <pre className="ai-notes-text">{selectedDocForDetails.ai_analysis_notes}</pre>
+                </div>
+              )}
+
+              <div className="ai-modal-footer">
+                <button 
+                  className="close-ai-modal-button"
+                  onClick={() => setSelectedDocForDetails(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -228,6 +228,149 @@ This is an automated message. Please do not reply to this email.
         return False, error_message
 
 
+def send_password_reset_email(email, code, username):
+    """
+    Send password reset code to user.
+    
+    Args:
+        email: Email address to send to
+        code: 6-digit verification code
+        username: Username of the account
+    
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    try:
+        subject = "TCU-CEAA Password Reset Code"
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = [email]
+        
+        # HTML content
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: #8b0000; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+                .code-box {{ background: #fff; border: 3px dashed #8b0000; padding: 20px; text-align: center; margin: 20px 0; border-radius: 10px; }}
+                .code {{ font-size: 32px; font-weight: bold; color: #8b0000; letter-spacing: 5px; }}
+                .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }}
+                .info {{ background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 20px 0; }}
+                .footer {{ text-align: center; color: #777; font-size: 12px; margin-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2>🔐 TCU-CEAA Password Reset</h2>
+                </div>
+                <div class="content">
+                    <h3>Password Reset Request</h3>
+                    <p>Hello <strong>{username}</strong>,</p>
+                    
+                    <p>We received a request to reset the password for your TCU-CEAA account associated with this email address.</p>
+                    
+                    <p>Use the verification code below to reset your password:</p>
+                    
+                    <div class="code-box">
+                        <div class="code">{code}</div>
+                        <p style="margin: 10px 0 0 0; color: #666;">This code expires in 10 minutes</p>
+                    </div>
+                    
+                    <div class="info">
+                        <strong>📋 How to reset your password:</strong>
+                        <ol style="margin: 10px 0;">
+                            <li>Enter the verification code above in the password reset form</li>
+                            <li>Create a new strong password (minimum 8 characters)</li>
+                            <li>Confirm your new password</li>
+                            <li>Log in with your new password</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Important Security Information:</strong>
+                        <ul style="margin: 10px 0;">
+                            <li>This code is valid for <strong>10 minutes only</strong></li>
+                            <li>Do not share this code with anyone</li>
+                            <li>TCU-CEAA staff will never ask for your verification code</li>
+                            <li><strong>If you didn't request this password reset, please ignore this email and your password will remain unchanged</strong></li>
+                            <li>Consider changing your password if you suspect unauthorized access</li>
+                        </ul>
+                    </div>
+                    
+                    <p>If you continue to have problems accessing your account, please contact us at <a href="mailto:ceaainfo@tcu.edu.ph">ceaainfo@tcu.edu.ph</a></p>
+                    
+                    <p>
+                        Best regards,<br>
+                        <strong>TCU-CEAA System Team</strong><br>
+                        Taguig City University
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>© 2025 Taguig City University – City Educational Assistance Allowance</p>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version
+        text_content = f"""
+TCU-CEAA Password Reset
+
+Hello {username},
+
+We received a request to reset the password for your TCU-CEAA account associated with this email address.
+
+Your Password Reset Code: {code}
+
+This code expires in 10 minutes.
+
+HOW TO RESET YOUR PASSWORD:
+1. Enter the verification code above in the password reset form
+2. Create a new strong password (minimum 8 characters)
+3. Confirm your new password
+4. Log in with your new password
+
+IMPORTANT SECURITY INFORMATION:
+- This code is valid for 10 minutes only
+- Do not share this code with anyone
+- TCU-CEAA staff will never ask for your verification code
+- If you didn't request this password reset, please ignore this email and your password will remain unchanged
+- Consider changing your password if you suspect unauthorized access
+
+If you continue to have problems accessing your account, please contact us at ceaainfo@tcu.edu.ph
+
+Best regards,
+TCU-CEAA System Team
+Taguig City University
+
+---
+© 2025 Taguig City University – City Educational Assistance Allowance
+This is an automated message. Please do not reply to this email.
+        """
+        
+        # Create email
+        email_message = EmailMultiAlternatives(subject, text_content, from_email, to_email)
+        email_message.attach_alternative(html_content, "text/html")
+        
+        # Send email
+        email_message.send(fail_silently=False)
+        
+        logger.info(f"Password reset email sent successfully to {email}")
+        return True, None
+        
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Failed to send password reset email to {email}: {error_message}")
+        return False, error_message
+
+
 def retry_failed_emails():
     """
     Retry sending emails for approved applications that haven't been sent yet.

@@ -30,8 +30,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, darkM
       icon: <DashboardIcon size={18} />
     },
     {
-      id: 'documents',
-      label: 'Documents',
+      id: 'application',
+      label: 'Application',
+      icon: <ApplicationIcon size={18} />
+    },
+    {
+      id: 'requirements',
+      label: 'Submission of Requirements',
       icon: <DocumentIcon size={18} />
     },
     {

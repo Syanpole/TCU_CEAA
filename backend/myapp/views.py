@@ -8,13 +8,14 @@ from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.conf import settings
 from django.db import models
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, BasicQualification
 from .audit_logger import audit_logger
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
-                         AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer)
-from .email_utils import send_approval_email, send_verification_code_email
+                         AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer,
+                         BasicQualificationSerializer)
+from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,13 +37,14 @@ def login_view(request):
         
         token, created = Token.objects.get_or_create(user=user)
         
-    # Log successful login
-    audit_logger.log_user_login(user, request, success=True)
-    return Response({
-        'token': token.key,
-        'user': UserSerializer(user, context={'request': request}).data,
-        'message': 'Login successful'
-    }, status=status.HTTP_200_OK)
+        # Log successful login
+        audit_logger.log_user_login(user, request, success=True)
+        
+        return Response({
+            'token': token.key,
+            'user': UserSerializer(user, context={'request': request}).data,
+            'message': 'Login successful'
+        }, status=status.HTTP_200_OK)
     
     # Log failed login attempt
     username = request.data.get('username', 'unknown')
@@ -1425,3 +1427,273 @@ def ai_batch_process(request):
             'error': f'Batch processing failed: {str(e)}',
             'success': False
         }, status=500)
+
+
+# ==================== PASSWORD RESET FUNCTIONALITY ====================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    """
+    Request a password reset code sent to email.
+    POST data: { "email": "user@example.com" }
+    """
+    from .models import EmailVerificationCode
+    from .email_utils import send_password_reset_email
+    
+    email = request.data.get('email', '').lower().strip()
+    
+    if not email:
+        return Response({
+            'error': 'Email is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if user exists
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        # For security, don't reveal if email exists or not
+        return Response({
+            'success': True,
+            'message': 'If an account with this email exists, a password reset code has been sent.'
+        }, status=status.HTTP_200_OK)
+    
+    try:
+        # Create verification code
+        verification = EmailVerificationCode.create_verification_code(email)
+        logger.info(f'Created verification code for {email}: {verification.code}')
+        
+        # Send password reset email
+        success, error = send_password_reset_email(email, verification.code, user.username)
+        
+        if not success:
+            logger.error(f'Failed to send password reset email to {email}: {error}')
+            # Return a more detailed error for debugging
+            return Response({
+                'error': f'Email sending failed: {error}',
+                'success': False
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        logger.info(f'Password reset email sent successfully to {email}')
+        
+        # Log the action
+        audit_logger.log(
+            user=user,
+            action_type='password_changed',
+            action_description=f'Password reset requested for email: {email}',
+            severity='info',
+            request=request
+        )
+        
+        return Response({
+            'success': True,
+            'message': 'Password reset code has been sent to your email.',
+            'email': email
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f'Exception in password reset request: {str(e)}', exc_info=True)
+        return Response({
+            'error': f'Server error: {str(e)}',
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_reset_code(request):
+    """
+    Verify the password reset code.
+    POST data: { "email": "user@example.com", "code": "123456" }
+    """
+    from .models import EmailVerificationCode
+    
+    email = request.data.get('email', '').lower().strip()
+    code = request.data.get('code', '').strip()
+    
+    if not email or not code:
+        return Response({
+            'error': 'Email and code are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Find the verification code
+    verification = EmailVerificationCode.objects.filter(
+        email=email,
+        code=code,
+        is_used=False
+    ).order_by('-created_at').first()
+    
+    if not verification:
+        return Response({
+            'error': 'Invalid verification code'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if verification.is_expired():
+        return Response({
+            'error': 'Verification code has expired. Please request a new one.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check attempts (max 5 attempts)
+    if verification.attempts >= 5:
+        verification.mark_as_used()
+        return Response({
+            'error': 'Too many verification attempts. Please request a new code.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    verification.increment_attempts()
+    
+    return Response({
+        'success': True,
+        'message': 'Code verified successfully. You can now reset your password.',
+        'email': email,
+        'code': code  # Return code for next step
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """
+    Reset password after code verification.
+    POST data: { "email": "user@example.com", "code": "123456", "new_password": "newpass123" }
+    """
+    from .models import EmailVerificationCode
+    from django.contrib.auth.hashers import make_password
+    
+    email = request.data.get('email', '').lower().strip()
+    code = request.data.get('code', '').strip()
+    new_password = request.data.get('new_password', '').strip()
+    
+    if not email or not code or not new_password:
+        return Response({
+            'error': 'Email, code, and new password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate password strength
+    if len(new_password) < 8:
+        return Response({
+            'error': 'Password must be at least 8 characters long'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Find the verification code
+    verification = EmailVerificationCode.objects.filter(
+        email=email,
+        code=code,
+        is_used=False
+    ).order_by('-created_at').first()
+    
+    if not verification:
+        return Response({
+            'error': 'Invalid verification code'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if verification.is_expired():
+        return Response({
+            'error': 'Verification code has expired. Please request a new one.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Find user
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        return Response({
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        # Update password
+        user.set_password(new_password)
+        user.save()
+        
+        # Mark verification code as used
+        verification.mark_as_used()
+        
+        # Log the action
+        audit_logger.log(
+            user=user,
+            action_type='password_changed',
+            action_description=f'Password reset successful for user: {user.username}',
+            severity='success',
+            request=request
+        )
+        
+        logger.info(f'Password reset successful for user: {user.username}')
+        
+        return Response({
+            'success': True,
+            'message': 'Password has been reset successfully. You can now login with your new password.'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f'Error resetting password: {str(e)}', exc_info=True)
+        return Response({
+            'error': f'Failed to reset password: {str(e)}',
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BasicQualificationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Basic Qualification criteria.
+    Students must complete this before accessing documents and grades pages.
+    """
+    serializer_class = BasicQualificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        if self.request.user.is_admin():
+            return BasicQualification.objects.all()
+        return BasicQualification.objects.filter(student=self.request.user)
+    
+    @action(detail=False, methods=['get'])
+    def check_status(self, request):
+        """Check if the current user has completed basic qualification"""
+        try:
+            qualification = BasicQualification.objects.get(student=request.user)
+            serializer = self.get_serializer(qualification)
+            return Response({
+                'completed': True,
+                'qualified': qualification.is_qualified,
+                'data': serializer.data
+            })
+        except BasicQualification.DoesNotExist:
+            return Response({
+                'completed': False,
+                'qualified': False,
+                'data': None
+            })
+    
+    @action(detail=False, methods=['post'])
+    def submit(self, request):
+        """Submit or update basic qualification criteria"""
+        try:
+            # Check if qualification already exists
+            try:
+                qualification = BasicQualification.objects.get(student=request.user)
+                serializer = self.get_serializer(qualification, data=request.data, partial=True, context={'request': request})
+            except BasicQualification.DoesNotExist:
+                # Create new qualification
+                data = request.data.copy()
+                data['student'] = request.user.id
+                serializer = self.get_serializer(data=data, context={'request': request})
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'success': True,
+                    'message': 'Basic qualification criteria submitted successfully',
+                    'qualified': serializer.instance.is_qualified,
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f'Error submitting basic qualification: {str(e)}', exc_info=True)
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
