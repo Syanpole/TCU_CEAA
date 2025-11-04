@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-11-04T20:19:31.130763",
+  "document_type": "certificate_of_enrollment",
+  "confidence_score": 0.9025,
+  "processing_time": 6.25082802772522,
+  "algorithms_used": [
+    "image_loading",
+    "quality_analysis",
+    "vision_ai_analysis",
+    "dual_ocr_verification",
+    "document_type_matching",
+    "name_verification",
+    "structure_analysis",
+    "fraud_detection",
+    "learning_system"
+  ],
+  "vision_ai_used": true,
+  "ocr_similarity": 0.0,
+  "was_approved": true
+}

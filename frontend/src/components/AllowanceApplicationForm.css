@@ -396,6 +396,25 @@
   font-size: 1.2rem;
 }
 
+/* Email Status Message */
+.email-status-message {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.15) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1e40af;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+}
+
+.email-icon {
+  font-size: 1.2rem;
+}
+
 /* Animations */
 @keyframes slideIn {
   from {

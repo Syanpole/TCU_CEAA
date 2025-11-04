@@ -5,6 +5,7 @@ from django.db import transaction
 from rest_framework.authtoken.models import Token
 from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, EmailVerification
 
+
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     list_display = ['username', 'email', 'role', 'first_name', 'last_name', 'student_id', 'is_staff', 'created_at']
@@ -256,4 +257,41 @@ class SystemAnalyticsAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+@admin.register(BasicQualification)
+class BasicQualificationAdmin(admin.ModelAdmin):
+    list_display = ['student', 'applicant_type', 'is_qualified', 'completed_at', 'updated_at']
+    list_filter = ['applicant_type', 'is_qualified', 'is_enrolled', 'is_resident', 
+                   'is_eighteen_or_older', 'is_registered_voter', 'completed_at']
+    search_fields = ['student__username', 'student__student_id', 'student__email']
+    readonly_fields = ['completed_at', 'updated_at', 'is_qualified']
+    
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('student',)
+        }),
+        ('Qualification Criteria', {
+            'fields': (
+                'is_enrolled',
+                'is_resident',
+                'is_eighteen_or_older',
+                'is_registered_voter',
+                'parent_is_voter',
+                'has_good_moral_character',
+                'is_committed'
+            )
+        }),
+        ('Application Details', {
+            'fields': ('applicant_type',)
+        }),
+        ('Status', {
+            'fields': ('is_qualified', 'completed_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def has_add_permission(self, request):
+        # Only allow creation through the student interface
+        return False
 

@@ -31,6 +31,7 @@ export interface RegisterData {
   middle_initial?: string;
   role?: 'admin' | 'user' | 'student';
   student_id?: string;
+  verification_code?: string; // Email verification code
 }
 
 export interface RegisterResponse {

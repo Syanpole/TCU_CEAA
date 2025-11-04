@@ -588,7 +588,7 @@ class AIGradeAnalyzer:
             },
             'merit_incentive': {
                 'amount': 5000,
-                'min_swa': 88.0,  # GWA 1.75 or better (87-89% range)
+                'min_swa': 87.0,  # GWA 1.75 or better (≥87%)
                 'min_units': 15,
                 'allow_failing': False,
                 'allow_incomplete': False,
@@ -1262,7 +1262,7 @@ class AIGradeAnalyzer:
             reasons = merit_analysis.get('reasons_denied', [])
             for reason in reasons:
                 if 'SWA' in reason:
-                    recommendations.append("Aim for 88% SWA (GWA 1.75 or better) to qualify for merit incentive")
+                    recommendations.append("Aim for 87% SWA (GWA 1.75 or better) to qualify for merit incentive")
         
         # Validation-based recommendations
         if validation.get('issues'):

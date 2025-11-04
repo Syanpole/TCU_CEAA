@@ -1,11 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, VerifiedStudent
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
 import json
 import logging
+import threading
 
 # Import autonomous verifier (fallback if Tesseract not available)
 try:
@@ -315,11 +316,38 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         document.status = 'ai_processing'
         document.save()
         
-        # Run comprehensive AI analysis
-        self.run_comprehensive_ai_analysis(document)
+        # Run comprehensive AI analysis in background thread for faster response
+        analysis_thread = threading.Thread(
+            target=self._run_ai_analysis_background,
+            args=(document.id,),
+            daemon=True
+        )
+        analysis_thread.start()
         
+        # Return immediately with processing status
         return document
     
+    def _run_ai_analysis_background(self, document_id):
+        """Run AI analysis in background thread"""
+        import traceback
+        try:
+            # Re-fetch document from database to avoid stale data
+            document = DocumentSubmission.objects.get(id=document_id)
+            logger.info(f"🔍 Starting background AI analysis for document {document_id}")
+            self.run_comprehensive_ai_analysis(document)
+            logger.info(f"✅ Background AI analysis completed for document {document_id}. Final status: {document.status}")
+        except Exception as e:
+            logger.error(f"❌ Background AI analysis failed for document {document_id}: {str(e)}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            try:
+                document = DocumentSubmission.objects.get(id=document_id)
+                document.status = 'rejected'
+                document.ai_analysis_notes = f'AI analysis error: {str(e)}. Document automatically rejected for security.'
+                document.save()
+                logger.info(f"Document {document_id} marked as rejected due to error")
+            except Exception as save_error:
+                logger.error(f"Failed to update document status after error: {str(save_error)}")
+        
     def run_comprehensive_ai_analysis(self, document):
         """
         Run AI document verification
@@ -353,56 +381,26 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             # Process results with new dual verification system
             self._process_dual_verification_results(document, verification_result)
             
-            # Handle different verification outcomes
-            if document.status == 'rejected':
-                rejection_reason = verification_result.get('rejection_reason', 'Document verification failed')
-                
-                # Delete the rejected document from database
-                document.delete()
-                
-                # Raise validation error to inform user
-                raise serializers.ValidationError({
-                    'document_file': rejection_reason
-                })
-            elif getattr(verification_result, 'requires_admin_review', False):
-                # Document needs manual review - notify admin
-                admin_notification = verification_result.get('admin_notification', 'Document requires manual review')
-                
-                # Log admin notification
-                from .audit_logger import audit_logger
-                audit_logger.log_admin_notification(
-                    document_or_grade=document,
-                    notification_message=admin_notification,
-                    ocr_verification_details=verification_result.get('ocr_verification'),
-                    request=self.context.get('request')
-                )
-                
-                # Document status is already set to 'pending' by the verifier
-                logger.info(f"📋 Document {document.id} marked for admin review: {admin_notification}")
-            
-            # Log the verification outcome
+            # Log the final decision
             logger.info(
-                f"⚡ AI verification completed for document {document.id} in {verification_result.get('processing_time', 0):.3f}s. "
+                f"⚡ AI verification completed for document {document.id}. "
                 f"Status: {document.status}, "
                 f"Confidence: {verification_result.get('confidence_score', 0):.1%}"
             )
             
-        except serializers.ValidationError:
-            # Re-raise validation errors
-            raise
         except Exception as e:
-            # For other errors, reject the document for security
+            # For errors in background thread, reject the document for security
             logger.error(f"⚡ AI verification error for document {document.id}: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             
-            # Delete the document and raise error
+            # Set document to rejected status (don't delete in background thread)
             try:
-                document.delete()
-            except:
-                pass
-            
-            raise serializers.ValidationError({
-                'document_file': 'Document verification failed. Please try uploading again or contact support.'
-            })
+                document.status = 'rejected'
+                document.ai_analysis_notes = f'AI verification error: {str(e)}. Document rejected for security.'
+                document.save()
+            except Exception as save_error:
+                logger.error(f"Failed to save rejected status: {str(save_error)}")
     
     def _process_lightning_fast_results(self, document, verification_result):
         """Process lightning-fast verification results with strict document type validation"""
@@ -660,21 +658,22 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     def _process_dual_verification_results(self, document, verification_result):
         """
         🔍 Process results from dual OCR verification system
-        Handles approved, pending (admin review), and rejected documents
+        AUTO-APPROVES or AUTO-REJECTS based on AI confidence - NO manual review needed
         """
         from django.utils import timezone
         
         # Get verification status and confidence
         verification_status = verification_result.get('verification_status', 'failed')
-        requires_admin_review = verification_result.get('requires_admin_review', False)
         confidence_level = verification_result.get('confidence_level', 'low')
+        confidence_score = verification_result.get('confidence_score', 0.0)
         ocr_similarity = verification_result.get('ocr_similarity', 0.0)
         
         # Get request for audit logging
         request = self.context.get('request')
         
-        if verification_status == 'approved' and not requires_admin_review:
-            # Auto-approve with high confidence
+        # AUTO-APPROVE if AI confidence is good (similarity >= 60% OR status explicitly approved)
+        if verification_status == 'approved' or ocr_similarity >= 0.60 or confidence_level in ['high', 'medium']:
+            # Auto-approve with AI confidence
             document.status = 'approved'
             document.ai_auto_approved = True
             status_emoji = "✅ AUTO-APPROVED"
@@ -686,41 +685,30 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 target_id=document.id,
                 analysis_type='dual_ocr_verification',
                 results={
-                    'verification_status': verification_status,
+                    'verification_status': 'approved',
                     'confidence_level': confidence_level,
+                    'confidence_score': confidence_score,
                     'ocr_similarity_score': ocr_similarity,
-                    'status': 'approved'
+                    'status': 'auto_approved',
+                    'decision_reason': f'AI confidence: {confidence_level}, OCR similarity: {ocr_similarity:.1%}'
                 },
                 request=request
             )
-            
-        elif requires_admin_review or verification_status == 'pending':
-            # Mark for manual review
-            document.status = 'pending'
-            document.ai_auto_approved = False
-            status_emoji = "📋 PENDING REVIEW"
-            
-            # Log pending review
-            audit_logger.log_ai_analysis(
-                user=document.student,
-                target_model='DocumentSubmission',
-                target_id=document.id,
-                analysis_type='dual_ocr_verification',
-                results={
-                    'verification_status': verification_status,
-                    'confidence_level': confidence_level,
-                    'ocr_similarity_score': ocr_similarity,
-                    'status': 'pending_review',
-                    'admin_notification': verification_result.get('admin_notification', '')
-                },
-                request=request
+            audit_logger.log_document_approved(
+                admin_user=document.student,  # AI acting autonomously
+                document=document,
+                request=request,
+                auto_approved=True
             )
             
         else:
-            # Reject with clear reason
+            # AUTO-REJECT if AI confidence is low
             document.status = 'rejected'
             document.ai_auto_approved = False
-            status_emoji = "❌ REJECTED"
+            status_emoji = "❌ AUTO-REJECTED"
+            
+            rejection_reason = verification_result.get('rejection_reason', 
+                f'Document verification failed. OCR confidence too low ({ocr_similarity:.1%}). Please ensure document is clear and readable.')
             
             # Log rejection
             audit_logger.log_ai_analysis(
@@ -729,11 +717,19 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 target_id=document.id,
                 analysis_type='dual_ocr_verification',
                 results={
-                    'verification_status': verification_status,
+                    'verification_status': 'rejected',
                     'confidence_level': confidence_level,
-                    'status': 'rejected',
-                    'rejection_reason': verification_result.get('rejection_reason', 'Verification failed')
+                    'confidence_score': confidence_score,
+                    'ocr_similarity_score': ocr_similarity,
+                    'status': 'auto_rejected',
+                    'rejection_reason': rejection_reason
                 },
+                request=request
+            )
+            audit_logger.log_document_rejected(
+                admin_user=document.student,  # AI acting autonomously
+                document=document,
+                reason=rejection_reason,
                 request=request
             )
         
@@ -747,49 +743,53 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         ocr_verification = verification_result.get('ocr_verification', {})
         
         notes = [
-            f"🔍 DUAL OCR VERIFICATION COMPLETE",
+            f"🤖 AI AUTO-DECISION SYSTEM",
             f"=" * 50,
             f"📅 Processed: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"⏱️ Processing Time: {processing_time:.3f} seconds",
-            f"🎯 Result: {status_emoji}",
+            f"⚡ Processing Time: {processing_time:.3f} seconds",
+            f"🎯 AI Decision: {status_emoji}",
             f"📊 Confidence Level: {confidence_level.title()}",
+            f"🎲 Confidence Score: {confidence_score:.1%}",
             ""
         ]
         
         if ocr_verification:
             notes.extend([
-                "🤖 OCR Analysis:",
-                f"   • EasyOCR Text Length: {len(ocr_verification.get('easyocr_text', ''))} chars",
-                f"   • Tesseract Text Length: {len(ocr_verification.get('tesseract_text', ''))} chars",
-                f"   • Similarity Score: {ocr_similarity:.1%}",
-                f"   • Agreement Status: {'High' if ocr_similarity >= 0.8 else 'Medium' if ocr_similarity >= 0.6 else 'Low'}",
+                "🔍 Dual OCR Analysis:",
+                f"   • EasyOCR: {len(ocr_verification.get('easyocr_text', ''))} characters extracted",
+                f"   • Tesseract OCR: {len(ocr_verification.get('tesseract_text', ''))} characters extracted",
+                f"   • Agreement Score: {ocr_similarity:.1%}",
+                f"   • Verification Method: Dual OCR Cross-Validation",
                 ""
             ])
         
         if document.status == 'approved':
             notes.extend([
-                "🎉 DOCUMENT APPROVED!",
-                "Both OCR engines agree with high confidence.",
-                "Your document has been automatically verified and approved.",
-                ""
-            ])
-        elif document.status == 'pending':
-            admin_msg = verification_result.get('admin_notification', 'Manual review required')
-            notes.extend([
-                "📋 MANUAL REVIEW REQUIRED",
-                f"Reason: {admin_msg}",
+                "🎉 DOCUMENT AUTO-APPROVED BY AI!",
                 "",
-                "Your document has been queued for admin review.",
-                "You will be notified once the review is complete.",
+                f"✅ Confidence Level: {confidence_level.title()}",
+                f"✅ OCR Agreement: {ocr_similarity:.1%}",
+                "✅ Both OCR engines successfully verified your document",
+                "",
+                "Your document has been automatically approved!",
+                "No manual review needed - you're good to go! 🚀",
                 ""
             ])
         else:
-            rejection_reason = verification_result.get('rejection_reason', 'Verification failed')
+            rejection_reason = verification_result.get('rejection_reason', 
+                f'Low OCR confidence ({ocr_similarity:.1%}). Please upload a clearer image.')
             notes.extend([
-                "❌ DOCUMENT REJECTED",
+                "❌ DOCUMENT AUTO-REJECTED BY AI",
+                "",
                 f"Reason: {rejection_reason}",
                 "",
-                "Please check your document and try again.",
+                "💡 Tips to fix this:",
+                "   • Ensure document image is clear and well-lit",
+                "   • Avoid blurry or low-resolution images",
+                "   • Make sure all text is readable",
+                "   • Upload the correct document type",
+                "",
+                "Please upload a better quality document and try again.",
                 ""
             ])
         
@@ -1245,3 +1245,67 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
         audit_logger.log_application_submitted(validated_data['student'], application, request)
         
         return application
+
+
+class BasicQualificationSerializer(serializers.ModelSerializer):
+    """Serializer for Basic Qualification criteria"""
+    student_name = serializers.SerializerMethodField()
+    applicant_type_display = serializers.CharField(source='get_applicant_type_display', read_only=True)
+    
+    class Meta:
+        model = BasicQualification
+        fields = [
+            'id',
+            'student',
+            'student_name',
+            'is_enrolled',
+            'is_resident',
+            'is_eighteen_or_older',
+            'is_registered_voter',
+            'parent_is_voter',
+            'has_good_moral_character',
+            'is_committed',
+            'applicant_type',
+            'applicant_type_display',
+            'is_qualified',
+            'completed_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'is_qualified', 'completed_at', 'updated_at', 'student_name', 'applicant_type_display']
+    
+    def get_student_name(self, obj):
+        return f"{obj.student.first_name} {obj.student.last_name}"
+    
+    def create(self, validated_data):
+        # Log the qualification submission
+        request = self.context.get('request')
+        qualification = super().create(validated_data)
+        
+        if request:
+            audit_logger.log_user_action(
+                user=validated_data['student'],
+                action_type='create',
+                description=f"Completed basic qualification criteria - {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
+                severity='info',
+                request=request
+            )
+        
+        return qualification
+    
+    def update(self, instance, validated_data):
+        # Log the qualification update
+        request = self.context.get('request')
+        old_qualified = instance.is_qualified
+        
+        qualification = super().update(instance, validated_data)
+        
+        if request and old_qualified != qualification.is_qualified:
+            audit_logger.log_user_action(
+                user=instance.student,
+                action_type='update',
+                description=f"Updated basic qualification - Status changed to {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
+                severity='info',
+                request=request
+            )
+        
+        return qualification

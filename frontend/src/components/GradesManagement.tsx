@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
-import { safePercentage } from '../utils/numberUtils';
 import GradeDetailsModal from './GradeDetailsModal';
 import './GradesManagement.css';
 

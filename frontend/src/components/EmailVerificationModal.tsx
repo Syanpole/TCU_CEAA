@@ -2,43 +2,57 @@ import React, { useState, useEffect, useRef } from 'react';
 import './EmailVerificationModal.css';
 
 interface EmailVerificationModalProps {
-  isOpen: boolean;
   email: string;
-  onSuccess: (token: string, user: any) => void;
-  onClose: () => void;
+  onVerified: (verificationCode: string) => void;
+  onCancel: () => void;
+  onResend: () => Promise<{ success: boolean; message: string }>;
 }
 
 const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
-  isOpen,
   email,
-  onSuccess,
-  onClose,
+  onVerified,
+  onCancel,
+  onResend
 }) => {
-  const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [timeLeft, setTimeLeft] = useState<number>(600); // 10 minutes in seconds
+  const [canResend, setCanResend] = useState<boolean>(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Cooldown timer
+  // Timer countdown
   useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setCanResend(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  // Focus first input when modal opens
+    return () => clearInterval(timer);
+  }, []);
+
+  // Focus first input on mount
   useEffect(() => {
-    if (isOpen && inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
-  }, [isOpen]);
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleInputChange = (index: number, value: string) => {
     // Only allow digits
-    if (value && !/^\d$/.test(value)) return;
+    if (value && !/^\d$/.test(value)) {
+      return;
+    }
 
     const newCode = [...code];
     newCode[index] = value;
@@ -51,246 +65,202 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     }
 
     // Auto-submit when all 6 digits are entered
-    if (newCode.every(digit => digit !== '') && value) {
-      handleVerify(newCode.join(''));
+    if (index === 5 && value) {
+      const fullCode = [...newCode.slice(0, 5), value].join('');
+      handleVerify(fullCode);
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !code[index] && index > 0) {
-      // Move to previous input on backspace if current is empty
       inputRefs.current[index - 1]?.focus();
-    } else if (e.key === 'ArrowLeft' && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    } else if (e.key === 'ArrowRight' && index < 5) {
-      inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').trim();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newCode = [...code];
     
-    // Only process if it's 6 digits
-    if (/^\d{6}$/.test(pastedData)) {
-      const digits = pastedData.split('');
-      setCode(digits);
-      setError('');
-      
-      // Focus last input
-      inputRefs.current[5]?.focus();
-      
-      // Auto-submit
+    for (let i = 0; i < pastedData.length; i++) {
+      newCode[i] = pastedData[i];
+    }
+    
+    setCode(newCode);
+    
+    // Focus last filled input or first empty one
+    const nextIndex = Math.min(pastedData.length, 5);
+    inputRefs.current[nextIndex]?.focus();
+
+    // Auto-submit if 6 digits pasted
+    if (pastedData.length === 6) {
       handleVerify(pastedData);
     }
   };
 
   const handleVerify = async (verificationCode?: string) => {
-    const codeToVerify = verificationCode || code.join('');
+    const fullCode = verificationCode || code.join('');
     
-    if (codeToVerify.length !== 6) {
+    if (fullCode.length !== 6) {
       setError('Please enter all 6 digits');
       return;
     }
 
     setLoading(true);
     setError('');
-
+    
     try {
-      const response = await fetch('http://localhost:8000/api/auth/verify-email/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          code: codeToVerify,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.valid) {
-        setSuccess(true);
-        setTimeout(() => {
-          onSuccess(data.token, data.user);
-        }, 1500);
-      } else {
-        setError(data.message || 'Invalid or expired verification code. Please try again.');
-        setCode(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
-      }
-    } catch (err) {
-      console.error('Verification error:', err);
-      setError('Failed to verify code. Please check your connection and try again.');
-      setCode(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-    } finally {
+      // Call parent's onVerified callback
+      onVerified(fullCode);
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
       setLoading(false);
     }
   };
 
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-
+  const handleResendCode = async () => {
     setLoading(true);
     setError('');
-
+    setSuccess('');
+    
     try {
-      const response = await fetch('http://localhost:8000/api/auth/resend-verification-code/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setResendCooldown(60); // 60 second cooldown
+      const result = await onResend();
+      
+      if (result.success) {
+        setSuccess(result.message);
         setCode(['', '', '', '', '', '']);
+        setTimeLeft(600); // Reset timer to 10 minutes
+        setCanResend(false);
         inputRefs.current[0]?.focus();
-        // Show success message briefly
-        setError('');
-        setTimeout(() => {
-          setError('New verification code sent! Check your email.');
-        }, 100);
-        setTimeout(() => {
-          setError('');
-        }, 3000);
       } else {
-        setError(data.message || 'Failed to resend code. Please try again.');
+        setError(result.message);
       }
-    } catch (err) {
-      console.error('Resend error:', err);
-      setError('Failed to resend code. Please check your connection.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {success ? (
-          <div className="verification-success">
-            <div className="success-animation">
-              <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="11" fill="url(#successGradient)" stroke="#fff" strokeWidth="2"/>
-                <path d="M8 12.5L11 15.5L16 9.5" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs>
-                  <linearGradient id="successGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#4CAF50" />
-                    <stop offset="100%" stopColor="#45a049" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-            <h2 className="success-title">Email Verified!</h2>
-            <p className="success-message">Redirecting to your dashboard...</p>
+    <div className="verification-modal-overlay">
+      <div className="verification-modal">
+        <div className="verification-modal-header">
+          <div className="verification-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 8L10.89 13.26C11.2187 13.4793 11.6049 13.5963 12 13.5963C12.3951 13.5963 12.7813 13.4793 13.11 13.26L21 8M5 19H19C19.5304 19 20.0391 18.7893 20.4142 18.4142C20.7893 18.0391 21 17.5304 21 17V7C21 6.46957 20.7893 5.96086 20.4142 5.58579C20.0391 5.21071 19.5304 5 19 5H5C4.46957 5 3.96086 5.21071 3.58579 5.58579C3.21071 5.96086 3 6.46957 3 7V17C3 17.5304 3.21071 18.0391 3.58579 18.4142C3.96086 18.7893 4.46957 19 5 19Z" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-        ) : (
-          <>
-            <div className="modal-header">
-              <div className="modal-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="url(#emailGradient)" strokeWidth="2"/>
-                  <path d="M3 7L12 13L21 7" stroke="url(#emailGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="emailGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#667eea" />
-                      <stop offset="100%" stopColor="#764ba2" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <h2 className="modal-title">Verify Your Email</h2>
-              <p className="modal-subtitle">
-                We've sent a 6-digit verification code to<br />
-                <strong>{email}</strong>
-              </p>
+          <h2>Verify Your Email</h2>
+          <p className="verification-email-label">
+            We sent a 6-digit code to:<br />
+            <strong>{email}</strong>
+          </p>
+        </div>
+
+        <div className="verification-modal-body">
+          {error && (
+            <div className="verification-error">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 8V12M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              {error}
             </div>
+          )}
 
-            <div className="modal-body">
-              <div className="code-input-container">
-                {code.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleInputChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={index === 0 ? handlePaste : undefined}
-                    className={`code-input ${error ? 'error' : ''} ${digit ? 'filled' : ''}`}
-                    disabled={loading}
-                    aria-label={`Digit ${index + 1} of verification code`}
-                    title={`Enter digit ${index + 1}`}
-                  />
-                ))}
-              </div>
+          {success && (
+            <div className="verification-success">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {success}
+            </div>
+          )}
 
-              {error && (
-                <div className="error-message">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M12 8V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="16" r="1" fill="currentColor"/>
-                  </svg>
-                  {error}
-                </div>
-              )}
+          <div className="code-input-container">
+            {code.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleInputChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={handlePaste}
+                className={`code-input ${digit ? 'filled' : ''}`}
+                disabled={loading}
+                aria-label={`Digit ${index + 1}`}
+              />
+            ))}
+          </div>
 
-              <div className="modal-info">
+          <div className="verification-timer">
+            {timeLeft > 0 ? (
+              <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M12 16V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <circle cx="12" cy="8" r="1" fill="currentColor"/>
+                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
-                <span>Code expires in 15 minutes</span>
-              </div>
+                Code expires in {formatTime(timeLeft)}
+              </>
+            ) : (
+              <span className="timer-expired">Code expired</span>
+            )}
+          </div>
 
-              <button
-                onClick={() => handleVerify()}
-                disabled={loading || code.some(d => !d)}
-                className="verify-button"
-              >
-                {loading ? (
-                  <>
-                    <span className="loading-spinner"></span>
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify Email'
-                )}
-              </button>
+          <div className="verification-actions">
+            <button
+              onClick={() => handleVerify()}
+              disabled={loading || code.join('').length !== 6}
+              className="verify-button"
+            >
+              {loading ? (
+                <>
+                  <span className="loading-spinner"></span>
+                  Verifying...
+                </>
+              ) : (
+                'Verify Email'
+              )}
+            </button>
 
-              <div className="resend-section">
-                <p>Didn't receive the code?</p>
+            <div className="resend-section">
+              <span className="resend-text">Didn't receive the code?</span>
+              {canResend || timeLeft === 0 ? (
                 <button
-                  onClick={handleResend}
-                  disabled={loading || resendCooldown > 0}
+                  onClick={handleResendCode}
+                  disabled={loading}
                   className="resend-button"
                 >
-                  {resendCooldown > 0
-                    ? `Resend in ${resendCooldown}s`
-                    : 'Resend Code'}
+                  Resend Code
                 </button>
-              </div>
+              ) : (
+                <span className="resend-disabled">
+                  Resend available in {formatTime(timeLeft)}
+                </span>
+              )}
             </div>
+          </div>
+        </div>
 
-            <button onClick={onClose} className="close-button" aria-label="Close modal">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </>
-        )}
+        <div className="verification-modal-footer">
+          <button onClick={onCancel} className="cancel-button" disabled={loading}>
+            Cancel Registration
+          </button>
+        </div>
+
+        <div className="verification-help">
+          <p>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+              <path d="M12 16V12M12 8H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Check your spam folder if you don't see the email
+          </p>
+        </div>
       </div>
     </div>
   );

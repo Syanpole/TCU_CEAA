@@ -52,6 +52,12 @@
   border: 2px solid #334155 !important;
   color: #f8fafc !important;
   -webkit-text-fill-color: #f8fafc !important;
+  height: 46px !important;
+}
+
+.profile-settings-container.dark-theme .form-input[type="password"],
+.profile-settings-container.dark-theme .form-input.has-toggle {
+  padding-right: 48px !important; /* Ensure space for eye icon button */
 }
 
 .profile-settings-container.dark-theme .form-input:hover {
@@ -174,9 +180,15 @@
 /* Enhanced Dark Mode Input Styles */
 .profile-settings-container.dark-theme .form-input {
   background: #1e293b !important;
-  border: 1.5px solid #334155 !important;
+  border: 2px solid #334155 !important;
   color: #f8fafc !important;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  height: 46px !important;
+}
+
+.profile-settings-container.dark-theme .form-input[type="password"],
+.profile-settings-container.dark-theme .form-input.has-toggle {
+  padding-right: 48px !important; /* Ensure space for eye icon button */
 }
 
 .profile-settings-container.dark-theme .form-input:hover {
@@ -188,7 +200,7 @@
   background: #283546 !important;
   border-color: #dc2626 !important;
   color: #ffffff !important;
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15), inset 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08), inset 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .profile-settings-container.dark-theme .form-input::placeholder {
@@ -197,10 +209,17 @@
 
 /* Dark theme password toggle button */
 .profile-settings-container.dark-theme .password-toggle-button {
-  color: #ef4444;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
 }
 
 .profile-settings-container.dark-theme .password-toggle-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.profile-settings-container.dark-theme .password-toggle-button:focus {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
@@ -321,9 +340,17 @@
 .profile-settings-container:not(.dark-theme) .form-input,
 .profile-settings-container.light-theme .form-input {
   background: #ffffff !important;
-  border: 1.5px solid #e2e8f0 !important;
+  border: 2px solid #e2e8f0 !important;
   color: #1e293b !important;
   -webkit-text-fill-color: #1e293b !important;
+  height: 46px !important;
+}
+
+.profile-settings-container:not(.dark-theme) .form-input[type="password"],
+.profile-settings-container.light-theme .form-input[type="password"],
+.profile-settings-container:not(.dark-theme) .form-input.has-toggle,
+.profile-settings-container.light-theme .form-input.has-toggle {
+  padding-right: 48px !important; /* Space for eye icon button */
 }
 
 .profile-settings-container:not(.dark-theme) .form-input:hover,
@@ -338,6 +365,7 @@
   border-color: #dc2626 !important;
   color: #1e293b !important;
   -webkit-text-fill-color: #1e293b !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
 }
 
 .profile-settings-container:not(.dark-theme) label,
@@ -475,14 +503,16 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  margin-bottom: 16px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .form-group label {
@@ -496,16 +526,16 @@
 
 .input-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
+  width: 100%;
 }
 
 .form-input {
-  width: 80%;
+  width: 100%;
   padding: 12px 16px;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 15px;
+  border-radius: 8px;
+  font-size: 14px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   background: #ffffff;
   box-sizing: border-box;
@@ -513,6 +543,12 @@
   -webkit-text-fill-color: #1e293b;
   font-weight: 400;
   line-height: 1.5;
+  height: 46px;
+}
+
+.form-input[type="password"],
+.form-input.has-toggle {
+  padding-right: 48px; /* Make room for eye icon button */
 }
 
 .form-input:hover {
@@ -524,7 +560,7 @@
   outline: none;
   border-color: #dc2626;
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
   transform: none;
 }
 
@@ -534,30 +570,39 @@
 
 .password-toggle-button {
   position: absolute;
-  right: 10px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 12px;
-  color: var(--accent-red);
-  transition: all 0.25s ease;
-  padding: 4px 8px;
+  color: #64748b;
+  transition: all 0.2s ease;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
-  font-weight: 500;
+  z-index: 10;
   border-radius: 4px;
+  width: 32px;
+  height: 32px;
+}
+
+.password-toggle-button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5;
 }
 
 .password-toggle-button:hover {
   background: rgba(220, 38, 38, 0.1);
-  color: var(--accent-red-dark);
+  color: var(--accent-red);
 }
 
 .password-toggle-button:focus {
   outline: none;
   background: rgba(220, 38, 38, 0.15);
+  color: var(--accent-red);
 }
 
 /* Profile Image Section */
@@ -1080,7 +1125,7 @@
 /* Make form fields horizontal - Full Width */
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   margin-bottom: 1.5rem;
   width: 100%;
@@ -1090,8 +1135,13 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 0;
+  margin-bottom: 1.5rem;
   width: 100%;
+}
+
+/* Standalone form groups (outside of form-row) take full width */
+.tab-content > .form-group {
+  max-width: 100%;
 }
 
 .form-group label {
@@ -1100,46 +1150,6 @@
   margin-bottom: 8px;
   font-size: 14px;
   letter-spacing: -0.01em;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.form-input {
-  width: 80%;
-  padding: 11px 14px;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  background: #ffffff;
-  box-sizing: border-box;
-  color: #0f172a;
-  -webkit-text-fill-color: #0f172a;
-  font-weight: 400;
-}
-
-.form-input:hover {
-  border-color: #cbd5e1;
-  background: #ffffff;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #dc2626;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
-  transform: none;
-  color: #0f172a;
-  -webkit-text-fill-color: #0f172a;
-}
-
-.form-input::placeholder {
-  color: #94a3b8;
 }
 
 /* Change Password Button (in password tab) */
@@ -1262,7 +1272,7 @@
   }
   
   .form-row {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

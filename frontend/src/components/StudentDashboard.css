@@ -952,3 +952,147 @@
     right: 12px;
   }
 }
+
+/* Application Section Styles */
+.application-section {
+  padding: 2rem;
+}
+
+.qualification-prompt,
+.qualification-completed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.prompt-card,
+.completion-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-card h2,
+.completion-card h2 {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.prompt-card p,
+.completion-card p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.start-qualification-btn,
+.retake-qualification-btn {
+  background: var(--red-gradient);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);
+}
+
+.start-qualification-btn:hover,
+.retake-qualification-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(220, 38, 38, 0.4);
+}
+
+.completion-card svg {
+  margin-bottom: 1.5rem;
+}
+
+/* Locked Section Styles */
+.locked-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem;
+}
+
+.lock-message {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.lock-message svg {
+  margin-bottom: 1.5rem;
+}
+
+.lock-message h2 {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.lock-message p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.lock-message button {
+  background: var(--red-gradient);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.lock-message button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+@media (max-width: 768px) {
+  .application-section {
+    padding: 1rem;
+  }
+
+  .prompt-card,
+  .completion-card,
+  .lock-message {
+    padding: 2rem 1.5rem;
+  }
+
+  .prompt-card h2,
+  .completion-card h2,
+  .lock-message h2 {
+    font-size: 1.5rem;
+  }
+
+  .prompt-card p,
+  .completion-card p,
+  .lock-message p {
+    font-size: 1rem;
+  }
+}
