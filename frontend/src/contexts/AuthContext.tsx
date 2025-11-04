@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService, User } from '../services/authService';
+import { authService, User, RegisterResponse } from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (userData: any) => Promise<void>;
+  register: (userData: any) => Promise<RegisterResponse>;
   refreshUser: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
@@ -66,8 +66,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: any) => {
     try {
       const response = await authService.register(userData);
-      localStorage.setItem('token', response.token);
-      setUser(response.user);
+      // Only set token if it exists (email verified accounts)
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+      // Only set user if it exists
+      if (response.user) {
+        setUser(response.user);
+      }
+      return response;
     } catch (error) {
       throw error;
     }
