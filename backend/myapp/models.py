@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from PIL import Image
 import os
+from .validators import profile_image_validators, document_validators, grade_sheet_validators
 
 def profile_image_upload_path(instance, filename):
     return f'profile_images/{instance.id}/{filename}'
@@ -17,7 +18,7 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
     student_id = models.CharField(max_length=8, unique=True, null=True, blank=True, help_text="Format: YY-XXXXX (e.g., 22-00001)")
     middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
-    profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True)
+    profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True, validators=profile_image_validators)
     is_email_verified = models.BooleanField(default=False, help_text="Email verification status")
     created_at = models.DateTimeField(auto_now_add=True)
     ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
@@ -81,6 +82,128 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.student_id})"
 
+class VerifiedStudent(models.Model):
+    """
+    Official list of students verified for registration.
+    Only students in this list can create accounts in the system.
+    """
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+    ]
+    
+    COURSE_CHOICES = [
+        ('BSCS', 'Bachelor of Science in Computer Science'),
+        ('BSIT', 'Bachelor of Science in Information Technology'),
+        ('BSIS', 'Bachelor of Science in Information Systems'),
+        # Add more courses as needed
+    ]
+    
+    student_id = models.CharField(max_length=20, unique=True, db_index=True, 
+                                  help_text="Format: YY-XXXXX (e.g., 22-00001)")
+    first_name = models.CharField(max_length=100, db_index=True,
+                                  help_text="Student's legal first name")
+    last_name = models.CharField(max_length=100, db_index=True,
+                                 help_text="Student's legal last name")
+    middle_initial = models.CharField(max_length=10, blank=True, null=True,
+                                     help_text="Middle initial or 'N/A' if none")
+    sex = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    course = models.CharField(max_length=10, choices=COURSE_CHOICES)
+    year_level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(6)],
+                                     help_text="Current year level (1-6)")
+    
+    # Metadata
+    is_active = models.BooleanField(default=True, help_text="Can this student register?")
+    has_registered = models.BooleanField(default=False, help_text="Has this student completed registration?")
+    registered_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='verified_student_record',
+                                       help_text="Linked user account after registration")
+    
+    # Audit fields
+    added_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='verified_students_added',
+                                 help_text="Admin who added this verified student")
+    added_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    notes = models.TextField(blank=True, null=True, help_text="Internal notes about this student")
+    
+    class Meta:
+        ordering = ['student_id']
+        verbose_name = "Verified Student"
+        verbose_name_plural = "Verified Students"
+        indexes = [
+            models.Index(fields=['student_id', 'is_active']),
+            models.Index(fields=['last_name', 'first_name']),
+        ]
+    
+    def __str__(self):
+        mi = f" {self.middle_initial}." if self.middle_initial and self.middle_initial != 'N/A' else ""
+        return f"{self.first_name}{mi} {self.last_name} ({self.student_id})"
+    
+    def verify_identity(self, first_name: str, last_name: str, middle_initial: str = '') -> dict:
+        """
+        Verify if provided information matches this verified student record.
+        
+        Args:
+            first_name: First name to verify (case-insensitive)
+            last_name: Last name to verify (case-insensitive)
+            middle_initial: Middle initial to verify (optional)
+        
+        Returns:
+            dict with 'verified' boolean and 'message' string
+        """
+        # Normalize inputs
+        first_name = first_name.strip().lower()
+        last_name = last_name.strip().lower()
+        middle_initial = middle_initial.strip().upper().replace('.', '')
+        
+        # Check first name
+        if self.first_name.lower() != first_name:
+            return {
+                'verified': False,
+                'message': 'First name does not match our records for this Student ID.'
+            }
+        
+        # Check last name
+        if self.last_name.lower() != last_name:
+            return {
+                'verified': False,
+                'message': 'Last name does not match our records for this Student ID.'
+            }
+        
+        # Check middle initial
+        record_mi = (self.middle_initial or '').upper().replace('.', '')
+        
+        if record_mi in ['N/A', '']:
+            # Record has no middle initial
+            if middle_initial and middle_initial not in ['N/A', '']:
+                return {
+                    'verified': False,
+                    'message': 'Middle initial does not match our records. Our records show no middle initial for this student.'
+                }
+        else:
+            # Record has a middle initial
+            if middle_initial and middle_initial not in ['N/A', ''] and record_mi != middle_initial:
+                return {
+                    'verified': False,
+                    'message': f'Middle initial does not match our records. Expected: {record_mi}'
+                }
+        
+        # All checks passed
+        return {
+            'verified': True,
+            'message': 'Student information verified successfully.',
+            'student_data': {
+                'student_id': self.student_id,
+                'first_name': self.first_name,
+                'last_name': self.last_name,
+                'middle_initial': self.middle_initial,
+                'sex': self.sex,
+                'course': self.course,
+                'year': self.year_level
+            }
+        }
+
 class DocumentSubmission(models.Model):
     DOCUMENT_TYPES = [
         # Simplified Required Documents (New System)
@@ -139,7 +262,7 @@ class DocumentSubmission(models.Model):
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
-    document_file = models.FileField(upload_to='documents/%Y/%m/')
+    document_file = models.FileField(upload_to='documents/%Y/%m/', validators=document_validators)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True)
@@ -197,7 +320,7 @@ class GradeSubmission(models.Model):
                                                    null=True, blank=True, default=None)
     
     # Grade sheet upload
-    grade_sheet = models.FileField(upload_to='grades/%Y/%m/')
+    grade_sheet = models.FileField(upload_to='grades/%Y/%m/', validators=grade_sheet_validators)
     
     # Validation flags
     has_failing_grades = models.BooleanField(default=False)
