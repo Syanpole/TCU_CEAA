@@ -8,7 +8,7 @@ from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.db import models
 from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent
-from .audit_logger import audit_logger
+from .audit_logger import audit_logger, AuditLogger
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
@@ -20,6 +20,15 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        
+        # ===== NEW: Check if account is activated =====
+        if not user.is_active:
+            return Response({
+                'error': 'Account not activated',
+                'message': 'Please verify your email address before logging in. Check your inbox for the verification code.',
+                'email_verification_required': True
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         token, created = Token.objects.get_or_create(user=user)
         
         # Log successful login
@@ -57,34 +66,265 @@ def logout_view(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
+    from .email_verification_service import VerificationService
+    
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        token, created = Token.objects.get_or_create(user=user)
         
-        # Link verified student record if student_id is provided
-        if user.student_id:
-            try:
-                verified_student = VerifiedStudent.objects.get(
-                    student_id=user.student_id,
-                    is_active=True
-                )
-                verified_student.has_registered = True
-                verified_student.registered_user = user
-                verified_student.save()
-            except VerifiedStudent.DoesNotExist:
-                pass  # Already verified during verification step
+        # NOTE: VerifiedStudent linking moved to email verification step
+        # Account remains inactive until email is verified
         
         # Log user registration
         audit_logger.log_user_registration(user, request)
         
+        # Send verification email
+        verification = VerificationService.create_verification(user)
+        email_sent = VerificationService.send_verification_email(user, verification.code)
+        
+        if email_sent:
+            AuditLogger.log(
+                user=user,
+                action_type='user_registered',
+                action_description=f'Verification code sent to {user.email} upon registration',
+                severity='info',
+                metadata={
+                    'verification_code_sent': True,
+                    'email': user.email,
+                    'username': user.username,
+                    'account_inactive_pending_verification': True
+                },
+                request=request
+            )
+        
         return Response({
-            'token': token.key,
-            'user': UserSerializer(user, context={'request': request}).data,
-            'message': 'Registration successful'
+            'user_id': user.id,
+            'email': user.email,
+            'username': user.username,
+            'email_sent': email_sent,
+            'message': 'Registration successful. Please check your email for verification code.',
+            'requires_verification': True
         }, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_verification_code_view(request):
+    """
+    Send verification code to user's email
+    
+    Expected payload:
+    {
+        "email": "user@example.com"
+    }
+    """
+    from .email_verification_service import VerificationService
+    
+    email = request.data.get('email', '').strip()
+    
+    if not email:
+        return Response({
+            'success': False,
+            'message': 'Email address is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Find user by email
+        user = CustomUser.objects.get(email=email)
+        
+        # Check if user is already verified
+        if user.is_email_verified:
+            return Response({
+                'success': False,
+                'message': 'Email address is already verified'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check rate limiting
+        can_resend, message = VerificationService.can_resend_code(user)
+        if not can_resend:
+            return Response({
+                'success': False,
+                'message': message
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        
+        # Create and send verification code
+        verification = VerificationService.create_verification(user)
+        email_sent = VerificationService.send_verification_email(user, verification.code)
+        
+        if email_sent:
+            audit_logger.log_action(
+                user=user,
+                action='EMAIL_VERIFICATION_SENT',
+                description=f'Verification code sent to {email}',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT')
+            )
+            
+            return Response({
+                'success': True,
+                'message': f'Verification code sent to {email}',
+                'expires_in_minutes': VerificationService.CODE_EXPIRY_MINUTES
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'message': 'Failed to send verification email. Please try again later.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except CustomUser.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'No account found with this email address'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email_view(request):
+    """
+    Verify email with provided code
+    
+    Expected payload:
+    {
+        "email": "user@example.com",
+        "code": "123456"
+    }
+    """
+    from .email_verification_service import VerificationService
+    
+    email = request.data.get('email', '').strip()
+    code = request.data.get('code', '').strip()
+    
+    if not email or not code:
+        return Response({
+            'valid': False,
+            'message': 'Email and verification code are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = CustomUser.objects.get(email=email)
+        
+        # Validate the code
+        result = VerificationService.validate_code(user, code)
+        
+        if result['valid']:
+            # ===== NEW: Activate account upon email verification =====
+            if not user.is_active:
+                user.is_active = True
+            
+            # Update email verified timestamp
+            user.email_verified_at = timezone.now()
+            user.save(update_fields=['email_verified_at', 'is_active'])
+            
+            # ===== NEW: Mark VerifiedStudent as registered =====
+            if user.student_id:
+                try:
+                    verified_student = VerifiedStudent.objects.get(
+                        student_id=user.student_id,
+                        is_active=True
+                    )
+                    verified_student.has_registered = True
+                    verified_student.registered_user = user
+                    verified_student.save()
+                except VerifiedStudent.DoesNotExist:
+                    pass
+            
+            # Log successful verification
+            audit_logger.log_action(
+                user=user,
+                action='EMAIL_VERIFIED',
+                description=f'Email {email} successfully verified and account activated',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT')
+            )
+            
+            # Generate token for login
+            token, created = Token.objects.get_or_create(user=user)
+            
+            return Response({
+                'valid': True,
+                'message': result['message'],
+                'token': token.key,
+                'user': UserSerializer(user, context={'request': request}).data
+            }, status=status.HTTP_200_OK)
+        else:
+            audit_logger.log_action(
+                user=user,
+                action='EMAIL_VERIFICATION_FAILED',
+                description=f'Failed verification attempt for {email}',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT')
+            )
+            
+            return Response({
+                'valid': False,
+                'message': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except CustomUser.DoesNotExist:
+        return Response({
+            'valid': False,
+            'message': 'No account found with this email address'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_code_view(request):
+    """
+    Resend verification code to user
+    
+    Expected payload:
+    {
+        "email": "user@example.com"
+    }
+    """
+    from .email_verification_service import VerificationService
+    
+    email = request.data.get('email', '').strip()
+    
+    if not email:
+        return Response({
+            'success': False,
+            'message': 'Email address is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = CustomUser.objects.get(email=email)
+        
+        # Check if already verified
+        if user.is_email_verified:
+            return Response({
+                'success': False,
+                'message': 'Email is already verified'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Resend verification code
+        result = VerificationService.resend_verification_code(user)
+        
+        if result['success']:
+            audit_logger.log_action(
+                user=user,
+                action='EMAIL_VERIFICATION_RESENT',
+                description=f'Verification code resent to {email}',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT')
+            )
+            
+            return Response({
+                'success': True,
+                'message': result['message']
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'message': result['message']
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            
+    except CustomUser.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'No account found with this email address'
+        }, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -367,27 +607,81 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
             # Students can only see their own applications
             return AllowanceApplication.objects.filter(student=self.request.user)
     
+    def perform_create(self, serializer):
+        """Override to send confirmation email when application is created"""
+        from .application_email_service import ApplicationEmailService
+        
+        # Save the application
+        application = serializer.save()
+        
+        # Send confirmation email
+        email_sent = ApplicationEmailService.send_confirmation_email(application)
+        
+        # Log application submission
+        audit_logger.log_action(
+            user=application.student,
+            action='APPLICATION_SUBMITTED',
+            description=f'Allowance application #{application.id} submitted. Email notification {"sent" if email_sent else "failed"}.',
+            ip_address=self.request.META.get('REMOTE_ADDR'),
+            user_agent=self.request.META.get('HTTP_USER_AGENT'),
+            metadata={
+                'application_id': application.id,
+                'application_type': application.application_type,
+                'amount': float(application.amount),
+                'email_sent': email_sent
+            }
+        )
+        
+        return application
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def process(self, request, pk=None):
         """Admin processing of allowance application"""
+        from .application_email_service import ApplicationEmailService
+        
         if not request.user.is_admin():
             return Response({'error': 'Only admins can process applications'}, status=status.HTTP_403_FORBIDDEN)
         
         application = self.get_object()
+        previous_status = application.status
         new_status = request.data.get('status')
         admin_notes = request.data.get('admin_notes', '')
         
         if new_status not in ['approved', 'rejected', 'disbursed']:
             return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Update application
         application.status = new_status
         application.admin_notes = admin_notes
         application.processed_at = timezone.now()
         application.processed_by = request.user
         application.save()
         
+        # Send status update email notification
+        email_sent = ApplicationEmailService.send_status_update_email(application, previous_status)
+        
+        # Log the status change
+        audit_logger.log_action(
+            user=request.user,
+            action=f'APPLICATION_{new_status.upper()}',
+            description=f'Application #{application.id} {new_status} by {request.user.username}. Email notification {"sent" if email_sent else "failed"}.',
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT'),
+            metadata={
+                'application_id': application.id,
+                'student_id': application.student.id,
+                'previous_status': previous_status,
+                'new_status': new_status,
+                'email_sent': email_sent
+            }
+        )
+        
         serializer = self.get_serializer(application)
-        return Response(serializer.data)
+        return Response({
+            'application': serializer.data,
+            'email_sent': email_sent,
+            'message': f'Application {new_status}. {"Email notification sent to student." if email_sent else "Warning: Email notification failed."}'
+        })
 
 # Dashboard endpoints
 @api_view(['GET'])

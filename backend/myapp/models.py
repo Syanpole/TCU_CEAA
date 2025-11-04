@@ -22,6 +22,10 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
     
+    # Email verification
+    is_email_verified = models.BooleanField(default=False, help_text="Email address has been verified")
+    email_verified_at = models.DateTimeField(null=True, blank=True, help_text="When email was verified")
+    
     def is_admin(self):
         return self.role == 'admin'
     
@@ -816,3 +820,31 @@ class SystemAnalytics(models.Model):
         analytics.save()
         return analytics
 
+
+class EmailVerification(models.Model):
+    """
+    Model for storing email verification codes
+    Used for verifying user email addresses during registration
+    """
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='email_verifications')
+    code = models.CharField(max_length=6, help_text="6-digit verification code")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="When this code expires")
+    is_verified = models.BooleanField(default=False, help_text="Has this code been successfully verified")
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="When this code was verified")
+    is_used = models.BooleanField(default=False, help_text="Has this code been used (prevents reuse)")
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'code', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def is_expired(self) -> bool:
+        """Check if the verification code has expired"""
+        return timezone.now() > self.expires_at
+    
+    def __str__(self):
+        status = "Verified" if self.is_verified else ("Expired" if self.is_expired() else "Active")
+        return f"{self.user.username} - {self.code} - {status}"

@@ -1,17 +1,78 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent
+from django.contrib import messages
+from django.db import transaction
+from rest_framework.authtoken.models import Token
+from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, EmailVerification
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     list_display = ['username', 'email', 'role', 'first_name', 'last_name', 'student_id', 'is_staff', 'created_at']
     list_filter = ['role', 'is_staff', 'is_active', 'created_at']
     fieldsets = UserAdmin.fieldsets + (
-        ('Role Information', {'fields': ('role', 'student_id')}),
+        ('Role Information', {'fields': ('role', 'student_id', 'middle_initial')}),
+        ('Email Verification', {'fields': ('is_email_verified', 'email_verified_at')}),
+        ('AI Verification', {'fields': ('ai_verification_score',)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Role Information', {'fields': ('role', 'student_id')}),
+        ('Role Information', {'fields': ('role', 'student_id', 'middle_initial')}),
     )
+    
+    actions = ['delete_users_with_records']
+    
+    def delete_users_with_records(self, request, queryset):
+        """
+        Custom deletion action that safely removes users and all related records
+        """
+        if not request.user.is_superuser:
+            self.message_user(request, 'Only superusers can delete user accounts.', level=messages.ERROR)
+            return
+        
+        total_deleted = 0
+        total_records_deleted = 0
+        
+        for user in queryset:
+            try:
+                with transaction.atomic():
+                    # Count related records before deletion
+                    documents = DocumentSubmission.objects.filter(student=user).count()
+                    grades = GradeSubmission.objects.filter(student=user).count()
+                    applications = AllowanceApplication.objects.filter(student=user).count()
+                    verifications = EmailVerification.objects.filter(user=user).count()
+                    
+                    # Delete auth token
+                    Token.objects.filter(user=user).delete()
+                    
+                    # Reset VerifiedStudent if exists
+                    try:
+                        verified_student = VerifiedStudent.objects.get(registered_user=user)
+                        verified_student.has_registered = False
+                        verified_student.registered_user = None
+                        verified_student.save()
+                    except VerifiedStudent.DoesNotExist:
+                        pass
+                    
+                    # Delete user (CASCADE will handle related records)
+                    user.delete()
+                    
+                    records_deleted = documents + grades + applications + verifications + 1
+                    total_deleted += 1
+                    total_records_deleted += records_deleted
+                    
+            except Exception as e:
+                self.message_user(
+                    request, 
+                    f'Error deleting user {user.username}: {str(e)}', 
+                    level=messages.ERROR
+                )
+        
+        self.message_user(
+            request,
+            f'Successfully deleted {total_deleted} user(s) and {total_records_deleted} related record(s).',
+            level=messages.SUCCESS
+        )
+    
+    delete_users_with_records.short_description = '🗑️ Delete selected users and ALL their records'
 
 @admin.register(CustomUser)
 class CustomUserAdminRegistered(CustomUserAdmin):

@@ -3,8 +3,7 @@ Advanced OCR Service
 ====================
 
 This module provides advanced Optical Character Recognition (OCR) capabilities
-for processing documents with high accuracy. It uses cloud-based AI processing
-to extract text from images and PDFs with superior accuracy compared to traditional OCR.
+for processing documents with high accuracy using state-of-the-art AI models.
 
 Features:
 - High-accuracy text extraction from images and PDFs
@@ -18,7 +17,6 @@ Author: TCU CEAA Development Team
 Date: November 2025
 """
 
-import boto3
 import os
 import logging
 from typing import Dict, List, Optional, Tuple, Any
@@ -31,23 +29,23 @@ logger = logging.getLogger(__name__)
 
 class AdvancedOCRService:
     """
-    Advanced OCR Service using cloud-based AI for superior text extraction.
+    Advanced OCR Service using enterprise-grade AI for superior text extraction.
     
     This service provides high-accuracy text extraction from documents using
-    state-of-the-art machine learning models hosted in the cloud.
+    state-of-the-art machine learning models.
     """
     
     def __init__(self):
-        """Initialize the Advanced OCR service with cloud credentials."""
+        """Initialize the Advanced OCR service."""
         self.enabled = getattr(settings, 'USE_ADVANCED_OCR', False)
         self.region = getattr(settings, 'ADVANCED_OCR_REGION', 'us-east-1')
         self.confidence_threshold = getattr(settings, 'OCR_CONFIDENCE_THRESHOLD', 80)
         
         if self.enabled:
             try:
-                # Initialize cloud service client (masked as generic OCR)
+                import boto3
                 self._ocr_client = boto3.client(
-                    'textract',  # Internal AWS service name
+                    'textract',
                     region_name=self.region,
                     aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
                     aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
@@ -84,19 +82,17 @@ class AdvancedOCRService:
         if not self.is_enabled():
             return {
                 'success': False,
-                'error': 'Advanced OCR is not enabled. Please configure cloud credentials.',
+                'error': 'Advanced OCR is not enabled. Please configure service credentials.',
                 'text': '',
                 'confidence': 0,
                 'blocks': []
             }
         
         try:
-            # Call cloud OCR service
             response = self._ocr_client.detect_document_text(
                 Document={'Bytes': file_bytes}
             )
             
-            # Process response
             text_blocks = []
             full_text = []
             total_confidence = 0
@@ -162,7 +158,6 @@ class AdvancedOCRService:
             }
         
         try:
-            # Call cloud OCR service for table analysis
             response = self._ocr_client.analyze_document(
                 Document={'Bytes': file_bytes},
                 FeatureTypes=['TABLES']
@@ -211,13 +206,11 @@ class AdvancedOCRService:
             }
         
         try:
-            # Call cloud OCR service for form analysis
             response = self._ocr_client.analyze_document(
                 Document={'Bytes': file_bytes},
                 FeatureTypes=['FORMS']
             )
             
-            # Extract key-value pairs
             fields = self._parse_form_fields(response.get('Blocks', []))
             
             logger.info(f"Advanced OCR form extraction: {len(fields)} fields found")

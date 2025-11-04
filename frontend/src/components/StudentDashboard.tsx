@@ -99,6 +99,8 @@ const StudentDashboard: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Theme toggle function
   const toggleTheme = () => {
@@ -195,7 +197,11 @@ const StudentDashboard: React.FC = () => {
 
     fetchStudentData();
     
-    const intervalId = setInterval(fetchStudentData, 300000);
+    // Auto-refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      setIsRefreshing(true);
+      fetchStudentData().finally(() => setIsRefreshing(false));
+    }, 30000); // 30 seconds
     return () => clearInterval(intervalId);
   }, []);
 
@@ -205,6 +211,55 @@ const StudentDashboard: React.FC = () => {
       setDocuments((response.data as DocumentSubmission[]) || []);
     } catch (err) {
       console.error('Error refreshing documents:', err);
+    }
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      const [
+        assignmentsResponse,
+        documentsResponse,
+        gradesResponse,
+        applicationsResponse,
+        dashboardResponse
+      ] = await Promise.all([
+        apiClient.get('/tasks/'),
+        apiClient.get('/documents/'),
+        apiClient.get('/grades/'),
+        apiClient.get('/applications/'),
+        apiClient.get('/dashboard/student/')
+      ]);
+
+      setAssignments((assignmentsResponse.data as Assignment[]) || []);
+      setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
+      setGrades((gradesResponse.data as GradeSubmission[]) || []);
+      setApplications((applicationsResponse.data as AllowanceApplication[]) || []);
+
+      if (dashboardResponse.data && (dashboardResponse.data as StudentDashboardData).stats) {
+        setStats((dashboardResponse.data as StudentDashboardData).stats!);
+      }
+
+      setLastRefresh(new Date());
+      
+      // Show brief success notification
+      setNotificationType('info');
+      setNotificationTitle('Dashboard Refreshed');
+      setNotificationMessage('Your data has been updated successfully!');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 2000);
+      
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+      setNotificationType('error');
+      setNotificationTitle('Refresh Failed');
+      setNotificationMessage('Unable to refresh dashboard. Please try again.');
+      setShowNotification(true);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 

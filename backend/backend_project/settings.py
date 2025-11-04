@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'storages',  # Django storages for S3
     'myapp',
 ]
 
@@ -141,49 +140,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# ============================================================================
-# CLOUD STORAGE CONFIGURATION (Amazon S3)
-# ============================================================================
-
-USE_CLOUD_STORAGE = os.environ.get('USE_CLOUD_STORAGE', 'False') == 'True'
-
-if USE_CLOUD_STORAGE:
-    # AWS Credentials
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
-    
-    # S3 Configuration
-    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
-    AWS_S3_FILE_OVERWRITE = os.environ.get('AWS_S3_FILE_OVERWRITE', 'False') == 'True'
-    AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL', 'private')
-    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
-    
-    # Use S3 for media files
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    
-    # Static files can optionally use S3 too (uncomment if needed)
-    # STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
-    # STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-else:
-    # Local file storage (default)
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# ============================================================================
-# ADVANCED OCR CONFIGURATION
-# ============================================================================
-
-# Enable advanced cloud-based OCR processing
-USE_ADVANCED_OCR = os.environ.get('USE_ADVANCED_OCR', 'False') == 'True'
-ADVANCED_OCR_REGION = os.environ.get('ADVANCED_OCR_REGION', 'us-east-1')
-OCR_CONFIDENCE_THRESHOLD = int(os.environ.get('OCR_CONFIDENCE_THRESHOLD', '80'))
-
-# Media files (user uploads) - LEGACY (kept for backward compatibility)
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Media files (user uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # File Upload Settings (Security)
 # Maximum upload size: 10MB (in bytes)
@@ -212,6 +171,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model
 AUTH_USER_MODEL = 'myapp.CustomUser'
+
+# Email Configuration
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'TCU-CEAA Portal <noreply@tcu-ceaa.edu.ph>')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Email sending timeout (in seconds)
+EMAIL_TIMEOUT = 30
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [

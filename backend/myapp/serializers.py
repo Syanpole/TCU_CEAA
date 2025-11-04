@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, VerifiedStudent
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
 import json
@@ -98,12 +98,59 @@ class RegisterSerializer(serializers.ModelSerializer):
             # Check if student_id already exists
             if CustomUser.objects.filter(student_id=student_id).exists():
                 raise serializers.ValidationError('This student ID is already registered.')
+            
+            # ===== NEW SECURITY CHECK: Verify against VerifiedStudent model =====
+            try:
+                verified_student = VerifiedStudent.objects.get(
+                    student_id=student_id,
+                    is_active=True
+                )
+                
+                # Check if already registered
+                if verified_student.has_registered:
+                    raise serializers.ValidationError(
+                        'This student ID has already been registered. Please contact the admin if you need assistance.'
+                    )
+                
+                # Verify name matches (case-insensitive comparison)
+                first_name = data.get('first_name', '').strip().lower()
+                last_name = data.get('last_name', '').strip().lower()
+                middle_initial = data.get('middle_initial', '').strip().upper()
+                
+                verified_first = verified_student.first_name.strip().lower()
+                verified_last = verified_student.last_name.strip().lower()
+                verified_middle = verified_student.middle_initial.strip().upper() if verified_student.middle_initial else ''
+                
+                # Check first and last name match
+                if first_name != verified_first or last_name != verified_last:
+                    raise serializers.ValidationError(
+                        'The name you provided does not match our records for this student ID. '
+                        'Please ensure your name matches your official university records.'
+                    )
+                
+                # Check middle initial if provided (optional match)
+                if middle_initial and verified_middle and middle_initial != verified_middle:
+                    raise serializers.ValidationError(
+                        f'The middle initial "{middle_initial}" does not match our records. '
+                        f'Please use "{verified_middle}" or leave it blank.'
+                    )
+                
+            except VerifiedStudent.DoesNotExist:
+                raise serializers.ValidationError(
+                    'Your student ID is not in our verified student database. '
+                    'Please contact the scholarship office to be added to the verified student list before registering.'
+                )
         
         return data
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = CustomUser.objects.create_user(**validated_data)
+        
+        # ===== NEW: Account is inactive until email is verified =====
+        user.is_active = False
+        user.save()
+        
         return user
 
 class TaskSerializer(serializers.ModelSerializer):

@@ -2,7 +2,7 @@
 AI Service for TCU-CEAA Document and Grade Analysis
 This module provides advanced AI capabilities for analyzing student documents and grades.
 Now includes Autonomous AI (EasyOCR) for grade sheet name verification!
-Enhanced with Advanced OCR (Cloud-based) for superior accuracy!
+Enhanced with Advanced OCR for superior accuracy!
 """
 
 import os
@@ -236,7 +236,7 @@ class AIDocumentAnalyzer:
     def _extract_text_from_file(self, file_obj) -> str:
         """
         Extract text from various file formats
-        Priority: Advanced OCR (Cloud) → Local OCR → Basic extraction
+        Priority: Advanced OCR → Local OCR → Basic extraction
         """
         filename = file_obj.name.lower()
         extracted_text = ""
@@ -248,7 +248,7 @@ class AIDocumentAnalyzer:
                 try:
                     advanced_ocr = get_advanced_ocr_service()
                     if advanced_ocr.is_enabled():
-                        logger.info("📡 Using Advanced OCR (Cloud-based, 95-98% accuracy)")
+                        logger.info("📡 Using Advanced OCR (95-98% accuracy)")
                         
                         # Read file bytes
                         file_obj.seek(0)
@@ -261,7 +261,7 @@ class AIDocumentAnalyzer:
                         if result['success']:
                             extracted_text = result['text']
                             confidence = result['confidence']
-                            ocr_method = "advanced_ocr_cloud"
+                            ocr_method = "advanced_ocr"
                             logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} chars (confidence: {confidence:.1f}%)")
                             return extracted_text
                         else:
@@ -725,7 +725,7 @@ class AIGradeAnalyzer:
     def _analyze_grade_sheet(self, grade_sheet_file) -> Dict[str, Any]:
         """
         Analyze the uploaded grade sheet for additional validation
-        Uses Advanced OCR (Cloud) for best accuracy, falls back to local OCR
+        Uses Advanced OCR for best accuracy, falls back to local OCR
         """
         extracted_data = {
             'text_extracted': '',
@@ -759,7 +759,7 @@ class AIGradeAnalyzer:
                             text_result = result['text_extraction']
                             extracted_text = text_result.get('text', '')
                             extracted_data['text_extracted'] = extracted_text
-                            extracted_data['ocr_method'] = 'advanced_ocr_cloud'
+                            extracted_data['ocr_method'] = 'advanced_ocr'
                             
                             logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} chars ({text_result.get('confidence', 0):.1f}% confidence)")
                             
@@ -875,7 +875,7 @@ class AIGradeAnalyzer:
             extracted_text = None
             ocr_method = None
             
-            # Priority 1: Advanced OCR (Cloud-based, 95-98% accuracy)
+            # Priority 1: Advanced OCR (95-98% accuracy)
             if ADVANCED_OCR_AVAILABLE:
                 try:
                     advanced_ocr = get_advanced_ocr_service()
@@ -891,7 +891,7 @@ class AIGradeAnalyzer:
                         
                         if ocr_result['success']:
                             extracted_text = ocr_result['text'].lower()
-                            ocr_method = 'advanced_ocr_cloud'
+                            ocr_method = 'advanced_ocr'
                             result['verification_method'] = 'advanced_ocr'
                             
                             logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} characters (confidence: {ocr_result.get('confidence', 0):.1f}%)")

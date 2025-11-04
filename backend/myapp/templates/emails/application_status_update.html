@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Status Update</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header-approved {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        .header-rejected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .header-disbursed {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+        .header {
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        .status-approved {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .status-disbursed {
+            background-color: #ede9fe;
+            color: #5b21b6;
+        }
+        .details-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #10b981;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .details-row:last-child {
+            border-bottom: none;
+        }
+        .details-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .details-value {
+            color: #212529;
+            text-align: right;
+        }
+        .amount-highlight {
+            font-size: 24px;
+            font-weight: bold;
+            color: #10b981;
+        }
+        .admin-notes {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .admin-notes h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 16px;
+        }
+        .admin-notes p {
+            margin: 5px 0;
+            color: #856404;
+            font-size: 14px;
+            font-style: italic;
+        }
+        .next-steps {
+            background-color: #e7f5ff;
+            border-left: 4px solid #0056b3;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .next-steps h3 {
+            margin: 0 0 15px 0;
+            color: #0056b3;
+            font-size: 16px;
+        }
+        .next-steps ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+            color: #004085;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 13px;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .footer a {
+            color: #10b981;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header {% if application.status == 'approved' %}header-approved{% elif application.status == 'rejected' %}header-rejected{% elif application.status == 'disbursed' %}header-disbursed{% endif %}">
+            <div class="icon">
+                {% if application.status == 'approved' %}✅
+                {% elif application.status == 'rejected' %}❌
+                {% elif application.status == 'disbursed' %}💰
+                {% endif %}
+            </div>
+            <h1>Application Status Update</h1>
+            <p>TCU-CEAA Portal</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Dear {{ student_name }},
+            </div>
+            
+            <div class="message">
+                <p>We have completed the review of your allowance application. Here is the status update:</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <div class="status-badge status-{{ application.status }}">
+                    {% if application.status == 'approved' %}
+                        ✅ APPROVED
+                    {% elif application.status == 'rejected' %}
+                        ❌ REJECTED
+                    {% elif application.status == 'disbursed' %}
+                        💰 DISBURSED
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="details-box">
+                <div class="details-row">
+                    <span class="details-label">📋 Application ID:</span>
+                    <span class="details-value">#{{ application.id }}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">📝 Application Type:</span>
+                    <span class="details-value">{{ application.application_type_display }}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">💰 Amount:</span>
+                    <span class="details-value amount-highlight">₱{{ application.amount|floatformat:2 }}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">📅 Applied Date:</span>
+                    <span class="details-value">{{ application.applied_at|date:"F d, Y" }}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">📅 Processed Date:</span>
+                    <span class="details-value">{{ application.processed_at|date:"F d, Y" }}</span>
+                </div>
+            </div>
+            
+            {% if application.status == 'approved' %}
+                <div class="next-steps">
+                    <h3>🎉 Congratulations!</h3>
+                    <p>Your application has been approved! Here's what happens next:</p>
+                    <ul>
+                        <li><strong>Verification:</strong> Your application details have been verified and approved by our administrative team</li>
+                        <li><strong>Disbursement Processing:</strong> The allowance will be processed according to the scheduled disbursement period</li>
+                        <li><strong>Fund Release:</strong> You will receive notification once the funds have been disbursed</li>
+                        <li><strong>Confirmation:</strong> Please check your student portal for disbursement confirmation</li>
+                    </ul>
+                </div>
+            {% elif application.status == 'rejected' %}
+                <div class="next-steps" style="background-color: #fee2e2; border-left-color: #dc2626;">
+                    <h3 style="color: #991b1b;">❌ Application Not Approved</h3>
+                    <p style="color: #991b1b;">Unfortunately, your application could not be approved at this time. Please review the feedback below:</p>
+                </div>
+            {% elif application.status == 'disbursed' %}
+                <div class="next-steps" style="background-color: #f3e8ff; border-left-color: #7c3aed;">
+                    <h3 style="color: #6b21a8;">🎊 Allowance Disbursed!</h3>
+                    <p style="color: #6b21a8;">Great news! Your allowance has been successfully disbursed:</p>
+                    <ul style="color: #6b21a8;">
+                        <li><strong>Amount Disbursed:</strong> ₱{{ application.amount|floatformat:2 }}</li>
+                        <li><strong>Disbursement Date:</strong> {{ application.processed_at|date:"F d, Y" }}</li>
+                        <li><strong>Verification:</strong> Please verify receipt of funds through your designated payment method</li>
+                        <li><strong>Confirmation:</strong> Check your student portal for official disbursement receipt</li>
+                    </ul>
+                </div>
+            {% endif %}
+            
+            {% if application.admin_notes %}
+                <div class="admin-notes">
+                    <h3>📝 Administrator Notes</h3>
+                    <p>"{{ application.admin_notes }}"</p>
+                </div>
+            {% endif %}
+            
+            <div class="message">
+                <p><strong>Need More Information?</strong> If you have any questions about this decision or need clarification, please don't hesitate to contact our support team.</p>
+            </div>
+            
+            <div class="message">
+                <p>You can view complete details of your application by logging into your TCU-CEAA Portal account.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>TCU-CEAA Portal</strong></p>
+            <p>Comprehensive Educational Assistance Application</p>
+            <p>Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>
+            <p style="margin-top: 15px; font-size: 11px; color: #999;">
+                This is an automated notification. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

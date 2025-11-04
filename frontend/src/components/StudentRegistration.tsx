@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
+import EmailVerificationModal from './EmailVerificationModal';
 import './StudentRegistration.css';
 
 interface StudentRegistrationProps {
@@ -23,6 +24,8 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const validateStudentId = (id: string): boolean => {
     const pattern = /^\d{2}-\d{5}$/;
@@ -115,7 +118,7 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       }
 
       // Step 3: Proceed with Registration (only if verification passed)
-      await authService.register({
+      const registerResponse = await authService.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
@@ -127,7 +130,19 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         role: 'student'
       });
 
-      setSuccess(true);
+      // Always show verification modal - email verification is now required
+      console.log('Registration response:', registerResponse);
+      
+      if (registerResponse.requires_verification) {
+        // Show verification modal - this is the standard flow
+        setRegisteredEmail(formData.email);
+        setShowVerificationModal(true);
+        console.log('Showing verification modal for:', formData.email);
+      } else {
+        // This shouldn't happen anymore, but keep for safety
+        console.warn('Unexpected: Registration succeeded without requiring verification');
+        setError('Registration succeeded but verification step was skipped. Please contact support.');
+      }
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
       
@@ -139,17 +154,28 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
           setError(`Registration failed: ${errorData}`);
         } else if (errorData.detail) {
           setError(`Registration failed: ${errorData.detail}`);
+        } else if (errorData.non_field_errors) {
+          // This catches our VerifiedStudent validation errors
+          if (Array.isArray(errorData.non_field_errors)) {
+            setError(errorData.non_field_errors[0]);
+          } else {
+            setError(`${errorData.non_field_errors}`);
+          }
         } else if (errorData.username) {
           setError('Registration failed: This username is already taken. Please choose a different username.');
         } else if (errorData.email) {
           setError('Registration failed: This email is already registered.');
         } else if (errorData.student_id) {
           setError('Registration failed: This student ID is already registered.');
-        } else if (errorData.non_field_errors) {
-          setError(`Registration failed: ${errorData.non_field_errors[0]}`);
         } else {
-          const errorMessages = Object.values(errorData).flat();
-          setError(`Registration failed: ${errorMessages.join(', ')}`);
+          // Show all validation errors
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => {
+              const messageArray = Array.isArray(messages) ? messages : [messages];
+              return messageArray.join(', ');
+            })
+            .filter(msg => msg);
+          setError(errorMessages.join(' | '));
         }
       } else {
         setError('Registration failed: An unexpected error occurred. Please try again.');
@@ -157,6 +183,16 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerificationSuccess = (token: string, user: any) => {
+    // Store auth data
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Close modal and show success
+    setShowVerificationModal(false);
+    setSuccess(true);
   };
 
   if (success) {
@@ -471,6 +507,14 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
           </div>
         </form>
       </div>
+
+      {/* Email Verification Modal */}
+      <EmailVerificationModal
+        isOpen={showVerificationModal}
+        email={registeredEmail}
+        onSuccess={handleVerificationSuccess}
+        onClose={() => setShowVerificationModal(false)}
+      />
     </div>
   );
 };

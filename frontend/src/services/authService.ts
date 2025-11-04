@@ -33,6 +33,30 @@ export interface RegisterData {
   student_id?: string;
 }
 
+export interface RegisterResponse {
+  requires_verification?: boolean;
+  email_sent?: boolean;
+  user_id?: number;
+  email?: string;
+  username?: string;
+  token?: string;
+  user?: User;
+  message?: string;
+}
+
+export interface VerifyEmailResponse {
+  valid: boolean;
+  message: string;
+  token?: string;
+  user?: User;
+}
+
+export interface ResendCodeResponse {
+  success: boolean;
+  message: string;
+  expires_in_minutes?: number;
+}
+
 export interface ProfileImageResponse {
   message: string;
   profile_image?: string;
@@ -90,8 +114,30 @@ export const authService = {
     return response.data;
   },
 
-  register: async (userData: RegisterData): Promise<LoginResponse> => {
-    const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/register/`, userData);
+  register: async (userData: RegisterData): Promise<RegisterResponse> => {
+    const response = await axios.post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, userData);
+    return response.data;
+  },
+
+  verifyEmail: async (email: string, code: string): Promise<VerifyEmailResponse> => {
+    const response = await axios.post<VerifyEmailResponse>(`${API_BASE_URL}/auth/verify-email/`, {
+      email,
+      code,
+    });
+    return response.data;
+  },
+
+  resendVerificationCode: async (email: string): Promise<ResendCodeResponse> => {
+    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/auth/resend-verification-code/`, {
+      email,
+    });
+    return response.data;
+  },
+
+  sendVerificationCode: async (email: string): Promise<ResendCodeResponse> => {
+    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/auth/send-verification-code/`, {
+      email,
+    });
     return response.data;
   },
 
