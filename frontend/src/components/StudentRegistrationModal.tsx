@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
+import EmailVerificationCompact from './EmailVerificationCompact';
 import './StudentRegistrationModal.css';
 
 interface StudentRegistrationModalProps {
@@ -7,6 +8,8 @@ interface StudentRegistrationModalProps {
   onGoToLogin: () => void;
   onClose: () => void;
 }
+
+type RegistrationStep = 'form' | 'verify' | 'success';
 
 const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onBack, onGoToLogin, onClose }) => {
   const [formData, setFormData] = useState({
@@ -21,7 +24,7 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>('form');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -61,26 +64,31 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     // Validation
     if (!validateStudentId(formData.studentId)) {
       setError('Student ID must be in format: XX-XXXXX (e.g., 22-00001)');
-      setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setLoading(false);
       return;
     }
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
-      setLoading(false);
       return;
     }
+
+    // Proceed to email verification step
+    setCurrentStep('verify');
+  };
+
+  const handleEmailVerified = async (verificationCode: string) => {
+    // Email verified, now create the account
+    setLoading(true);
+    setError('');
 
     try {
       await authService.register({
@@ -92,10 +100,11 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
         last_name: formData.lastName.trim(),
         middle_initial: formData.middleInitial.trim() || '',
         student_id: formData.studentId,
-        role: 'student'
+        role: 'student',
+        verification_code: verificationCode // Include verification code
       });
 
-      setSuccess(true);
+      setCurrentStep('success');
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error.response?.data) {
@@ -113,12 +122,29 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
       } else {
         setError('Registration failed. Please try again.');
       }
+      // Go back to form if registration fails
+      setCurrentStep('form');
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
+  const handleCancelVerification = () => {
+    // Go back to registration form
+    setCurrentStep('form');
+  };
+
+  if (currentStep === 'verify') {
+    return (
+      <EmailVerificationCompact
+        email={formData.email}
+        onVerificationSuccess={handleEmailVerified}
+        onCancel={handleCancelVerification}
+      />
+    );
+  }
+
+  if (currentStep === 'success') {
     return (
       <div className="registration-modal-container">
         <div className="success-modal-content">
@@ -218,8 +244,7 @@ const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> = ({ onB
               <img src="/images/TCU_logo.png" alt="TCU Logo" className="tcu-logo-img-modal" />
             </div>
           </div>
-          <h1>Taguig City University</h1>
-          <h2>Student Registration</h2>
+          <h1>Student Registration</h1>
           <p>Create your student account to access TCU-CEAA</p>
         </div>
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
+import { sendVerificationCode, verifyEmailCode, resendVerificationCode } from '../services/verificationService';
+import EmailVerificationModal from './EmailVerificationModal';
 import './StudentRegistration.css';
 
 interface StudentRegistrationProps {
@@ -23,6 +25,11 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Email verification states
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState<string>('');
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const validateStudentId = (id: string): boolean => {
     const pattern = /^\d{2}-\d{5}$/;
@@ -62,59 +69,101 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
     setError('');
     setLoading(true);
 
+    // Step 1: Frontend Validation
+    if (!validateStudentId(formData.studentId)) {
+      setError('Student ID must be in format: XX-XXXXX (e.g., 22-00001)');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Verify Student Information
     try {
-      // Step 1: Frontend Validation
-      if (!validateStudentId(formData.studentId)) {
-        setError('Student ID must be in format: XX-XXXXX (e.g., 22-00001)');
+      const verificationResult = await authService.verifyStudent({
+        studentId: formData.studentId,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        middleInitial: formData.middleInitial.replace('.', '').trim()
+      });
+
+      if (!verificationResult.verified) {
+        setError(`Verification failed: ${verificationResult.message}`);
         setLoading(false);
         return;
       }
-
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        setLoading(false);
-        return;
+    } catch (verificationError: any) {
+      console.error('Verification error:', verificationError);
+      if (verificationError.response?.status === 403) {
+        const errorData = verificationError.response?.data;
+        setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
+      } else if (verificationError.response?.status === 400) {
+        const errorData = verificationError.response?.data;
+        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
+      } else {
+        setError('Verification failed: Unable to verify student information. Please try again later.');
       }
+      setLoading(false);
+      return;
+    }
 
-      if (formData.password.length < 8) {
-        setError('Password must be at least 8 characters long');
+    // Step 3: Send verification code to email
+    try {
+      const result = await sendVerificationCode(formData.email);
+      
+      if (result.success) {
+        setShowVerificationModal(true);
         setLoading(false);
-        return;
-      }
-
-      // Step 2: Verify Student Information
-      try {
-        const verificationResult = await authService.verifyStudent({
-          studentId: formData.studentId,
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          middleInitial: formData.middleInitial.replace('.', '').trim()
-        });
-
-        if (!verificationResult.verified) {
-          setError(`Verification failed: ${verificationResult.message}`);
-          setLoading(false);
-          return;
-        }
-      } catch (verificationError: any) {
-        console.error('Verification error:', verificationError);
-        if (verificationError.response?.status === 403) {
-          // Student not verified
-          const errorData = verificationError.response?.data;
-          setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
-        } else if (verificationError.response?.status === 400) {
-          // Bad request
-          const errorData = verificationError.response?.data;
-          setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
-        } else {
-          // Network or other errors
-          setError('Verification failed: Unable to verify student information. Please try again later.');
-        }
+      } else {
+        setError(result.message);
         setLoading(false);
-        return;
       }
+    } catch (error: any) {
+      console.error('Error sending verification code:', error);
+      setError('Failed to send verification code. Please try again.');
+      setLoading(false);
+    }
+  };
 
-      // Step 3: Proceed with Registration (only if verification passed)
+  const handleEmailVerified = async (code: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Verify the code
+      const verifyResult = await verifyEmailCode(formData.email, code);
+      
+      if (verifyResult.success) {
+        setVerificationCode(code);
+        setEmailVerified(true);
+        setShowVerificationModal(false);
+        
+        // Complete registration with verified email
+        await completeRegistration(code);
+      } else {
+        setError(verifyResult.message);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Verification error:', error);
+      setError('Verification failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const completeRegistration = async (code: string) => {
+    try {
+      // Proceed with Registration with verified email
       await authService.register({
         username: formData.username,
         email: formData.email,
@@ -124,14 +173,14 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         last_name: formData.lastName.trim(),
         middle_initial: formData.middleInitial.trim() || '',
         student_id: formData.studentId,
-        role: 'student'
+        role: 'student',
+        verification_code: code
       });
 
       setSuccess(true);
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
       
-      // Differentiate between registration errors and verification errors
       if (registrationError.response?.data) {
         const errorData = registrationError.response.data;
         
@@ -157,6 +206,17 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    const result = await resendVerificationCode(formData.email);
+    return result;
+  };
+
+  const handleCancelVerification = () => {
+    setShowVerificationModal(false);
+    setLoading(false);
+    setError('');
   };
 
   if (success) {
@@ -252,6 +312,16 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
 
   return (
     <div className="student-registration-container">
+      {/* Email Verification Modal */}
+      {showVerificationModal && (
+        <EmailVerificationModal
+          email={formData.email}
+          onVerified={handleEmailVerified}
+          onCancel={handleCancelVerification}
+          onResend={handleResendVerification}
+        />
+      )}
+
       <div className="registration-card">
         <div className="registration-header">
           <div className="tcu-logo">

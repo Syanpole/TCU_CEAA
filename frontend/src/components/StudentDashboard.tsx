@@ -14,6 +14,8 @@ import DefaultAvatar from './DefaultAvatar';
 import NotificationModal from './NotificationModal';
 import FastDocumentUploadSimple from './FastDocumentUploadSimple';
 import DocumentRequirements from './DocumentRequirements';
+import BasicQualification, { QualificationData } from './BasicQualification';
+import FullApplicationForm from './FullApplicationForm';
 import { StudentIcon, EmailIcon, MoneyIcon, DocumentIcon, ChartIcon, WarningIcon, CheckIcon, GradeIcon, ApplicationIcon } from './Icons';
 import './StudentDashboard.css';
 
@@ -74,6 +76,19 @@ interface StudentDashboardData {
   stats?: DashboardStats;
 }
 
+interface QualificationCheckResponse {
+  completed: boolean;
+  qualified: boolean;
+  data: any;
+}
+
+interface QualificationSubmitResponse {
+  success: boolean;
+  qualified: boolean;
+  message: string;
+  data: any;
+}
+
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -99,6 +114,15 @@ const StudentDashboard: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showBasicQualification, setShowBasicQualification] = useState(false);
+  const [hasCompletedQualification, setHasCompletedQualification] = useState(false);
+  const [isQualified, setIsQualified] = useState(false);
+  const [showFullApplication, setShowFullApplication] = useState(false);
+  const [hasCompletedApplication, setHasCompletedApplication] = useState(false);
+  const [applicationData, setApplicationData] = useState<{
+    school_year: string;
+    semester: string;
+  } | null>(null);
 
   // Theme toggle function
   const toggleTheme = () => {
@@ -156,13 +180,15 @@ const StudentDashboard: React.FC = () => {
           documentsResponse,
           gradesResponse,
           applicationsResponse,
-          dashboardResponse
+          dashboardResponse,
+          qualificationResponse
         ] = await Promise.all([
           apiClient.get('/tasks/'),
           apiClient.get('/documents/'),
           apiClient.get('/grades/'),
           apiClient.get('/applications/'),
-          apiClient.get('/dashboard/student/')
+          apiClient.get('/dashboard/student/'),
+          apiClient.get('/basic-qualification/check_status/')
         ]);
 
         setAssignments((assignmentsResponse.data as Assignment[]) || []);
@@ -174,6 +200,11 @@ const StudentDashboard: React.FC = () => {
         if (dashboardData?.stats) {
           setStats(dashboardData.stats);
         }
+
+        // Check basic qualification status
+        const qualificationData = qualificationResponse.data as QualificationCheckResponse;
+        setHasCompletedQualification(qualificationData.completed || false);
+        setIsQualified(qualificationData.qualified || false);
 
       } catch (err: any) {
         console.error('Error fetching student data:', err);
@@ -195,8 +226,8 @@ const StudentDashboard: React.FC = () => {
 
     fetchStudentData();
     
-    const intervalId = setInterval(fetchStudentData, 300000);
-    return () => clearInterval(intervalId);
+    // Removed automatic refresh interval to prevent form data loss
+    // Users can manually refresh if needed
   }, []);
 
   const refreshDocuments = async () => {
@@ -243,13 +274,82 @@ const StudentDashboard: React.FC = () => {
     setShowNotification(true);
   };
 
+  const handleGradesRefresh = async () => {
+    try {
+      const response = await apiClient.get('/grades/');
+      setGrades((response.data as GradeSubmission[]) || []);
+    } catch (err) {
+      console.error('Error refreshing grades:', err);
+    }
+  };
+
   const handleAllowanceApplicationSuccess = () => {
     setShowAllowanceForm(false);
     
     setNotificationType('success');
     setNotificationTitle('Application Submitted Successfully');
-    setNotificationMessage('Your allowance application has been submitted and is under review.');
+    setNotificationMessage('Your allowance application has been submitted and is under review. You will receive an email notification at your registered email address once your application is approved by the admin.');
     setShowNotification(true);
+  };
+
+  const handleApplicationsRefresh = async () => {
+    try {
+      const response = await apiClient.get('/applications/');
+      setApplications((response.data as AllowanceApplication[]) || []);
+    } catch (err) {
+      console.error('Error refreshing applications:', err);
+    }
+  };
+
+  const handleQualificationComplete = async (data: QualificationData) => {
+    try {
+      const response = await apiClient.post('/basic-qualification/submit/', data);
+      const responseData = response.data as QualificationSubmitResponse;
+      
+      if (responseData.success) {
+        setHasCompletedQualification(true);
+        setIsQualified(responseData.qualified);
+        setShowBasicQualification(false);
+        
+        if (responseData.qualified) {
+          // Show full application form immediately for qualified users
+          setShowFullApplication(true);
+          setNotificationType('success');
+          setNotificationTitle('Qualification Completed!');
+          setNotificationMessage('Congratulations! You have met all the basic qualification criteria. Please complete the full application form.');
+        } else {
+          setNotificationType('warning');
+          setNotificationTitle('Qualification Not Met');
+          setNotificationMessage('Unfortunately, you do not meet all the basic qualification criteria at this time. Please review the requirements.');
+        }
+        setShowNotification(true);
+      }
+    } catch (err: any) {
+      console.error('Error submitting qualification:', err);
+      setNotificationType('error');
+      setNotificationTitle('Submission Failed');
+      setNotificationMessage(err.response?.data?.error || 'Failed to submit qualification. Please try again.');
+      setShowNotification(true);
+    }
+  };
+
+  const handleQualificationCancel = () => {
+    setShowBasicQualification(false);
+  };
+
+  const handleApplicationComplete = (data: { school_year: string; semester: string }) => {
+    setHasCompletedApplication(true);
+    setApplicationData(data);
+    setShowFullApplication(false);
+    setNotificationType('success');
+    setNotificationTitle('Application Completed & Locked!');
+    setNotificationMessage(`Your application for ${data.semester} ${data.school_year} has been successfully submitted and locked. You can now proceed to submit your requirements.`);
+    setShowNotification(true);
+    setActiveSection('requirements'); // Navigate to submission of requirements
+  };
+
+  const handleApplicationCancel = () => {
+    setShowFullApplication(false);
   };
 
   if (loading) {
@@ -326,11 +426,154 @@ const StudentDashboard: React.FC = () => {
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'requirements':
+      case 'application':
         return (
-          <DocumentRequirements darkMode={darkMode} />
+          <div className="application-section">
+            {!hasCompletedQualification ? (
+              <div className="qualification-prompt">
+                <div className="prompt-card">
+                  <h2>Complete Basic Qualification</h2>
+                  <p>Before you can access documents and grades, you need to complete the basic qualification criteria.</p>
+                  <button 
+                    className="start-qualification-btn"
+                    onClick={() => setShowBasicQualification(true)}
+                  >
+                    Start Application Process
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="qualification-completed">
+                <div className="completion-card">
+                  <div style={{ color: '#10b981' }}>
+                    <CheckIcon size={48} />
+                  </div>
+                  <h2>Application Process {hasCompletedApplication ? 'Completed' : 'In Progress'}</h2>
+                  {isQualified ? (
+                    <>
+                      {!hasCompletedApplication ? (
+                        <>
+                          <p>✓ Basic qualification completed successfully.</p>
+                          <p>Next step: Complete the full application form with your personal, school, and family information.</p>
+                          <button 
+                            className="start-qualification-btn"
+                            onClick={() => setShowFullApplication(true)}
+                          >
+                            Complete Application Form
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ color: '#10b981', fontSize: '64px', marginBottom: '20px' }}>✓</div>
+                          <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>Application Completed & Locked</p>
+                          <p>Your application has been successfully submitted and locked.</p>
+                          <p>You can now proceed to submit your documents and grades in the "Submission of Requirements" section.</p>
+                          {applicationData && (
+                            <div style={{ marginTop: '20px', padding: '15px', background: '#f0f9ff', borderRadius: '8px' }}>
+                              <p style={{ margin: '5px 0' }}><strong>School Year:</strong> {applicationData.school_year}</p>
+                              <p style={{ margin: '5px 0' }}><strong>Semester:</strong> {applicationData.semester}</p>
+                            </div>
+                          )}
+                          <button 
+                            className="start-qualification-btn"
+                            onClick={() => handleSectionChange('requirements')}
+                            style={{ marginTop: '20px' }}
+                          >
+                            Go to Submission of Requirements
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p>You have completed the qualification form, but you do not meet all the criteria at this time.</p>
+                      <button 
+                        className="retake-qualification-btn"
+                        onClick={() => setShowBasicQualification(true)}
+                        style={{ marginTop: '10px' }}
+                      >
+                        Review/Update Qualification
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'requirements':
+        if (!hasCompletedQualification || !isQualified) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Submission of Requirements Locked</h2>
+                <p>Please complete the basic qualification criteria in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
+        if (!hasCompletedApplication) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Submission of Requirements Locked</h2>
+                <p>Please complete the full application form in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <DocumentRequirements 
+            darkMode={darkMode}
+            schoolYear={applicationData?.school_year}
+            semester={applicationData?.semester}
+          />
         );
       case 'documents':
+        if (!hasCompletedQualification || !isQualified) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Documents Locked</h2>
+                <p>Please complete the basic qualification criteria in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
+        if (!hasCompletedApplication) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Documents Locked</h2>
+                <p>Please complete the full application form in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
         return (
           <DocumentsPage
             documents={documents}
@@ -339,12 +582,45 @@ const StudentDashboard: React.FC = () => {
           />
         );
       case 'grades':
+        if (!hasCompletedQualification || !isQualified) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Grades Locked</h2>
+                <p>Please complete the basic qualification criteria in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
+        if (!hasCompletedApplication) {
+          return (
+            <div className="locked-section">
+              <div className="lock-message">
+                <div style={{ color: '#f59e0b' }}>
+                  <WarningIcon size={48} />
+                </div>
+                <h2>Grades Locked</h2>
+                <p>Please complete the full application form in the Application section first.</p>
+                <button onClick={() => handleSectionChange('application')}>
+                  Go to Application
+                </button>
+              </div>
+            </div>
+          );
+        }
         return (
           <GradesPage
             grades={grades}
             darkMode={darkMode}
             canSubmitGrades={canSubmitGrades}
             onGradeSubmissionSuccess={handleGradeSubmissionSuccess}
+            onRefresh={handleGradesRefresh}
           />
         );
       case 'application-details':
@@ -354,6 +630,7 @@ const StudentDashboard: React.FC = () => {
             darkMode={darkMode}
             canApplyForAllowance={canApplyForAllowance}
             onAllowanceApplicationSuccess={handleAllowanceApplicationSuccess}
+            onRefresh={handleApplicationsRefresh}
           />
         );
       case 'profile':
@@ -364,7 +641,7 @@ const StudentDashboard: React.FC = () => {
           <div className="overview-page">
             <div className="page-header">
               <h1>Student Dashboard</h1>
-              <p>Track your application progress and complete required steps</p>
+              <p>Track your scholarship application progress</p>
             </div>
 
             {/* Welcome Section */}
@@ -389,22 +666,7 @@ const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="welcome-text">
                     <h2>{getGreeting()}, {user?.first_name}!</h2>
-                    <p>Track your application progress and complete required steps</p>
-                    <div className="student-info">
-                      <span className="student-id">
-                        <StudentIcon size={14} /> ID: {user?.student_id || 'Not assigned'}
-                      </span>
-                      <span className="student-email">
-                        <EmailIcon size={14} /> {user?.email}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="real-time-indicator">
-                  <div className="live-dot"></div>
-                  <span>Live Dashboard</span>
-                  <div className="last-update">
-                    {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
+                    <p>{user?.email}</p>
                   </div>
                 </div>
               </div>
@@ -415,7 +677,6 @@ const StudentDashboard: React.FC = () => {
               <div className="progress-header">
                 <h3>Application Progress</h3>
                 <div className="overall-completion">
-                  <span className="completion-text">Overall Completion</span>
                   <span className="completion-percentage">{applicationProgress}%</span>
                 </div>
               </div>
@@ -455,17 +716,6 @@ const StudentDashboard: React.FC = () => {
                     <h4>Application</h4>
                   </div>
                 </div>
-                
-                <div className={`step-connector ${isApplicationComplete ? 'completed' : ''}`}></div>
-                
-                <div className={`progress-step ${isReviewComplete ? 'completed' : currentStep === 4 ? 'current' : ''}`}>
-                  <div className="step-circle">
-                    {isReviewComplete ? <CheckIcon size={16} /> : <span className="step-number">4</span>}
-                  </div>
-                  <div className="step-info">
-                    <h4>Review</h4>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -478,7 +728,6 @@ const StudentDashboard: React.FC = () => {
                 <div className="stat-content">
                   <div className="stat-number">{stats.total_documents}</div>
                   <div className="stat-label">Documents</div>
-                  <div className="stat-sub">✅ {stats.approved_documents} approved</div>
                 </div>
               </div>
               <div className="stat-card grades">
@@ -488,9 +737,6 @@ const StudentDashboard: React.FC = () => {
                 <div className="stat-content">
                   <div className="stat-number">{grades.length}</div>
                   <div className="stat-label">Grade Reports</div>
-                  <div className="stat-sub">
-                    {grades.filter(g => g.qualifies_for_basic_allowance).length} qualify
-                  </div>
                 </div>
               </div>
               <div className="stat-card applications">
@@ -500,7 +746,6 @@ const StudentDashboard: React.FC = () => {
                 <div className="stat-content">
                   <div className="stat-number">{stats.total_applications}</div>
                   <div className="stat-label">Applications</div>
-                  <div className="stat-sub">✅ {stats.approved_applications} processed</div>
                 </div>
               </div>
             </div>
@@ -513,7 +758,6 @@ const StudentDashboard: React.FC = () => {
                 </div>
                 <h3>Documents</h3>
                 <p>Upload required documents</p>
-                <div className="card-progress">{documentsProgress}% Complete</div>
               </div>
               
               <div className="action-card" onClick={() => setActiveSection('grades')}>
@@ -522,16 +766,14 @@ const StudentDashboard: React.FC = () => {
                 </div>
                 <h3>Submit Grades</h3>
                 <p>Submit your grades</p>
-                <div className="card-progress">{gradesProgress}% Complete</div>
               </div>
               
               <div className="action-card" onClick={() => setActiveSection('application-details')}>
                 <div className="card-icon">
                   <ApplicationIcon size={48} />
                 </div>
-                <h3>Application Details</h3>
-                <p>Complete your application</p>
-                <div className="card-progress">{applicationDetailsProgress}% Complete</div>
+                <h3>Application</h3>
+                <p>View application status</p>
               </div>
             </div>
           </div>
@@ -607,6 +849,23 @@ const StudentDashboard: React.FC = () => {
         autoClose={notificationType === 'success'}
         duration={5000}
       />
+
+      {/* Basic Qualification Modal */}
+      {showBasicQualification && (
+        <BasicQualification
+          onComplete={handleQualificationComplete}
+          onCancel={handleQualificationCancel}
+        />
+      )}
+
+      {/* Full Application Form Modal */}
+      {showFullApplication && (
+        <FullApplicationForm
+          applicantType="renewing"
+          onComplete={handleApplicationComplete}
+          onCancel={handleApplicationCancel}
+        />
+      )}
     </div>
   );
 };

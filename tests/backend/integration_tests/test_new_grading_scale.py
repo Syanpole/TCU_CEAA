@@ -3,7 +3,7 @@ Test script for the new official 10-point grading scale
 
 This script tests:
 1. Official grade points (1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 5.0)
-2. Merit threshold at 1.75 (88%)
+2. Merit threshold at 1.75 (87%)
 3. Basic threshold at 2.25 (80%)
 4. Flexible decimal format support
 """
@@ -28,7 +28,7 @@ def test_grading_scale():
         (1.0, 98.0, "Excellent", True, True),
         (1.25, 94.0, "Very Good", True, True),
         (1.5, 91.0, "Good", True, True),
-        (1.75, 88.0, "Satisfactory", True, True),  # Merit cutoff
+        (1.75, 87.0, "Satisfactory", True, True),  # Merit cutoff
         (2.0, 85.0, "Fair", True, False),
         (2.25, 82.0, "Average", True, False),  # Basic cutoff
         (2.5, 79.0, "Below Average", False, False),
@@ -54,8 +54,8 @@ def test_grading_scale():
         test_submission.general_weighted_average = Decimal(str(gwa))
         actual_percent = test_submission._convert_to_percentage(float(gwa))
         
-        # Check merit (GWA <= 1.75, which is >= 88%)
-        qualifies_merit = actual_percent >= 88.0
+        # Check merit (GWA <= 1.75, which is >= 87%)
+        qualifies_merit = actual_percent >= 87.0
         
         # Check basic (GWA <= 2.25, which is >= 80%)
         qualifies_basic = actual_percent >= 80.0
@@ -82,10 +82,10 @@ def test_grading_scale():
     flexible_formats = [
         (1, 98.0),
         (1.0, 98.0),
-        (1.75, 88.0),
-        (1.7, 86.8),  # Interpolated
-        (1.8, 89.2),  # Interpolated
-        (1.91, 86.56),  # Interpolated
+        (1.75, 87.0),
+        (1.7, 88.25),  # Interpolated
+        (1.8, 86.0),  # Interpolated
+        (1.91, 84.78),  # Interpolated
         (2, 85.0),
         (2.0, 85.0),
         (2.25, 82.0),
@@ -128,7 +128,7 @@ def test_grading_scale():
         percent = test_submission._convert_to_percentage(float(gwa))
         
         qualifies_basic = percent >= 80.0
-        qualifies_merit = percent >= 88.0
+        qualifies_merit = percent >= 87.0
         
         basic_status = "✅ Yes" if qualifies_basic else "❌ No"
         merit_status = "✅ Yes" if qualifies_merit else "❌ No"

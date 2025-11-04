@@ -342,7 +342,7 @@ const StudentDashboard: React.FC = () => {
     // Show dashboard notification  
     setNotificationType('success');
     setNotificationTitle('Allowance Application Submitted!');
-    setNotificationMessage('Your allowance application has been submitted successfully. It will be reviewed by admin within 3-5 business days. You will receive email updates on the status.');
+    setNotificationMessage('Your allowance application has been submitted successfully. It will be reviewed by admin within 3-5 business days. You will receive an email notification at your registered email address once your application is approved.');
     setShowNotification(true);
     
     // Refresh applications data

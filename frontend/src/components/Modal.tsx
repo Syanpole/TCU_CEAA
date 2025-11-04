@@ -44,22 +44,22 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, classNa
   return (
     <div className="modal-overlay" onClick={handleBackdropClick}>
       <div className={`modal-container ${className || ''}`}>
-        <button 
-          className="modal-close-button" 
-          onClick={onClose}
-          aria-label="Close modal"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
         {title && (
           <div className="modal-header">
             <h2 className="modal-title">{title}</h2>
           </div>
         )}
         <div className="modal-content">
+          <button 
+            className="modal-close-button" 
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
           {children}
         </div>
       </div>

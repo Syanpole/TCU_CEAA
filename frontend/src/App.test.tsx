@@ -15,15 +15,15 @@ jest.mock('./contexts/AuthContext', () => ({
 }));
 
 test('renders landing page', () => {
-  render(<App />);
+  const { container } = render(<App />);
   
   // Check for the main portal title - use getAllByText and check first element
   const portalTitles = screen.getAllByText(/TCU.*CEAA.*Portal/i);
   expect(portalTitles.length).toBeGreaterThan(0);
   expect(portalTitles[0]).toBeInTheDocument();
   
-  // Check for landing page specific class name
-  const landingContainer = document.querySelector('.landing-container');
+  // Check for landing page specific class name using container
+  const landingContainer = container.querySelector('.landing-container');
   expect(landingContainer).toBeInTheDocument();
   
   // Check for TCU Logo which is unique to landing page

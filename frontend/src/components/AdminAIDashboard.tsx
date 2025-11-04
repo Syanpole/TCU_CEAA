@@ -137,7 +137,7 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
       {/* Dashboard Header */}
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>🤖 AI System Administration Dashboard</h1>
+          <h1>AI System Administration Dashboard</h1>
           <p>Comprehensive monitoring and management of the AI verification system</p>
         </div>
         <div className="header-controls">
@@ -186,28 +186,24 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
 
             <div className="quick-stats">
               <div className="quick-stat">
-                <div className="stat-icon">📊</div>
                 <div className="stat-content">
                   <div className="stat-value">{dashboardStats.ai_statistics.total_processed}</div>
                   <div className="stat-label">Documents Processed</div>
                 </div>
               </div>
               <div className="quick-stat">
-                <div className="stat-icon">✅</div>
                 <div className="stat-content">
                   <div className="stat-value">{(dashboardStats.ai_statistics.auto_approval_rate * 100).toFixed(1)}%</div>
                   <div className="stat-label">Auto Approval Rate</div>
                 </div>
               </div>
               <div className="quick-stat">
-                <div className="stat-icon">🎯</div>
                 <div className="stat-content">
                   <div className="stat-value">{(dashboardStats.ai_statistics.average_confidence * 100).toFixed(1)}%</div>
                   <div className="stat-label">Avg Confidence</div>
                 </div>
               </div>
               <div className="quick-stat">
-                <div className="stat-icon">⚡</div>
                 <div className="stat-content">
                   <div className="stat-value">{(dashboardStats.ai_statistics.processing_efficiency * 100).toFixed(1)}%</div>
                   <div className="stat-label">Efficiency</div>
@@ -223,7 +219,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
               <div className="metrics-grid">
                 <div className="metric-card">
                   <div className="metric-header">
-                    <span className="metric-icon">🎯</span>
                     <span className="metric-title">Accuracy Rate</span>
                   </div>
                   <div className="metric-value">{performanceMetrics.accuracy_rate.toFixed(1)}%</div>
@@ -231,7 +226,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
                 </div>
                 <div className="metric-card">
                   <div className="metric-header">
-                    <span className="metric-icon">⚡</span>
                     <span className="metric-title">Processing Rate</span>
                   </div>
                   <div className="metric-value">{performanceMetrics.processing_rate.toFixed(1)}%</div>
@@ -239,7 +233,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
                 </div>
                 <div className="metric-card">
                   <div className="metric-header">
-                    <span className="metric-icon">🔝</span>
                     <span className="metric-title">High Confidence</span>
                   </div>
                   <div className="metric-value">{performanceMetrics.high_confidence_ratio.toFixed(1)}%</div>
@@ -247,7 +240,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
                 </div>
                 <div className="metric-card">
                   <div className="metric-header">
-                    <span className="metric-icon">⚙️</span>
                     <span className="metric-title">System Efficiency</span>
                   </div>
                   <div className="metric-value">{performanceMetrics.system_efficiency.toFixed(1)}%</div>
@@ -298,7 +290,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
               </div>
               <div className="status-item">
                 <div className="status-indicator">
-                  <div className="status-icon">🤖</div>
                   <span className="status-label">Algorithms</span>
                 </div>
                 <div className="status-value">
@@ -307,7 +298,6 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
               </div>
               <div className="status-item">
                 <div className="status-indicator">
-                  <div className="status-icon">⏳</div>
                   <span className="status-label">Queue</span>
                 </div>
                 <div className="status-value">

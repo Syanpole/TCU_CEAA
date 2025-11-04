@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
-import { safeToFixed, formatCurrency } from '../utils/numberUtils';
+import { formatCurrency } from '../utils/numberUtils';
+import AdminAIDashboard from './AdminAIDashboard';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -208,12 +209,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
 
     fetchDashboardData();
     
-    // Set up auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // Removed automatic refresh to prevent data loss when filling forms
+    // Admins can use manual refresh buttons if needed
   }, []);
 
   // Function to manually refresh data
@@ -459,8 +456,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             Analytics
           </button>
           <button 
-            className="tab-btn"
-            onClick={() => onViewChange && onViewChange('ai-dashboard')}
+            className={`tab-btn ${activeTab === 'ai-dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai-dashboard')}
           >
             <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -1204,7 +1201,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   transition: 'all 0.2s'
                 }}
               >
-                📋 All Activities
+                All Activities
               </button>
               <button
                 className={`filter-btn ${auditFilter === 'ai' ? 'active' : ''}`}
@@ -1221,7 +1218,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   transition: 'all 0.2s'
                 }}
               >
-                🤖 AI Actions
+                AI Actions
               </button>
               <button
                 className={`filter-btn ${auditFilter === 'admin' ? 'active' : ''}`}
@@ -1238,7 +1235,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   transition: 'all 0.2s'
                 }}
               >
-                👤 Admin Actions
+                Admin Actions
               </button>
               <button
                 className={`filter-btn ${auditFilter === 'user' ? 'active' : ''}`}
@@ -1255,7 +1252,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   transition: 'all 0.2s'
                 }}
               >
-                👥 User Actions
+                User Actions
               </button>
             </div>
 
@@ -1324,6 +1321,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* AI Dashboard Tab */}
+        {activeTab === 'ai-dashboard' && (
+          <div className="ai-dashboard-section">
+            <AdminAIDashboard />
           </div>
         )}
 

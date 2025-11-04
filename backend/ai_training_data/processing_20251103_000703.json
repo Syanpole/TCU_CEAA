@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-11-03T00:07:03.650808",
+  "document_type": "school_id",
+  "confidence_score": 0.925,
+  "processing_time": 119.39986443519592,
+  "algorithms_used": [
+    "image_loading",
+    "quality_analysis",
+    "vision_ai_analysis",
+    "dual_ocr_verification",
+    "document_type_matching",
+    "name_verification",
+    "structure_analysis",
+    "fraud_detection",
+    "learning_system"
+  ],
+  "vision_ai_used": true,
+  "ocr_similarity": 0.5333333333333333,
+  "was_approved": true
+}

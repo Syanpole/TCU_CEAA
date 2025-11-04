@@ -3,7 +3,7 @@ Management command to recalculate grade eligibility with new 10-point scale
 
 This command:
 1. Updates all existing grade submissions
-2. Recalculates eligibility using new thresholds (Merit: 1.75/88%, Basic: 2.25/80%)
+2. Recalculates eligibility using new thresholds (Merit: 1.75/87%, Basic: 2.25/80%)
 3. Logs all changes
 """
 from django.core.management.base import BaseCommand
@@ -31,7 +31,7 @@ class Command(BaseCommand):
         self.stdout.write(f"📊 Found {total_count} grade submission(s)")
         self.stdout.write("")
         self.stdout.write("New Thresholds:")
-        self.stdout.write("  • Merit Incentive: GWA ≤ 1.75 (≥88%)")
+        self.stdout.write("  • Merit Incentive: GWA ≤ 1.75 (≥87%)")
         self.stdout.write("  • Basic Allowance: GWA ≤ 2.25 (≥80%)")
         self.stdout.write("")
         self.stdout.write("-" * 80)
@@ -58,7 +58,7 @@ class Command(BaseCommand):
             )
             
             new_merit = (
-                swa_percent >= 88.0 and  # GWA 1.75 or better
+                swa_percent >= 87.0 and  # GWA 1.75 or better
                 grade.total_units >= 15 and
                 not grade.has_failing_grades and
                 not grade.has_incomplete_grades and

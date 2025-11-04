@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/authService';
-import { RequirementsIcon, WarningIcon } from './Icons';
 import NotificationModal from './NotificationModal';
 import './DocumentSubmissionForm.css';
 
@@ -110,7 +109,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
 
     setLoading(true);
     setError('');
-    setProcessingStatus('⬆️ Uploading document...');
+    setProcessingStatus('⚡ Uploading document...');
 
     try {
       const submitFormData = new FormData();
@@ -119,7 +118,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       submitFormData.append('file', formData.file);
 
       // Show instant processing status
-      setProcessingStatus('🤖 AI analyzing document...');
+      setProcessingStatus('⚡ Processing with AI...');
 
       const response = await apiClient.post('/documents/', submitFormData, {
         headers: {
@@ -128,7 +127,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       });
 
       // Show instant approval status
-      setProcessingStatus('✅ Document approved instantly!');
+      setProcessingStatus('🤖 AI will auto-approve or reject your document in seconds!');
       setInstantApproval(true);
 
       // Reset form
@@ -230,12 +229,12 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
               {instantApproval && (
                 <div className="success-details">
                   ✅ Your document has been instantly analyzed and approved by our AI system!<br/>
-                  🚀 Ready to proceed to the next step!
+                  Ready to proceed to the next step!
                 </div>
               )}
               {!instantApproval && loading && (
                 <div className="processing-details">
-                  🤖 Our ultra-fast AI is analyzing your document in real-time...
+                  🤖 AI analyzing your document now - Auto-approval or rejection in seconds!
                 </div>
               )}
             </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
+import { sendApplicationConfirmationEmail } from '../services/email/emailService';
+import { useAuth } from '../contexts/AuthContext';
 import './AllowanceApplicationForm.css';
 
 interface GradeSubmission {
@@ -31,6 +33,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   onSubmissionSuccess,
   onCancel
 }) => {
+  const { user } = useAuth();
   const [gradeSubmissions, setGradeSubmissions] = useState<GradeSubmission[]>([]);
   const [existingApplications, setExistingApplications] = useState<AllowanceApplication[]>([]);
   const [selectedGradeSubmission, setSelectedGradeSubmission] = useState<number | null>(null);
@@ -38,6 +41,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadingGrades, setLoadingGrades] = useState(true);
+  const [emailStatus, setEmailStatus] = useState<string>('');
 
   useEffect(() => {
     fetchApprovedGrades();
@@ -130,13 +134,48 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     try {
       setLoading(true);
       setError('');
+      setEmailStatus('');
 
       const applicationData = {
         grade_submission: selectedGradeSubmission,
         application_type: applicationType
       };
 
-      await apiClient.post('/applications/', applicationData);
+      // Submit the application
+      const response = await apiClient.post('/applications/', applicationData);
+      const submittedApplication: any = response.data;
+      
+      // Send confirmation email to student
+      if (user?.email && user?.first_name && user?.last_name) {
+        setEmailStatus('📧 Sending confirmation email...');
+        
+        const studentFullName = `${user.last_name}, ${user.first_name}`;
+        const applicationId = submittedApplication?.id ? `APP-${submittedApplication.id}` : 'Pending Assignment';
+        const selectedType = getAvailableApplicationTypes().find(t => t.value === applicationType);
+        const typeDisplay = selectedType?.label || 'Educational Assistance';
+        const amountDisplay = calculateAmount();
+        
+        const emailResult = await sendApplicationConfirmationEmail(
+          studentFullName,
+          user.email,
+          applicationId,
+          typeDisplay,
+          amountDisplay
+        );
+        
+        if (emailResult.success) {
+          setEmailStatus('✅ Application submitted successfully! A confirmation email has been sent to ' + user.email);
+        } else {
+          console.warn('Email sending failed:', emailResult.message);
+          setEmailStatus('✅ Application submitted successfully! (Email notification failed - please check your email settings)');
+        }
+      } else {
+        setEmailStatus('✅ Application submitted successfully!');
+      }
+      
+      // Small delay to show message before closing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       onSubmissionSuccess();
     } catch (error: any) {
       console.error('Error submitting application:', error);
@@ -244,6 +283,13 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             <div className="error-message">
               <span className="error-icon">⚠️</span>
               {error}
+            </div>
+          )}
+
+          {emailStatus && (
+            <div className="email-status-message">
+              <span className="email-icon">📧</span>
+              {emailStatus}
             </div>
           )}
 

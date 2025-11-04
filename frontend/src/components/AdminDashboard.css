@@ -1,22 +1,24 @@
-/* MODERN ADMIN DASHBOARD - CLEAN WHITE THEME */
+/* MODERN ADMIN DASHBOARD - WHITE AND RED THEME */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Root Variables - Updated to White/Light Theme */
+/* Root Variables - White and Red Theme */
 :root {
   --primary-bg: #ffffff;
-  --secondary-bg: #f8f9fa;
+  --secondary-bg: #fef2f2;
   --card-bg: #ffffff;
-  --border-color: #e2e8f0;
+  --border-color: #fecaca;
   --text-primary: #1e293b;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
-  --accent-blue: #3b82f6;
+  --accent-red: #dc2626;
+  --accent-red-dark: #991b1b;
+  --accent-red-light: #ef4444;
   --accent-green: #10b981;
   --accent-orange: #f59e0b;
-  --accent-red: #ef4444;
+  --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(220, 38, 38, 0.1), 0 1px 2px 0 rgba(220, 38, 38, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(220, 38, 38, 0.1), 0 4px 6px -2px rgba(220, 38, 38, 0.05);
 }
 
 /* Animations */
@@ -45,7 +47,7 @@
 /* Base Styles */
 .admin-dashboard-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: #ffffff;
   font-family: 'Inter', sans-serif;
   color: var(--text-primary);
   padding: 2rem;
@@ -96,7 +98,7 @@
 .pulse-dot {
   width: 8px;
   height: 8px;
-  background: var(--accent-green);
+  background: var(--accent-red);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
@@ -109,7 +111,7 @@
 .status-indicator span {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--accent-green);
+  color: var(--accent-red);
 }
 
 /* Admin Profile */
@@ -127,7 +129,7 @@
 
 .admin-profile:hover {
   background: var(--card-bg);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
@@ -135,7 +137,7 @@
 .profile-avatar {
   width: 48px;
   height: 48px;
-  background: var(--accent-blue);
+  background: var(--accent-red);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -157,13 +159,13 @@
 
 .profile-role {
   font-size: 0.875rem;
-  color: var(--accent-blue);
+  color: var(--accent-red);
   font-weight: 500;
 }
 
 .profile-status {
   font-size: 0.75rem;
-  color: var(--accent-green);
+  color: var(--accent-red-dark);
   font-weight: 500;
 }
 
@@ -187,7 +189,7 @@
 .metric-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
 }
 
 .metric-icon {
@@ -206,17 +208,17 @@
   height: 24px;
 }
 
-.personnel .metric-icon { background-color: rgba(59, 130, 246, 0.1); }
-.personnel .metric-icon svg { color: var(--accent-blue); }
+.personnel .metric-icon { background-color: rgba(220, 38, 38, 0.1); }
+.personnel .metric-icon svg { color: var(--accent-red); }
 
-.documents .metric-icon { background-color: rgba(245, 158, 11, 0.1); }
-.documents .metric-icon svg { color: var(--accent-orange); }
+.documents .metric-icon { background-color: rgba(220, 38, 38, 0.15); }
+.documents .metric-icon svg { color: var(--accent-red-light); }
 
-.grades .metric-icon { background-color: rgba(16, 185, 129, 0.1); }
-.grades .metric-icon svg { color: var(--accent-green); }
+.grades .metric-icon { background-color: rgba(220, 38, 38, 0.1); }
+.grades .metric-icon svg { color: var(--accent-red-dark); }
 
-.applications .metric-icon { background-color: rgba(139, 92, 246, 0.1); }
-.applications .metric-icon svg { color: var(--accent-purple); }
+.applications .metric-icon { background-color: rgba(220, 38, 38, 0.1); }
+.applications .metric-icon svg { color: var(--accent-red); }
 
 .metric-data {
   display: flex;
@@ -240,7 +242,7 @@
 .metric-status {
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--accent-green);
+  color: var(--accent-red);
 }
 
 /* Command Grid */
@@ -265,7 +267,7 @@
 .command-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-red);
 }
 
 .command-header {
@@ -281,14 +283,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--card-bg);
+  background: var(--secondary-bg);
   border-radius: 8px;
 }
 
 .command-icon svg {
   width: 20px;
   height: 20px;
-  color: var(--accent-blue);
+  color: var(--accent-red);
 }
 
 .command-count {
@@ -344,8 +346,8 @@
 .panel-count {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--accent-blue);
-  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent-red);
+  background: rgba(220, 38, 38, 0.1);
   padding: 0.25rem 0.75rem;
   border-radius: 6px;
 }
@@ -577,7 +579,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid var(--border-color);
-  border-top: 3px solid var(--accent-blue);
+  border-top: 3px solid var(--accent-red);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
@@ -641,7 +643,7 @@
 }
 
 .retry-btn {
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -653,7 +655,7 @@
 }
 
 .retry-btn:hover {
-  background: #b91c1c;
+  background: var(--accent-red-dark);
   transform: translateY(-1px);
 }
 
@@ -712,13 +714,13 @@
 
 .operations-list::-webkit-scrollbar-thumb,
 .authorization-grid::-webkit-scrollbar-thumb {
-  background: var(--accent-blue);
+  background: var(--accent-red);
   border-radius: 3px;
 }
 
 .operations-list::-webkit-scrollbar-thumb:hover,
 .authorization-grid::-webkit-scrollbar-thumb:hover {
-  background: #b91c1c;
+  background: var(--accent-red-dark);
 }
 
 /* Enhanced Admin Dashboard Features */
@@ -771,7 +773,7 @@
 }
 
 .operation-item.priority-low {
-  border-left-color: #3b82f6;
+  border-left-color: var(--accent-red-light);
 }
 
 .urgent-badge {
@@ -966,7 +968,7 @@
 }
 
 .tab-btn.active {
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   box-shadow: var(--shadow);
 }
@@ -1067,7 +1069,7 @@
 .student-rank {
   width: 32px;
   height: 32px;
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -1148,7 +1150,7 @@
 }
 
 .financial-value.committed {
-  color: var(--accent-blue);
+  color: var(--accent-red);
 }
 
 /* Audit Logs Section */
@@ -1175,7 +1177,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   border: none;
   border-radius: 8px;
@@ -1186,7 +1188,7 @@
 }
 
 .refresh-btn:hover {
-  background: #2563eb;
+  background: var(--accent-red-dark);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
@@ -1243,7 +1245,7 @@
 .user-avatar {
   width: 36px;
   height: 36px;
-  background: var(--accent-blue);
+  background: var(--accent-red);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -1352,3 +1354,7 @@
   background: var(--secondary-bg);
 }
 
+/* AI Dashboard Section */
+.ai-dashboard-section {
+  animation: fadeIn 0.3s ease-in;
+}

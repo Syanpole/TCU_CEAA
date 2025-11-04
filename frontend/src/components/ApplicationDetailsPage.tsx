@@ -17,13 +17,15 @@ interface ApplicationDetailsPageProps {
   darkMode: boolean;
   canApplyForAllowance: boolean;
   onAllowanceApplicationSuccess: () => void;
+  onRefresh: () => void;
 }
 
 const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({ 
   applications, 
   darkMode, 
   canApplyForAllowance,
-  onAllowanceApplicationSuccess 
+  onAllowanceApplicationSuccess,
+  onRefresh 
 }) => {
   const [showAllowanceForm, setShowAllowanceForm] = useState(false);
 
@@ -72,23 +74,35 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
     onAllowanceApplicationSuccess();
   };
 
+  const handleRefresh = () => {
+    onRefresh();
+  };
+
   return (
     <div className={`application-details-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      {/* Refresh Button */}
+      <button 
+          className="refresh-button-corner"
+          onClick={handleRefresh}
+          title="Refresh to see updated data"
+        >
+          🔄
+        </button>
+      
       <div className="page-header">
         <h1>Application Details</h1>
-        <p>Track your allowance applications and their status</p>
+        <p>View your allowance applications</p>
       </div>
 
-      {/* Stats Overview */}
+      {/* Simplified Stats */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
             <RequirementsIcon size={24} />
           </div>
           <div className="stat-content">
-            <h3>Total Applications</h3>
+            <h3>Total</h3>
             <div className="stat-value">{totalApplications}</div>
-            <p>Submitted applications</p>
           </div>
         </div>
 
@@ -97,16 +111,6 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
           <div className="stat-content">
             <h3>Approved</h3>
             <div className="stat-value">{approvedApplications}</div>
-            <p>Successfully processed</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-content">
-            <h3>Pending</h3>
-            <div className="stat-value">{pendingApplications}</div>
-            <p>Under review</p>
           </div>
         </div>
 
@@ -117,7 +121,6 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
           <div className="stat-content">
             <h3>Total Amount</h3>
             <div className="stat-value">{formatCurrency(totalAmount)}</div>
-            <p>Approved allowances</p>
           </div>
         </div>
       </div>
@@ -132,7 +135,6 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
             <MoneyIcon size={16} />
             Apply for Allowance
           </button>
-          <p>Submit a new allowance application based on your approved grades</p>
         </div>
       )}
 
