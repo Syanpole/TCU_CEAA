@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
+from .models import VerifiedStudent
 
 User = get_user_model()
 
@@ -14,9 +15,23 @@ class AuthenticationTestCase(TestCase):
             'password': 'testpass123',
             'first_name': 'Test',
             'last_name': 'User',
+            'middle_initial': 'T',
             'role': 'student',
             'student_id': '23-00001'
         }
+        
+        # Create a verified student record first (required for registration)
+        self.verified_student = VerifiedStudent.objects.create(
+            student_id='23-00001',
+            first_name='Test',
+            last_name='User',
+            middle_initial='T',
+            sex='M',
+            course='BSCS',
+            year_level=1,
+            is_active=True,
+            has_registered=False
+        )
 
     def test_user_registration(self):
         """Test user registration with valid data"""
@@ -24,14 +39,22 @@ class AuthenticationTestCase(TestCase):
             **self.user_data,
             'password_confirm': 'testpass123'
         })
+        
+        # Registration should succeed (returns 201)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn('token', response.data)
-        self.assertEqual(response.data['user']['username'], 'testuser')
+        self.assertIn('email_sent', response.data)
+        self.assertEqual(response.data['username'], 'testuser')
+        
+        # User should be created but inactive until email verification
+        user = User.objects.get(username='testuser')
+        self.assertFalse(user.is_active)  # Inactive until email verified
 
     def test_user_login(self):
         """Test user login with valid credentials"""
-        # Create user first
-        User.objects.create_user(**self.user_data)
+        # Create user first (with active status for login test)
+        user = User.objects.create_user(**self.user_data)
+        user.is_active = True  # Activate for login test
+        user.save()
         
         response = self.client.post('/api/auth/login/', {
             'username': 'testuser',

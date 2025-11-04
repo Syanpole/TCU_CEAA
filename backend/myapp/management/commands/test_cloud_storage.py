@@ -10,8 +10,14 @@ Usage:
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
-import boto3
-from botocore.exceptions import ClientError
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+
 import io
 
 
@@ -19,6 +25,14 @@ class Command(BaseCommand):
     help = 'Test cloud storage (S3) connection and permissions'
     
     def handle(self, *args, **options):
+        if not BOTO3_AVAILABLE:
+            self.stdout.write(self.style.WARNING(
+                '\n⚠️  boto3 is not installed. This command requires boto3 for S3 operations.'
+            ))
+            self.stdout.write(self.style.WARNING(
+                'Install with: pip install boto3'
+            ))
+            return
         self.stdout.write(self.style.HTTP_INFO('=' * 70))
         self.stdout.write(self.style.HTTP_INFO('CLOUD STORAGE CONNECTION TEST'))
         self.stdout.write(self.style.HTTP_INFO('=' * 70))
