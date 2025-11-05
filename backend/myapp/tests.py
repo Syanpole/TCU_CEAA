@@ -1,3 +1,7 @@
+"""
+Django tests for TCU CEAA application
+Tests authentication, user model, and API endpoints
+"""
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -7,6 +11,7 @@ from datetime import timedelta
 from .models import VerifiedStudent
 
 User = get_user_model()
+
 
 class AuthenticationTestCase(TestCase):
     def setUp(self):
