@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiClient } from '../services/authService';
 import './FullApplicationForm.css';
 
 interface FullApplicationFormProps {
@@ -92,7 +93,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   const [showReview, setShowReview] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const totalSteps = 5;
 
   const [formData, setFormData] = useState<ApplicationData>({
@@ -166,6 +167,34 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
     mother_deceased: false,
   });
 
+  // Load saved draft from localStorage on component mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('fullApplicationDraft');
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        // Only load if it's for the same applicant type
+        if (parsedDraft.application_type === (applicantType === 'renewing' ? 'RENEW' : 'NEW')) {
+          setFormData(parsedDraft);
+          setDraftLoaded(true);
+          console.log('✅ Draft loaded from localStorage');
+        }
+      } catch (error) {
+        console.error('Error loading saved draft:', error);
+      }
+    }
+  }, [applicantType]);
+
+  // Save draft to localStorage whenever formData changes
+  useEffect(() => {
+    // Only save if there's some data filled in (not just the initial state)
+    const hasData = formData.first_name || formData.last_name || formData.email || 
+                    formData.mobile_no || formData.school_year;
+    if (hasData) {
+      localStorage.setItem('fullApplicationDraft', JSON.stringify(formData));
+    }
+  }, [formData]);
+
   const stepTitles = [
     'Application Details',
     'Personal Information',
@@ -176,7 +205,57 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
 
   const handleInputChange = (field: keyof ApplicationData, value: any) => {
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
+      // Fields that should NOT be converted to uppercase (numbers, dates, emails, and dropdown selections)
+      const excludedFields = [
+        'email', 
+        'facebook_link', 
+        'date_of_birth', 
+        'age', 
+        'mobile_no', 
+        'other_contact',
+        'father_contact',
+        'mother_contact',
+        'zip_code',
+        'units_enrolled',
+        'course_duration',
+        'years_of_residency',
+        'swa_input',
+        'semesters_to_graduate',
+        'shs_years',
+        'jhs_years',
+        'elem_years',
+        // Dropdown/select fields
+        'school_year',
+        'semester',
+        'applying_for_merit',
+        'sex',
+        'marital_status',
+        'religion',
+        'ladderized',
+        'year_level',
+        'graduating_this_term',
+        'with_honors',
+        'transferee',
+        'shiftee',
+        'status',
+        'shs_type',
+        'jhs_type',
+        'elem_type',
+        'father_education',
+        'mother_education',
+        'father_deceased',
+        'mother_deceased',
+        'application_type',
+        'scholarship_type'
+      ];
+      
+      // Convert to uppercase if it's a string field and not excluded
+      let processedValue = value;
+      if (typeof value === 'string' && !excludedFields.includes(field)) {
+        processedValue = value.toUpperCase();
+      }
+      
+      const updated = { ...prev, [field]: processedValue };
       
       // Auto-calculate age when date of birth changes
       if (field === 'date_of_birth' && value) {
@@ -197,92 +276,260 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   };
 
   const handleNext = () => {
-    // Scroll to top of the form
-    const formContainer = document.querySelector('.full-application-container');
-    if (formContainer) {
-      formContainer.scrollTop = 0;
-    }
-    
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
       setShowReview(true);
     }
+    
+    // Scroll to top of the content area
+    setTimeout(() => {
+      const contentArea = document.querySelector('.application-content');
+      if (contentArea) {
+        contentArea.scrollTop = 0;
+      }
+    }, 0);
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+    
+    // Scroll to top of the content area
+    setTimeout(() => {
+      const contentArea = document.querySelector('.application-content');
+      if (contentArea) {
+        contentArea.scrollTop = 0;
+      }
+    }, 0);
   };
 
   const handleSubmit = async () => {
     setShowConfirmDialog(false);
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Map semester format from frontend to backend
+      const semesterMap: { [key: string]: string } = {
+        '1ST SEMESTER': '1st',
+        '2ND SEMESTER': '2nd',
+        'SUMMER': 'summer'
+      };
+
+      // Map application type
+      const applicationTypeMap: { [key: string]: string } = {
+        'new': 'new',
+        'renewing': 'renewal'
+      };
+
+      // Prepare ALL the form data to send to backend API
+      const applicationData = {
+        // Application Details
+        facebook_link: formData.facebook_link,
+        application_type: applicationTypeMap[applicantType] || applicantType,
+        scholarship_type: formData.scholarship_type,
+        school_year: formData.school_year,
+        semester: semesterMap[formData.semester] || formData.semester.toLowerCase(),
+        applying_for_merit: formData.applying_for_merit,
+        
+        // Personal Information
+        first_name: formData.first_name,
+        middle_name: formData.middle_name,
+        last_name: formData.last_name,
+        house_no: formData.house_no,
+        street: formData.street,
+        zip_code: formData.zip_code,
+        barangay: formData.barangay,
+        district: formData.district,
+        mobile_no: formData.mobile_no,
+        other_contact: formData.other_contact,
+        email: formData.email,
+        date_of_birth: formData.date_of_birth,
+        age: parseInt(formData.age) || null,
+        citizenship: formData.citizenship,
+        sex: formData.sex,
+        marital_status: formData.marital_status,
+        religion: formData.religion,
+        place_of_birth: formData.place_of_birth,
+        years_of_residency: formData.years_of_residency,
+        
+        // School Information
+        course_name: formData.course_name,
+        ladderized: formData.ladderized,
+        year_level: formData.year_level,
+        swa_input: formData.swa_input,
+        units_enrolled: formData.units_enrolled,
+        course_duration: formData.course_duration,
+        school_name: formData.school_name,
+        school_address: formData.school_address,
+        graduating_this_term: formData.graduating_this_term,
+        semesters_to_graduate: formData.semesters_to_graduate,
+        with_honors: formData.with_honors,
+        transferee: formData.transferee,
+        shiftee: formData.shiftee,
+        status: formData.status,
+        
+        // Educational Background
+        shs_attended: formData.shs_attended,
+        shs_type: formData.shs_type,
+        shs_address: formData.shs_address,
+        shs_years: formData.shs_years,
+        shs_honors: formData.shs_honors,
+        jhs_attended: formData.jhs_attended,
+        jhs_type: formData.jhs_type,
+        jhs_address: formData.jhs_address,
+        jhs_years: formData.jhs_years,
+        jhs_honors: formData.jhs_honors,
+        elem_attended: formData.elem_attended,
+        elem_type: formData.elem_type,
+        elem_address: formData.elem_address,
+        elem_years: formData.elem_years,
+        elem_honors: formData.elem_honors,
+        
+        // Parents Information
+        father_name: formData.father_name,
+        father_address: formData.father_address,
+        father_contact: formData.father_contact,
+        father_occupation: formData.father_occupation,
+        father_place_of_work: formData.father_place_of_work,
+        father_education: formData.father_education,
+        father_deceased: formData.father_deceased,
+        mother_name: formData.mother_name,
+        mother_address: formData.mother_address,
+        mother_contact: formData.mother_contact,
+        mother_occupation: formData.mother_occupation,
+        mother_place_of_work: formData.mother_place_of_work,
+        mother_education: formData.mother_education,
+        mother_deceased: formData.mother_deceased,
+        
+        // Status
+        is_submitted: true,
+        is_locked: true
+      };
+
+      console.log('📤 Submitting application data:', applicationData);
+
+      // Submit to backend API
+      const response = await apiClient.post('/full-application/', applicationData);
+      
+      console.log('✅ Application submitted successfully:', response.data);
+
+      // Clear the draft from localStorage after successful submission
+      localStorage.removeItem('fullApplicationDraft');
+
       setIsSubmitting(false);
-      setShowSuccess(true);
-      // Pass school year and semester to parent
-      setTimeout(() => {
-        onComplete({
-          school_year: formData.school_year,
-          semester: formData.semester
-        });
-      }, 1500);
-    }, 2000);
+      // Directly complete
+      onComplete({
+        school_year: formData.school_year,
+        semester: formData.semester
+      });
+    } catch (error: any) {
+      console.error('❌ Error submitting full application:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      setIsSubmitting(false);
+      
+      // Better error message formatting
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        
+        // If it's a validation error object with field-specific errors
+        if (typeof data === 'object' && !data.error && !data.detail) {
+          const errors = Object.entries(data).map(([field, messages]) => {
+            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages;
+            return `${fieldName}: ${errorMsg}`;
+          }).join('\n');
+          errorMessage = errors || 'Validation failed';
+        } else {
+          errorMessage = data.error || data.detail || JSON.stringify(data);
+        }
+      } else {
+        errorMessage = error.message || 'Network error';
+      }
+      
+      alert('Failed to submit application. Please check the following:\n\n' + errorMessage);
+    }
   };
 
   const renderStep1 = () => (
-    <div className="form-step">
-      <div className="form-row">
-        <div className="form-group">
-          <label>Your personalized link on Facebook: <span className="required">*</span></label>
-          <input
-            type="text"
-            placeholder="https://facebook.com/your.profile"
-            value={formData.facebook_link}
-            onChange={(e) => handleInputChange('facebook_link', e.target.value)}
-          />
+    <div className="step-content">
+      <div className="step-header">
+        <h2>Application Details</h2>
+        <p>Please provide your basic application information</p>
+      </div>
+
+      <div className="form-section">
+        <div className="section-title">
+          <h3>Social Media</h3>
+        </div>
+        <div className="form-grid single-column">
+          <div className="form-group">
+            <label>Your personalized link on Facebook <span className="required">*</span></label>
+            <input
+              type="text"
+              placeholder="https://facebook.com/your.profile"
+              value={formData.facebook_link}
+              onChange={(e) => handleInputChange('facebook_link', e.target.value)}
+            />
+            <span className="helper-text">Enter your Facebook profile URL</span>
+          </div>
         </div>
       </div>
 
-      <div className="form-row two-cols">
-        <div className="form-group">
-          <label>Application Type: <span className="required">*</span></label>
-          <input type="text" value={formData.application_type} disabled className="disabled-input" />
+      <div className="form-section">
+        <div className="section-title">
+          <h3>Application Type & Scholarship</h3>
         </div>
-        <div className="form-group">
-          <label>Scholarship Type: <span className="required">*</span></label>
-          <input type="text" value={formData.scholarship_type} disabled className="disabled-input" />
+        <div className="form-grid">
+          <div className="form-group">
+            <label>Application Type <span className="required">*</span></label>
+            <input type="text" value={formData.application_type} disabled />
+          </div>
+          <div className="form-group">
+            <label>Scholarship Type <span className="required">*</span></label>
+            <input type="text" value={formData.scholarship_type} disabled />
+          </div>
         </div>
       </div>
 
-      <div className="form-row three-cols">
-        <div className="form-group">
-          <label>School Year: <span className="required">*</span></label>
-          <select value={formData.school_year} onChange={(e) => handleInputChange('school_year', e.target.value)}>
-            <option value="">Select School Year</option>
-            <option value="S.Y 2025-2026">S.Y 2025-2026</option>
-            <option value="S.Y 2026-2027">S.Y 2026-2027</option>
-          </select>
+      <div className="form-section">
+        <div className="section-title">
+          <h3>Academic Period</h3>
         </div>
-        <div className="form-group">
-          <label>Semester: <span className="required">*</span></label>
-          <select value={formData.semester} onChange={(e) => handleInputChange('semester', e.target.value)}>
-            <option value="">Select Semester</option>
-            <option value="1ST SEMESTER">1ST SEMESTER</option>
-            <option value="2ND SEMESTER">2ND SEMESTER</option>
-          </select>
+        <div className="form-grid three-columns">
+          <div className="form-group">
+            <label>School Year <span className="required">*</span></label>
+            <select value={formData.school_year} onChange={(e) => handleInputChange('school_year', e.target.value)}>
+              <option value="">Select School Year</option>
+              <option value="S.Y 2025-2026">S.Y 2025-2026</option>
+              <option value="S.Y 2026-2027">S.Y 2026-2027</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Semester <span className="required">*</span></label>
+            <select value={formData.semester} onChange={(e) => handleInputChange('semester', e.target.value)}>
+              <option value="">Select Semester</option>
+              <option value="1ST SEMESTER">1ST SEMESTER</option>
+              <option value="2ND SEMESTER">2ND SEMESTER</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Applying for Merit Incentive? <span className="required">*</span></label>
+            <select value={formData.applying_for_merit} onChange={(e) => handleInputChange('applying_for_merit', e.target.value)}>
+              <option value="">Select</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
         </div>
-        <div className="form-group">
-          <label>Applying for Merit Incentive? <span className="required">*</span></label>
-          <select value={formData.applying_for_merit} onChange={(e) => handleInputChange('applying_for_merit', e.target.value)}>
-            <option value="">Select</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-          </select>
+        <div className="info-box">
+          <div className="info-box-content">
+            <p>Merit Incentive is available for students with GWA of 1.75 or higher</p>
+          </div>
         </div>
       </div>
     </div>
@@ -353,37 +600,43 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="form-row two-cols">
         <div className="form-group">
           <label>Barangay <span className="required">*</span></label>
-          <select value={formData.barangay} onChange={(e) => handleInputChange('barangay', e.target.value)}>
-            <option value="">Select Barangay</option>
-            <option value="Bagumbayan">Bagumbayan</option>
-            <option value="Bambang">Bambang</option>
-            <option value="Calzada">Calzada</option>
-            <option value="Central Bicutan">Central Bicutan</option>
-            <option value="Central Signal Village">Central Signal Village</option>
-            <option value="Fort Bonifacio">Fort Bonifacio</option>
-            <option value="Hagonoy">Hagonoy</option>
-            <option value="Ibayo-Tipas">Ibayo-Tipas</option>
-            <option value="Katuparan">Katuparan</option>
-            <option value="Ligid-Tipas">Ligid-Tipas</option>
-            <option value="Lower Bicutan">Lower Bicutan</option>
-            <option value="Maharlika Village">Maharlika Village</option>
-            <option value="Napindan">Napindan</option>
-            <option value="New Lower Bicutan">New Lower Bicutan</option>
-            <option value="North Daang Hari">North Daang Hari</option>
-            <option value="North Signal Village">North Signal Village</option>
-            <option value="Palingon">Palingon</option>
-            <option value="Pinagsama">Pinagsama</option>
-            <option value="San Miguel">San Miguel</option>
-            <option value="Santa Ana">Santa Ana</option>
-            <option value="South Daang Hari">South Daang Hari</option>
-            <option value="South Signal Village">South Signal Village</option>
-            <option value="Tanyag">Tanyag</option>
-            <option value="Tuktukan">Tuktukan</option>
-            <option value="Upper Bicutan">Upper Bicutan</option>
-            <option value="Ususan">Ususan</option>
-            <option value="Wawa">Wawa</option>
-            <option value="Western Bicutan">Western Bicutan</option>
-          </select>
+          <input
+            list="barangay-list"
+            type="text"
+            placeholder="Search or select barangay"
+            value={formData.barangay}
+            onChange={(e) => handleInputChange('barangay', e.target.value)}
+          />
+          <datalist id="barangay-list">
+            <option value="Bagumbayan" />
+            <option value="Bambang" />
+            <option value="Calzada" />
+            <option value="Central Bicutan" />
+            <option value="Central Signal Village" />
+            <option value="Fort Bonifacio" />
+            <option value="Hagonoy" />
+            <option value="Ibayo-Tipas" />
+            <option value="Katuparan" />
+            <option value="Ligid-Tipas" />
+            <option value="Lower Bicutan" />
+            <option value="Maharlika Village" />
+            <option value="Napindan" />
+            <option value="New Lower Bicutan" />
+            <option value="North Daang Hari" />
+            <option value="North Signal Village" />
+            <option value="Palingon" />
+            <option value="Pinagsama" />
+            <option value="San Miguel" />
+            <option value="Santa Ana" />
+            <option value="South Daang Hari" />
+            <option value="South Signal Village" />
+            <option value="Tanyag" />
+            <option value="Tuktukan" />
+            <option value="Upper Bicutan" />
+            <option value="Ususan" />
+            <option value="Wawa" />
+            <option value="Western Bicutan" />
+          </datalist>
         </div>
         <div className="form-group">
           <label>District <span className="required">*</span></label>
@@ -514,51 +767,45 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="form-row three-cols">
         <div className="form-group">
           <label>Course Name: <span className="required">*</span></label>
-          <select value={formData.course_name} onChange={(e) => handleInputChange('course_name', e.target.value)}>
-            <option value="">Select Course</option>
-            <optgroup label="College of Business and Accountancy">
-              <option value="Bachelor of Science in Accountancy">Bachelor of Science in Accountancy</option>
-              <option value="Bachelor of Science in Business Administration major in Financial Management">BS Business Administration major in Financial Management</option>
-              <option value="Bachelor of Science in Business Administration major in Human Resource Development Management">BS Business Administration major in Human Resource Development Management</option>
-              <option value="Bachelor of Science in Business Administration major in Marketing Management">BS Business Administration major in Marketing Management</option>
-              <option value="Bachelor of Science in Entrepreneurship">Bachelor of Science in Entrepreneurship</option>
-              <option value="Bachelor of Science in Office Administration">Bachelor of Science in Office Administration</option>
-            </optgroup>
-            <optgroup label="College of Engineering and Architecture">
-              <option value="Bachelor of Science in Civil Engineering">Bachelor of Science in Civil Engineering</option>
-              <option value="Bachelor of Science in Computer Engineering">Bachelor of Science in Computer Engineering</option>
-              <option value="Bachelor of Science in Electrical Engineering">Bachelor of Science in Electrical Engineering</option>
-              <option value="Bachelor of Science in Electronics Engineering">Bachelor of Science in Electronics Engineering</option>
-              <option value="Bachelor of Science in Mechanical Engineering">Bachelor of Science in Mechanical Engineering</option>
-              <option value="Bachelor of Science in Architecture">Bachelor of Science in Architecture</option>
-            </optgroup>
-            <optgroup label="College of Science">
-              <option value="Bachelor of Science in Computer Science">Bachelor of Science in Computer Science</option>
-              <option value="Bachelor of Science in Information Technology">Bachelor of Science in Information Technology</option>
-              <option value="Bachelor of Science in Environmental Science">Bachelor of Science in Environmental Science</option>
-              <option value="Bachelor of Science in Food Technology">Bachelor of Science in Food Technology</option>
-            </optgroup>
-            <optgroup label="College of Hospitality and Tourism Management">
-              <option value="Bachelor of Science in Hotel and Restaurant Management">Bachelor of Science in Hotel and Restaurant Management</option>
-              <option value="Bachelor of Science in Tourism Management">Bachelor of Science in Tourism Management</option>
-            </optgroup>
-            <optgroup label="College of Liberal Arts, Sciences and Education">
-              <option value="Bachelor of Arts in Communication">Bachelor of Arts in Communication</option>
-              <option value="Bachelor of Elementary Education">Bachelor of Elementary Education</option>
-              <option value="Bachelor of Secondary Education major in English">Bachelor of Secondary Education major in English</option>
-              <option value="Bachelor of Secondary Education major in Filipino">Bachelor of Secondary Education major in Filipino</option>
-              <option value="Bachelor of Secondary Education major in Mathematics">Bachelor of Secondary Education major in Mathematics</option>
-              <option value="Bachelor of Secondary Education major in Science">Bachelor of Secondary Education major in Science</option>
-              <option value="Bachelor of Secondary Education major in Social Studies">Bachelor of Secondary Education major in Social Studies</option>
-              <option value="Bachelor of Physical Education">Bachelor of Physical Education</option>
-              <option value="Bachelor of Public Administration">Bachelor of Public Administration</option>
-              <option value="Bachelor of Science in Psychology">Bachelor of Science in Psychology</option>
-              <option value="Bachelor of Science in Social Work">Bachelor of Science in Social Work</option>
-            </optgroup>
-            <optgroup label="Institute of Health Sciences">
-              <option value="Bachelor of Science in Nursing">Bachelor of Science in Nursing</option>
-            </optgroup>
-          </select>
+          <input
+            list="course-list"
+            type="text"
+            placeholder="Search or select course"
+            value={formData.course_name}
+            onChange={(e) => handleInputChange('course_name', e.target.value)}
+          />
+          <datalist id="course-list">
+            <option value="Bachelor of Science in Accountancy" />
+            <option value="Bachelor of Science in Business Administration major in Financial Management" />
+            <option value="Bachelor of Science in Business Administration major in Human Resource Development Management" />
+            <option value="Bachelor of Science in Business Administration major in Marketing Management" />
+            <option value="Bachelor of Science in Entrepreneurship" />
+            <option value="Bachelor of Science in Office Administration" />
+            <option value="Bachelor of Science in Civil Engineering" />
+            <option value="Bachelor of Science in Computer Engineering" />
+            <option value="Bachelor of Science in Electrical Engineering" />
+            <option value="Bachelor of Science in Electronics Engineering" />
+            <option value="Bachelor of Science in Mechanical Engineering" />
+            <option value="Bachelor of Science in Architecture" />
+            <option value="Bachelor of Science in Computer Science" />
+            <option value="Bachelor of Science in Information Technology" />
+            <option value="Bachelor of Science in Environmental Science" />
+            <option value="Bachelor of Science in Food Technology" />
+            <option value="Bachelor of Science in Hotel and Restaurant Management" />
+            <option value="Bachelor of Science in Tourism Management" />
+            <option value="Bachelor of Arts in Communication" />
+            <option value="Bachelor of Elementary Education" />
+            <option value="Bachelor of Secondary Education major in English" />
+            <option value="Bachelor of Secondary Education major in Filipino" />
+            <option value="Bachelor of Secondary Education major in Mathematics" />
+            <option value="Bachelor of Secondary Education major in Science" />
+            <option value="Bachelor of Secondary Education major in Social Studies" />
+            <option value="Bachelor of Physical Education" />
+            <option value="Bachelor of Public Administration" />
+            <option value="Bachelor of Science in Psychology" />
+            <option value="Bachelor of Science in Social Work" />
+            <option value="Bachelor of Science in Nursing" />
+          </datalist>
         </div>
         <div className="form-group">
           <label>Ladderized: <span className="required">*</span></label>
@@ -1040,9 +1287,74 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       </div>
 
       <div className="review-section">
-        <h3>Parents Information</h3>
-        <div className="review-item"><strong>Father:</strong> {formData.father_name}</div>
-        <div className="review-item"><strong>Mother:</strong> {formData.mother_name}</div>
+        <div className="review-header">
+          <h3>Parents Information</h3>
+        </div>
+        <div className="review-grid">
+          <div className="review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px' }}>
+            <div className="review-label">Father's Information</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Full Name</div>
+            <div className="review-value">{formData.father_name || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Contact Number</div>
+            <div className="review-value">{formData.father_contact || 'Not provided'}</div>
+          </div>
+          <div className="review-item full-width">
+            <div className="review-label">Address</div>
+            <div className="review-value">{formData.father_address || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Occupation</div>
+            <div className="review-value">{formData.father_occupation || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Place of Work</div>
+            <div className="review-value">{formData.father_place_of_work || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Educational Attainment</div>
+            <div className="review-value">{formData.father_education || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Status</div>
+            <div className="review-value">{formData.father_deceased ? '† Deceased' : 'Living'}</div>
+          </div>
+
+          <div className="review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px', marginTop: '20px' }}>
+            <div className="review-label">Mother's Information</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Full Name</div>
+            <div className="review-value">{formData.mother_name || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Contact Number</div>
+            <div className="review-value">{formData.mother_contact || 'Not provided'}</div>
+          </div>
+          <div className="review-item full-width">
+            <div className="review-label">Address</div>
+            <div className="review-value">{formData.mother_address || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Occupation</div>
+            <div className="review-value">{formData.mother_occupation || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Place of Work</div>
+            <div className="review-value">{formData.mother_place_of_work || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Educational Attainment</div>
+            <div className="review-value">{formData.mother_education || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Status</div>
+            <div className="review-value">{formData.mother_deceased ? '† Deceased' : 'Living'}</div>
+          </div>
+        </div>
       </div>
 
       <div className="review-actions">
@@ -1062,30 +1374,65 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           </div>
         )}
 
-        {showSuccess ? (
-          <div className="success-page">
-            <div className="success-icon">✓</div>
-            <h2>Information Submitted</h2>
-            <p>We will review your application and get back to you shortly.</p>
-            <div className="success-buttons">
-              <button className="btn-primary" onClick={() => onComplete({ school_year: formData.school_year, semester: formData.semester })}>Go to Dashboard</button>
-              <button className="btn-secondary" onClick={() => onComplete({ school_year: formData.school_year, semester: formData.semester })}>Go to Submission of Requirements</button>
+        <div className="application-header">
+          <div className="header-content">
+            <div className="header-title">
+              <div className="header-text">
+                <h1>TCU-CEAA Application Form</h1>
+                <p>{applicantType === 'new' ? 'New Applicant' : 'Renewing Applicant'} • {new Date().getFullYear()}</p>
+              </div>
             </div>
+            <button className="close-btn" onClick={onCancel}>×</button>
           </div>
-        ) : (
-          <>
-            <div className="application-header">
-              <h1>TCU-CEAA Application Form</h1>
-              <button className="close-btn" onClick={onCancel}>×</button>
-            </div>
+        </div>
+
+            {draftLoaded && (
+              <div style={{
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                padding: '12px 20px',
+                margin: '0 20px',
+                borderRadius: '8px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '10px'
+              }}>
+                <span>✅ Draft restored! Your previous application data has been loaded.</span>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to clear your saved draft? This cannot be undone.')) {
+                      localStorage.removeItem('fullApplicationDraft');
+                      window.location.reload();
+                    }
+                  }}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    color: 'white',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Clear Draft
+                </button>
+              </div>
+            )}
 
             {!showReview && (
               <div className="application-progress">
                 <div className="progress-steps">
+                  <div className="progress-line">
+                    <div className="progress-line-fill" style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%` }}></div>
+                  </div>
                   {stepTitles.map((title, index) => (
                     <div key={index} className={`progress-step ${index + 1 === currentStep ? 'active' : ''} ${index + 1 < currentStep ? 'completed' : ''}`}>
-                      <div className="step-number">{index + 1}</div>
-                      <div className="step-title">{title}</div>
+                      <div className={`step-circle ${index + 1 < currentStep ? 'checkmark' : ''}`}>
+                        {index + 1 < currentStep ? '' : index + 1}
+                      </div>
+                      <div className="step-label">{title}</div>
                     </div>
                   ))}
                 </div>
@@ -1102,29 +1449,45 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
                   {currentStep === 3 && renderStep3()}
                   {currentStep === 4 && renderStep4()}
                   {currentStep === 5 && renderStep5()}
-                  <div className="form-actions">
-                    {currentStep > 1 && (
-                      <button className="btn-previous" onClick={handlePrevious}>Previous</button>
-                    )}
-                    <button className="btn-next" onClick={handleNext}>
-                      {currentStep === totalSteps ? 'Review Application' : 'Next'}
-                    </button>
-                  </div>
                 </>
               )}
             </div>
-          </>
-        )}
+
+            {!showReview && (
+              <div className="application-footer">
+                <div className="footer-info">
+                  Step {currentStep} of {totalSteps}
+                </div>
+                <div className="footer-buttons">
+                  {currentStep > 1 && (
+                    <button className="btn btn-secondary" onClick={handlePrevious}>
+                      <span className="btn-icon">←</span>
+                      Previous
+                    </button>
+                  )}
+                  <button className="btn btn-primary" onClick={handleNext}>
+                    {currentStep === totalSteps ? 'Review Application' : 'Next'}
+                    <span className="btn-icon">→</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
         {showConfirmDialog && (
           <div className="confirm-dialog-overlay">
             <div className="confirm-dialog">
-              <div className="confirm-icon">⚠️</div>
-              <h3>Submit your application?</h3>
-              <p>This will lock your application and you will no longer be able to edit it.</p>
-              <div className="confirm-actions">
-                <button className="btn-cancel" onClick={() => setShowConfirmDialog(false)}>Cancel</button>
-                <button className="btn-confirm" onClick={handleSubmit}>Yes, submit</button>
+              <div className="dialog-icon">⚠️</div>
+              <h3>Confirm Application Submission</h3>
+              <p>Once submitted, your application will be locked and you will no longer be able to edit the information. Please make sure all details are correct before proceeding.</p>
+              <div className="dialog-actions">
+                <button className="btn btn-secondary" onClick={() => setShowConfirmDialog(false)}>
+                  <span className="btn-icon">←</span>
+                  Go Back
+                </button>
+                <button className="btn btn-primary" onClick={handleSubmit}>
+                  <span className="btn-icon">✓</span>
+                  Confirm & Submit
+                </button>
               </div>
             </div>
           </div>

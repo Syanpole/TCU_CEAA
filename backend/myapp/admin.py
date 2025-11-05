@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib import messages
 from django.db import transaction
 from rest_framework.authtoken.models import Token
-from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, EmailVerification
+from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, EmailVerificationCode, BasicQualification, FullApplication
 
 
 class CustomUserAdmin(UserAdmin):
@@ -39,7 +39,7 @@ class CustomUserAdmin(UserAdmin):
                     documents = DocumentSubmission.objects.filter(student=user).count()
                     grades = GradeSubmission.objects.filter(student=user).count()
                     applications = AllowanceApplication.objects.filter(student=user).count()
-                    verifications = EmailVerification.objects.filter(user=user).count()
+                    verifications = EmailVerificationCode.objects.filter(user=user).count()
                     
                     # Delete auth token
                     Token.objects.filter(user=user).delete()
@@ -261,11 +261,23 @@ class SystemAnalyticsAdmin(admin.ModelAdmin):
 
 @admin.register(BasicQualification)
 class BasicQualificationAdmin(admin.ModelAdmin):
-    list_display = ['student', 'applicant_type', 'is_qualified', 'completed_at', 'updated_at']
+    list_display = ['get_student_name', 'get_student_id', 'applicant_type', 'is_qualified', 'completed_at', 'updated_at']
     list_filter = ['applicant_type', 'is_qualified', 'is_enrolled', 'is_resident', 
                    'is_eighteen_or_older', 'is_registered_voter', 'completed_at']
-    search_fields = ['student__username', 'student__student_id', 'student__email']
+    search_fields = ['student__username', 'student__student_id', 'student__email', 'student__first_name', 'student__last_name']
     readonly_fields = ['completed_at', 'updated_at', 'is_qualified']
+    
+    def get_student_name(self, obj):
+        """Display the student's full name"""
+        return obj.student.get_full_name() if obj.student else 'N/A'
+    get_student_name.short_description = 'Student Name'
+    get_student_name.admin_order_field = 'student__last_name'
+    
+    def get_student_id(self, obj):
+        """Display the student ID"""
+        return obj.student.student_id if obj.student and obj.student.student_id else 'N/A'
+    get_student_id.short_description = 'Student ID'
+    get_student_id.admin_order_field = 'student__student_id'
     
     fieldsets = (
         ('Student Information', {
@@ -294,4 +306,75 @@ class BasicQualificationAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         # Only allow creation through the student interface
         return False
+
+
+@admin.register(FullApplication)
+class FullApplicationAdmin(admin.ModelAdmin):
+    list_display = ['get_student_name', 'get_student_id', 'school_year', 'semester', 'application_type', 
+                    'is_submitted', 'is_locked', 'submitted_at', 'created_at']
+    list_filter = ['semester', 'application_type', 'is_submitted', 'is_locked', 
+                   'school_year', 'submitted_at', 'created_at']
+    search_fields = ['user__username', 'user__student_id', 'user__first_name', 
+                     'user__last_name', 'first_name', 'last_name', 'email', 'barangay']
+    readonly_fields = ['created_at', 'updated_at', 'submitted_at']
+    
+    def get_student_name(self, obj):
+        """Display the full name from the form or user profile"""
+        if obj.first_name and obj.last_name:
+            name_parts = [obj.first_name]
+            if obj.middle_name:
+                name_parts.append(obj.middle_name)
+            name_parts.append(obj.last_name)
+            return ' '.join(name_parts)
+        return obj.user.get_full_name() if obj.user else 'N/A'
+    get_student_name.short_description = 'Student Name'
+    get_student_name.admin_order_field = 'last_name'
+    
+    def get_student_id(self, obj):
+        """Display the student ID"""
+        return obj.user.student_id if obj.user and obj.user.student_id else 'N/A'
+    get_student_id.short_description = 'Student ID'
+    get_student_id.admin_order_field = 'user__student_id'
+    
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('user', 'first_name', 'middle_name', 'last_name')
+        }),
+        ('Academic Information', {
+            'fields': ('school_year', 'semester', 'application_type', 'course_name', 'year_level')
+        }),
+        ('Contact Information', {
+            'fields': ('email', 'mobile_no', 'other_contact')
+        }),
+        ('Personal Information', {
+            'fields': ('date_of_birth', 'age', 'sex', 'barangay', 'house_no', 'street', 'zip_code')
+        }),
+        ('Status', {
+            'fields': ('is_submitted', 'is_locked', 'submitted_at')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.is_locked:
+            # If locked, make most fields readonly
+            return self.readonly_fields + ['user', 'first_name', 'last_name', 'school_year', 'semester', 
+                                          'application_type', 'email', 'mobile_no',
+                                          'date_of_birth', 'barangay']
+        return self.readonly_fields
+    
+    actions = ['lock_applications', 'unlock_applications']
+    
+    def lock_applications(self, request, queryset):
+        updated = queryset.update(is_locked=True)
+        self.message_user(request, f'Successfully locked {updated} application(s).')
+    lock_applications.short_description = 'Lock selected applications'
+    
+    def unlock_applications(self, request, queryset):
+        updated = queryset.update(is_locked=False)
+        self.message_user(request, f'Successfully unlocked {updated} application(s).')
+    unlock_applications.short_description = 'Unlock selected applications'
 

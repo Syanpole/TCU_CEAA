@@ -41,11 +41,140 @@ interface AllowanceApplication {
   applied_at: string;
 }
 
+interface BasicQualificationRecord {
+  id: number;
+  student: {
+    id: number;
+    username: string;
+    student_id: string;
+    first_name: string;
+    last_name: string;
+  };
+  applicant_type: string;
+  is_qualified: boolean;
+  is_enrolled: boolean;
+  is_resident: boolean;
+  is_eighteen_or_older: boolean;
+  is_registered_voter: boolean;
+  parent_is_voter: boolean;
+  has_good_moral_character: boolean;
+  is_committed: boolean;
+  completed_at: string;
+}
+
+interface FullApplicationRecord {
+  id: number;
+  user: {
+    id: number;
+    username: string;
+    student_id: string;
+    first_name: string;
+    last_name: string;
+  };
+  student_name?: string;
+  student_id?: string;
+  
+  // Application Details
+  facebook_link: string;
+  application_type: string;
+  scholarship_type: string;
+  school_year: string;
+  semester: string;
+  applying_for_merit: string;
+  
+  // Personal Information
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  house_no: string;
+  street: string;
+  zip_code: string;
+  barangay: string;
+  district: string;
+  mobile_no: string;
+  other_contact: string;
+  email: string;
+  date_of_birth: string;
+  age: number | string;
+  citizenship: string;
+  sex: string;
+  marital_status: string;
+  religion: string;
+  place_of_birth: string;
+  years_of_residency: string;
+  
+  // School Information
+  course_name: string;
+  ladderized: string;
+  year_level: string;
+  swa_input: string;
+  units_enrolled: string;
+  course_duration: string;
+  school_name: string;
+  school_address: string;
+  graduating_this_term: string;
+  semesters_to_graduate: string;
+  with_honors: string;
+  transferee: string;
+  shiftee: string;
+  status: string;
+  
+  // Educational Background - Senior High School
+  shs_attended: string;
+  shs_type: string;
+  shs_address: string;
+  shs_years: string;
+  shs_honors: string;
+  
+  // Educational Background - Junior High School
+  jhs_attended: string;
+  jhs_type: string;
+  jhs_address: string;
+  jhs_years: string;
+  jhs_honors: string;
+  
+  // Educational Background - Elementary
+  elem_attended: string;
+  elem_type: string;
+  elem_address: string;
+  elem_years: string;
+  elem_honors: string;
+  
+  // Parents Information - Father
+  father_name: string;
+  father_address: string;
+  father_contact: string;
+  father_occupation: string;
+  father_place_of_work: string;
+  father_education: string;
+  father_deceased: boolean;
+  
+  // Parents Information - Mother
+  mother_name: string;
+  mother_address: string;
+  mother_contact: string;
+  mother_occupation: string;
+  mother_place_of_work: string;
+  mother_education: string;
+  mother_deceased: boolean;
+  
+  // Status
+  is_submitted: boolean;
+  is_locked: boolean;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+}
+
 interface AdminStats {
   total_students: number;
   total_documents: number;
   total_grades: number;
   total_applications: number;
+  total_qualifications?: number;
+  total_full_applications?: number;
 }
 
 interface AdminDashboardData {
@@ -135,11 +264,17 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'audit' | 'ai-dashboard'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'audit' | 'ai-dashboard' | 'qualifications' | 'applications'>('overview');
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
+  const [basicQualifications, setBasicQualifications] = useState<BasicQualificationRecord[]>([]);
+  const [fullApplications, setFullApplications] = useState<FullApplicationRecord[]>([]);
+  const [selectedQualification, setSelectedQualification] = useState<BasicQualificationRecord | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<FullApplicationRecord | null>(null);
+  const [showQualificationModal, setShowQualificationModal] = useState(false);
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
@@ -250,6 +385,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
       setAiStats(response.data);
     } catch (error) {
       console.error('Error fetching AI stats:', error);
+    }
+  };
+
+  // Fetch Basic Qualifications
+  const fetchBasicQualifications = async () => {
+    try {
+      const response = await apiClient.get<BasicQualificationRecord[]>('/basic-qualification/');
+      setBasicQualifications(response.data || []);
+    } catch (error) {
+      console.error('Error fetching basic qualifications:', error);
+      setBasicQualifications([]);
+    }
+  };
+
+  // Fetch Full Applications
+  const fetchFullApplications = async () => {
+    try {
+      const response = await apiClient.get<FullApplicationRecord[]>('/full-application/');
+      setFullApplications(response.data || []);
+    } catch (error) {
+      console.error('Error fetching full applications:', error);
+      setFullApplications([]);
     }
   };
 
@@ -462,7 +619,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
             <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            🤖 AI System
+            AI System
           </button>
           <button 
             className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
@@ -472,6 +629,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
             </svg>
             Audit Logs
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'qualifications' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('qualifications');
+              fetchBasicQualifications();
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Qualifications
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'applications' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('applications');
+              fetchFullApplications();
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M9 2a1 1 0 000 2h6a1 1 0 100-2H9z" />
+              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+            </svg>
+            Full Applications
           </button>
         </div>
 
@@ -1331,7 +1513,1124 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           </div>
         )}
 
+        {/* Basic Qualifications Tab */}
+        {activeTab === 'qualifications' && (
+          <div className="qualifications-section">
+            <div className="section-header">
+              <h2>Basic Qualifications</h2>
+              <button 
+                className="refresh-btn"
+                onClick={fetchBasicQualifications}
+                style={{
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            <div className="qualifications-stats" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              marginBottom: '24px'
+            }}>
+              <div className="stat-card" style={{background: '#f0fdf4', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#16a34a'}}>
+                  {basicQualifications.length}
+                </div>
+                <div style={{color: '#15803d', marginTop: '8px'}}>Total Submissions</div>
+              </div>
+              <div className="stat-card" style={{background: '#ecfdf5', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#059669'}}>
+                  {basicQualifications.filter(q => q.is_qualified).length}
+                </div>
+                <div style={{color: '#047857', marginTop: '8px'}}>Qualified Students</div>
+              </div>
+              <div className="stat-card" style={{background: '#fef2f2', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#dc2626'}}>
+                  {basicQualifications.filter(q => !q.is_qualified).length}
+                </div>
+                <div style={{color: '#b91c1c', marginTop: '8px'}}>Not Qualified</div>
+              </div>
+            </div>
+
+            <div className="qualifications-table" style={{
+              background: 'white',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
+              <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <thead>
+                  <tr style={{background: '#f9fafb', borderBottom: '1px solid #e5e7eb'}}>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Student</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Student ID</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Type</th>
+                    <th style={{padding: '12px', textAlign: 'center', fontWeight: '600', color: '#374151'}}>Status</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Completed</th>
+                    <th style={{padding: '12px', textAlign: 'center', fontWeight: '600', color: '#374151'}}>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {basicQualifications.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{padding: '40px', textAlign: 'center', color: '#6b7280'}}>
+                        No basic qualifications found
+                      </td>
+                    </tr>
+                  ) : (
+                    basicQualifications.map(qual => (
+                      <tr key={qual.id} style={{borderBottom: '1px solid #f3f4f6'}}>
+                        <td style={{padding: '12px'}}>
+                          <div style={{fontWeight: '500', color: '#1f2937'}}>
+                            {qual.student.first_name} {qual.student.last_name}
+                          </div>
+                          <div style={{fontSize: '12px', color: '#6b7280'}}>
+                            @{qual.student.username}
+                          </div>
+                        </td>
+                        <td style={{padding: '12px', color: '#6b7280'}}>
+                          {qual.student.student_id}
+                        </td>
+                        <td style={{padding: '12px'}}>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            background: qual.applicant_type === 'new' ? '#dbeafe' : '#fef3c7',
+                            color: qual.applicant_type === 'new' ? '#1e40af' : '#92400e'
+                          }}>
+                            {qual.applicant_type === 'new' ? '🆕 New' : '🔄 Renewing'}
+                          </span>
+                        </td>
+                        <td style={{padding: '12px', textAlign: 'center'}}>
+                          <span style={{
+                            padding: '6px 12px',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            background: qual.is_qualified ? '#d1fae5' : '#fee2e2',
+                            color: qual.is_qualified ? '#065f46' : '#991b1b'
+                          }}>
+                            {qual.is_qualified ? '✅ Qualified' : '❌ Not Qualified'}
+                          </span>
+                        </td>
+                        <td style={{padding: '12px', fontSize: '14px', color: '#6b7280'}}>
+                          {new Date(qual.completed_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td style={{padding: '12px', textAlign: 'center'}}>
+                          <button 
+                            style={{
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #3b82f6',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                            onClick={() => {
+                              setSelectedQualification(qual);
+                              setShowQualificationModal(true);
+                            }}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Full Applications Tab */}
+        {activeTab === 'applications' && (
+          <div className="applications-section">
+            <div className="section-header">
+              <h2>📝 Full Application Forms</h2>
+              <button 
+                className="refresh-btn"
+                onClick={fetchFullApplications}
+                style={{
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            <div className="applications-stats" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              marginBottom: '24px'
+            }}>
+              <div className="stat-card" style={{background: '#f0f9ff', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#0284c7'}}>
+                  {fullApplications.length}
+                </div>
+                <div style={{color: '#0369a1', marginTop: '8px'}}>Total Applications</div>
+              </div>
+              <div className="stat-card" style={{background: '#f0fdf4', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#16a34a'}}>
+                  {fullApplications.filter(app => app.is_submitted).length}
+                </div>
+                <div style={{color: '#15803d', marginTop: '8px'}}>Submitted</div>
+              </div>
+              <div className="stat-card" style={{background: '#fef3c7', padding: '20px', borderRadius: '8px'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#d97706'}}>
+                  {fullApplications.filter(app => !app.is_submitted).length}
+                </div>
+                <div style={{color: '#b45309', marginTop: '8px'}}>Drafts</div>
+              </div>
+            </div>
+
+            <div className="applications-table" style={{
+              background: 'white',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
+              <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <thead>
+                  <tr style={{background: '#f9fafb', borderBottom: '1px solid #e5e7eb'}}>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Student</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Student ID</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>School Year</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Semester</th>
+                    <th style={{padding: '12px', textAlign: 'center', fontWeight: '600', color: '#374151'}}>Status</th>
+                    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#374151'}}>Date</th>
+                    <th style={{padding: '12px', textAlign: 'center', fontWeight: '600', color: '#374151'}}>Details</th>
+                    <th style={{padding: '12px', textAlign: 'center', fontWeight: '600', color: '#374151'}}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fullApplications.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{padding: '40px', textAlign: 'center', color: '#6b7280'}}>
+                        No full applications found
+                      </td>
+                    </tr>
+                  ) : (
+                    fullApplications.map(app => (
+                      <tr key={app.id} style={{borderBottom: '1px solid #f3f4f6'}}>
+                        <td style={{padding: '12px'}}>
+                          <div style={{fontWeight: '500', color: '#1f2937'}}>
+                            {app.user.first_name} {app.user.last_name}
+                          </div>
+                          <div style={{fontSize: '12px', color: '#6b7280'}}>
+                            {app.email}
+                          </div>
+                        </td>
+                        <td style={{padding: '12px', color: '#6b7280'}}>
+                          {app.user.student_id}
+                        </td>
+                        <td style={{padding: '12px', fontSize: '14px', color: '#374151'}}>
+                          {app.school_year}
+                        </td>
+                        <td style={{padding: '12px', fontSize: '14px', color: '#374151'}}>
+                          {app.semester}
+                        </td>
+                        <td style={{padding: '12px', textAlign: 'center'}}>
+                          {app.is_submitted ? (
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '12px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              background: '#d1fae5',
+                              color: '#065f46'
+                            }}>
+                              ✅ Submitted
+                            </span>
+                          ) : (
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '12px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              background: '#fef3c7',
+                              color: '#92400e'
+                            }}>
+                              ⚠️ Draft
+                            </span>
+                          )}
+                        </td>
+                        <td style={{padding: '12px', fontSize: '14px', color: '#6b7280'}}>
+                          {app.created_at ? new Date(app.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'N/A'}
+                        </td>
+                        <td style={{padding: '12px', textAlign: 'center'}}>
+                          <button 
+                            onClick={() => {
+                              setSelectedApplication(app);
+                              setShowApplicationModal(true);
+                            }}
+                            style={{
+                              padding: '6px 16px',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#2563eb',
+                              background: 'transparent',
+                              border: '1px solid #2563eb',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View
+                          </button>
+                        </td>
+                        <td style={{padding: '12px', textAlign: 'center'}}>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to delete the application for ${app.user.first_name} ${app.user.last_name}?`)) {
+                                try {
+                                  await apiClient.delete(`/full-application/${app.id}/`);
+                                  alert('Application deleted successfully');
+                                  fetchFullApplications();
+                                } catch (error) {
+                                  console.error('Error deleting application:', error);
+                                  alert('Failed to delete application');
+                                }
+                              }
+                            }}
+                            style={{
+                              padding: '6px 16px',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#dc2626',
+                              background: 'transparent',
+                              border: '1px solid #dc2626',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* Qualification Detail Modal */}
+      {showQualificationModal && selectedQualification && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowQualificationModal(false)}
+        >
+          <div 
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '85vh',
+              overflow: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  margin: '0 0 8px 0'
+                }}>
+                  Basic Qualification Details
+                </h2>
+                <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                  <span style={{ fontWeight: '500', color: '#374151' }}>
+                    {selectedQualification.student.first_name} {selectedQualification.student.last_name}
+                  </span>
+                  {' • '}
+                  <span>ID: {selectedQualification.student.student_id}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowQualificationModal(false)}
+                style={{
+                  background: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '36px',
+                  height: '36px',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '12px'
+              }}>
+                {[
+                  { label: 'Currently Enrolled', value: selectedQualification.is_enrolled, icon: '🎓' },
+                  { label: 'Taguig City Resident', value: selectedQualification.is_resident, icon: '🏠' },
+                  { label: '18 Years or Older', value: selectedQualification.is_eighteen_or_older, icon: '👤' },
+                  { label: 'Registered Voter', value: selectedQualification.is_registered_voter, icon: '🗳️' },
+                  { label: 'Parent is Voter', value: selectedQualification.parent_is_voter, icon: '👨‍👩‍👧' },
+                  { label: 'Good Moral Character', value: selectedQualification.has_good_moral_character, icon: '⭐' },
+                  { label: 'Committed to Requirements', value: selectedQualification.is_committed, icon: '✍️' }
+                ].map((item, index) => (
+                  <div 
+                    key={index}
+                    style={{
+                      padding: '16px',
+                      background: item.value ? '#d1fae5' : '#fee2e2',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      border: `1px solid ${item.value ? '#a7f3d0' : '#fecaca'}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '24px' }}>{item.icon}</span>
+                      <span style={{
+                        fontSize: '15px',
+                        fontWeight: '500',
+                        color: item.value ? '#065f46' : '#991b1b'
+                      }}>
+                        {item.label}
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '20px',
+                      fontWeight: '600'
+                    }}>
+                      {item.value ? '✓' : '✗'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Completed Date */}
+              <div style={{
+                marginTop: '24px',
+                padding: '16px',
+                background: '#f9fafb',
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: '#6b7280'
+              }}>
+                <strong style={{ color: '#374151' }}>Completed:</strong>{' '}
+                {new Date(selectedQualification.completed_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Application Detail Modal */}
+      {showApplicationModal && selectedApplication && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowApplicationModal(false)}
+        >
+          <div 
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '800px',
+              width: '90%',
+              maxHeight: '85vh',
+              overflow: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  margin: '0 0 8px 0'
+                }}>
+                  Full Application Details
+                </h2>
+                <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                  <span style={{ fontWeight: '500', color: '#374151' }}>
+                    {selectedApplication.user.first_name} {selectedApplication.user.last_name}
+                  </span>
+                  {' • '}
+                  <span>ID: {selectedApplication.user.student_id}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowApplicationModal(false)}
+                style={{
+                  background: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '36px',
+                  height: '36px',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              
+              {/* Application Details */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📋</span> Application Details
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Year</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.school_year}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Semester</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.semester}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Application Type</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.application_type}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Scholarship Type</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.scholarship_type}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Facebook Link</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827', wordBreak: 'break-all' }}>{selectedApplication.facebook_link || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>👤</span> Personal Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>First Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.first_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Middle Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.middle_name || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Last Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.last_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Date of Birth</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.date_of_birth}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Age</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.age}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Sex</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.sex}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Citizenship</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.citizenship}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Marital Status</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.marital_status}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Religion</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.religion}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Place of Birth</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.place_of_birth}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Years of Residency</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.years_of_residency}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>🏠</span> Address Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>House No.</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.house_no}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Street</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.street}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Barangay</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.barangay}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>District</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.district}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Zip Code</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.zip_code}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📱</span> Contact Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Email</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.email}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Mobile No.</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mobile_no}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Other Contact</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.other_contact}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* School Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>🎓</span> School Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.school_name}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.school_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Course Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.course_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Year Level</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.year_level}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Units Enrolled</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.units_enrolled}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Course Duration</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.course_duration}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Ladderized</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.ladderized}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Status</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.status}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Transferee</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.transferee}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Shiftee</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shiftee}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Educational Background - SHS */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📚</span> Senior High School
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Attended</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shs_attended}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Type</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shs_type}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shs_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Years</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shs_years}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Honors</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.shs_honors || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Educational Background - JHS */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📚</span> Junior High School
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Attended</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.jhs_attended}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Type</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.jhs_type}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.jhs_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Years</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.jhs_years}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Honors</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.jhs_honors || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Educational Background - Elementary */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📚</span> Elementary School
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>School Attended</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.elem_attended}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Type</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.elem_type}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.elem_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Years</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.elem_years}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Honors</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.elem_honors || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Father's Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>👨</span> Father's Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Full Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Contact</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_contact}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Occupation</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_occupation}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Place of Work</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_place_of_work}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Education</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.father_education}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Status</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                      {selectedApplication.father_deceased ? '❌ Deceased' : '✅ Living'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mother's Information */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>👩</span> Mother's Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Full Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Contact</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_contact}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_address}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Occupation</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_occupation}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Place of Work</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_place_of_work}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Education</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>{selectedApplication.mother_education}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Status</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                      {selectedApplication.mother_deceased ? '❌ Deceased' : '✅ Living'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Information */}
+              <div>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>📋</span> Status Information
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Submitted</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                      {selectedApplication.is_submitted ? '✅ Yes' : '❌ No'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Locked</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                      {selectedApplication.is_locked ? '🔒 Locked' : '🔓 Unlocked'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Created At</div>
+                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                      {new Date(selectedApplication.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                  {selectedApplication.submitted_at && (
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Submitted At</div>
+                      <div style={{ fontSize: '15px', fontWeight: '500', color: '#111827' }}>
+                        {new Date(selectedApplication.submitted_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

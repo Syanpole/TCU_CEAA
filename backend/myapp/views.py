@@ -8,13 +8,13 @@ from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.conf import settings
 from django.db import models
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, BasicQualification
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, BasicQualification, FullApplication
 from .audit_logger import audit_logger
 from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, RegisterSerializer,
                          DocumentSubmissionSerializer, DocumentSubmissionCreateSerializer,
                          GradeSubmissionSerializer, GradeSubmissionCreateSerializer,
                          AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer,
-                         BasicQualificationSerializer)
+                         BasicQualificationSerializer, FullApplicationSerializer)
 from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
 import logging
 
@@ -1954,3 +1954,120 @@ class BasicQualificationViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FullApplicationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Full Application Forms.
+    Contains complete student application with personal and academic information.
+    """
+    serializer_class = FullApplicationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        if self.request.user.is_admin():
+            return FullApplication.objects.select_related('user').all()
+        return FullApplication.objects.filter(user=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Create a new full application"""
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'success': True,
+                'message': 'Application created successfully',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def update(self, request, *args, **kwargs):
+        """Update an existing application"""
+        instance = self.get_object()
+        
+        # Check if application is locked
+        if instance.is_locked and not request.user.is_admin():
+            return Response({
+                'success': False,
+                'error': 'Cannot update a locked application'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'success': True,
+                'message': 'Application updated successfully',
+                'data': serializer.data
+            })
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """Submit and lock the application"""
+        application = self.get_object()
+        
+        if application.is_submitted:
+            return Response({
+                'success': False,
+                'error': 'Application has already been submitted'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        application.is_submitted = True
+        application.is_locked = True
+        application.submitted_at = timezone.now()
+        application.save()
+        
+        audit_logger.log_user_action(
+            user=request.user,
+            action_type='update',
+            description=f"Submitted full application for {application.school_year} {application.get_semester_display()}",
+            severity='info',
+            request=request
+        )
+        
+        serializer = self.get_serializer(application)
+        return Response({
+            'success': True,
+            'message': 'Application submitted successfully',
+            'data': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unlock(self, request, pk=None):
+        """Unlock an application (admin only)"""
+        if not request.user.is_admin():
+            return Response({
+                'success': False,
+                'error': 'Only administrators can unlock applications'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        application = self.get_object()
+        application.is_locked = False
+        application.save()
+        
+        audit_logger.log_admin_action(
+            admin_user=request.user,
+            action_type='update',
+            description=f"Unlocked application for {application.user.username}",
+            target_user=application.user,
+            severity='warning',
+            request=request
+        )
+        
+        serializer = self.get_serializer(application)
+        return Response({
+            'success': True,
+            'message': 'Application unlocked successfully',
+            'data': serializer.data
+        })

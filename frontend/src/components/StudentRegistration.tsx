@@ -177,19 +177,9 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         verification_code: code
       });
 
-      // Always show verification modal - email verification is now required
-      console.log('Registration response:', registerResponse);
-      
-      if (registerResponse.requires_verification) {
-        // Show verification modal - this is the standard flow
-        setRegisteredEmail(formData.email);
-        setShowVerificationModal(true);
-        console.log('Showing verification modal for:', formData.email);
-      } else {
-        // This shouldn't happen anymore, but keep for safety
-        console.warn('Unexpected: Registration succeeded without requiring verification');
-        setError('Registration succeeded but verification step was skipped. Please contact support.');
-      }
+      // Registration successful
+      setSuccess(true);
+      setShowVerificationModal(false);
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
       
@@ -564,14 +554,6 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
           </div>
         </form>
       </div>
-
-      {/* Email Verification Modal */}
-      <EmailVerificationModal
-        isOpen={showVerificationModal}
-        email={registeredEmail}
-        onSuccess={handleVerificationSuccess}
-        onClose={() => setShowVerificationModal(false)}
-      />
     </div>
   );
 };

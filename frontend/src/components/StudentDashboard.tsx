@@ -239,55 +239,6 @@ const StudentDashboard: React.FC = () => {
     }
   };
 
-  // Manual refresh function
-  const handleManualRefresh = async () => {
-    if (isRefreshing) return;
-    
-    setIsRefreshing(true);
-    try {
-      const [
-        assignmentsResponse,
-        documentsResponse,
-        gradesResponse,
-        applicationsResponse,
-        dashboardResponse
-      ] = await Promise.all([
-        apiClient.get('/tasks/'),
-        apiClient.get('/documents/'),
-        apiClient.get('/grades/'),
-        apiClient.get('/applications/'),
-        apiClient.get('/dashboard/student/')
-      ]);
-
-      setAssignments((assignmentsResponse.data as Assignment[]) || []);
-      setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
-      setGrades((gradesResponse.data as GradeSubmission[]) || []);
-      setApplications((applicationsResponse.data as AllowanceApplication[]) || []);
-
-      if (dashboardResponse.data && (dashboardResponse.data as StudentDashboardData).stats) {
-        setStats((dashboardResponse.data as StudentDashboardData).stats!);
-      }
-
-      setLastRefresh(new Date());
-      
-      // Show brief success notification
-      setNotificationType('info');
-      setNotificationTitle('Dashboard Refreshed');
-      setNotificationMessage('Your data has been updated successfully!');
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 2000);
-      
-    } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-      setNotificationType('error');
-      setNotificationTitle('Refresh Failed');
-      setNotificationMessage('Unable to refresh dashboard. Please try again.');
-      setShowNotification(true);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';

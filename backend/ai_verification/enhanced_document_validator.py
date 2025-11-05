@@ -70,7 +70,7 @@ class EnhancedDocumentValidator:
                     'has_grades': True,       # Must contain grade values
                     'text_density': 'high'    # Dense with information
                 },
-                'confidence_threshold': 0.75,  # HIGH threshold for strict validation
+                'confidence_threshold': 0.90,  # 90% HIGH threshold for strict validation
                 'strict_mode': True            # Enable strict type checking
             },
             
@@ -94,7 +94,7 @@ class EnhancedDocumentValidator:
                     'has_photo': True,        # Usually has photo
                     'text_density': 'low'     # Sparse information
                 },
-                'confidence_threshold': 0.70,
+                'confidence_threshold': 0.85,  # 85% for ID cards
                 'strict_mode': True
             },
             
@@ -118,7 +118,7 @@ class EnhancedDocumentValidator:
                     'has_grades': True,
                     'text_density': 'high'
                 },
-                'confidence_threshold': 0.75,
+                'confidence_threshold': 0.87,  # 87% for grade sheets
                 'strict_mode': True
             },
             
@@ -141,7 +141,7 @@ class EnhancedDocumentValidator:
                     'has_official_seal': True,
                     'text_density': 'medium'
                 },
-                'confidence_threshold': 0.80,
+                'confidence_threshold': 0.92,  # 92% for birth certificates (government docs)
                 'strict_mode': True
             },
             
@@ -165,7 +165,7 @@ class EnhancedDocumentValidator:
                     'has_official_seal': True,
                     'text_density': 'medium'
                 },
-                'confidence_threshold': 0.75,
+                'confidence_threshold': 0.88,  # 88% for enrollment certificates
                 'strict_mode': True
             },
             
@@ -188,7 +188,7 @@ class EnhancedDocumentValidator:
                     'has_official_seal': True,
                     'text_density': 'low'
                 },
-                'confidence_threshold': 0.70,
+                'confidence_threshold': 0.86,  # 86% for clearances
                 'strict_mode': True
             }
         }
