@@ -91,14 +91,15 @@ WSGI_APPLICATION = 'backend_project.wsgi.application'
 # }
 
 # PostgreSQL configuration
+# Supports both POSTGRES_* (CI standard) and DB_* (local dev) environment variables
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'tcu_ceaa_database'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'TCU@ADMIN!scholarship'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': os.environ.get('POSTGRES_DB', os.environ.get('DB_NAME', 'tcu_ceaa_database')),
+        'USER': os.environ.get('POSTGRES_USER', os.environ.get('DB_USER', 'postgres')),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', os.environ.get('DB_PASSWORD', 'TCU@ADMIN!scholarship')),
+        'HOST': os.environ.get('DATABASE_HOST', os.environ.get('DB_HOST', 'localhost')),
+        'PORT': os.environ.get('DATABASE_PORT', os.environ.get('DB_PORT', '5432')),
     }
 }
 

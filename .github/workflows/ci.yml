@@ -120,6 +120,11 @@ jobs:
           "
           echo "✅ Dependency verification completed"
         env:
+          POSTGRES_DB: test_tcu_ceaa
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
           DB_NAME: test_tcu_ceaa
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -131,6 +136,11 @@ jobs:
           cd backend
           python manage.py migrate --noinput
         env:
+          POSTGRES_DB: test_tcu_ceaa
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
           DB_NAME: test_tcu_ceaa
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -143,6 +153,11 @@ jobs:
           echo "🧪 Running Django application tests..."
           python manage.py test myapp --verbosity=2
         env:
+          POSTGRES_DB: test_tcu_ceaa
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
           DB_NAME: test_tcu_ceaa
           DB_USER: postgres
           DB_PASSWORD: postgres
