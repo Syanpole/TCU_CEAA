@@ -19,13 +19,7 @@ class Migration(migrations.Migration):
                 blank=True, help_text="When email was verified", null=True
             ),
         ),
-        migrations.AddField(
-            model_name="customuser",
-            name="is_email_verified",
-            field=models.BooleanField(
-                default=False, help_text="Email address has been verified"
-            ),
-        ),
+        # Note: is_email_verified field already added in 0014_customuser_is_email_verified_and_more.py
         migrations.CreateModel(
             name="EmailVerification",
             fields=[
