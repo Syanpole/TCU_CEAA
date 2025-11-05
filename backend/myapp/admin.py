@@ -51,6 +51,7 @@ class CustomUserAdmin(UserAdmin):
                         verified_student.registered_user = None
                         verified_student.save()
                     except VerifiedStudent.DoesNotExist:
+                        # It's normal for some users to not have a VerifiedStudent record; ignore if not found.
                         pass
                     
                     # Delete user (CASCADE will handle related records)
