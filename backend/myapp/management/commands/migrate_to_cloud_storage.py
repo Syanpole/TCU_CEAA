@@ -18,8 +18,6 @@ from myapp.storage_backends import (
     ProfileImageStorage, DocumentStorage, GradeSheetStorage
 )
 import os
-import boto3
-from botocore.exceptions import ClientError
 
 
 class Command(BaseCommand):
@@ -163,7 +161,6 @@ class Command(BaseCommand):
                 else:
                     # Upload to S3
                     with open(local_path, 'rb') as f:
-                        file_content = f.read()
                         file_name = os.path.basename(file_field.name)
                         cloud_path = storage.save(file_name, f)
                         

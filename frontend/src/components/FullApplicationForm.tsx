@@ -431,7 +431,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       setIsSubmitting(false);
       
       // Better error message formatting
-      let errorMessage = 'Unknown error occurred';
+      let errorMessage;
       
       if (error.response?.data) {
         const data = error.response.data;

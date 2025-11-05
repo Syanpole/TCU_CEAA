@@ -680,7 +680,6 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Only admins can process applications'}, status=status.HTTP_403_FORBIDDEN)
         
         application = self.get_object()
-        previous_status = application.status
         new_status = request.data.get('status')
         admin_notes = request.data.get('admin_notes', '')
         
@@ -2058,9 +2057,7 @@ class FullApplicationViewSet(viewsets.ModelViewSet):
         
         audit_logger.log_admin_action(
             admin_user=request.user,
-            action_type='update',
-            description=f"Unlocked application for {application.user.username}",
-            target_user=application.user,
+            action_description=f"Unlocked application for {application.user.username}",
             severity='warning',
             request=request
         )
