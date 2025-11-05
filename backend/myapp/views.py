@@ -16,6 +16,7 @@ from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, Regis
                          AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer,
                          BasicQualificationSerializer, FullApplicationSerializer)
 from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
+from .email_verification_service import VerificationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ def register_view(request):
         email_sent = VerificationService.send_verification_email(user, verification.code)
         
         if email_sent:
-            AuditLogger.log(
+            audit_logger.log_action(
                 user=user,
                 action_type='user_registered',
                 action_description=f'Verification code sent to {user.email} upon registration',
@@ -156,7 +157,6 @@ def send_verification_code_view(request):
         "email": "user@example.com"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     
@@ -227,7 +227,6 @@ def verify_email_view(request):
         "code": "123456"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     code = request.data.get('code', '').strip()
@@ -315,7 +314,6 @@ def resend_verification_code_view(request):
         "email": "user@example.com"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     
