@@ -873,7 +873,6 @@ class AIGradeAnalyzer:
             
             # 🤖 OCR VERIFICATION - Try Advanced OCR first, then local methods
             extracted_text = None
-            ocr_method = None
             
             # Priority 1: Advanced OCR (95-98% accuracy)
             if ADVANCED_OCR_AVAILABLE:
