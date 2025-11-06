@@ -109,34 +109,40 @@ def register_view(request):
         # Create user with verified email
         user = serializer.save()
         user.is_email_verified = True
+        user.is_active = True  # Activate account since email is verified
+        user.email_verified_at = timezone.now()
         user.save()
         
         token, created = Token.objects.get_or_create(user=user)
         
-        # NOTE: VerifiedStudent linking moved to email verification step
-        # Account remains inactive until email is verified
+        # Mark VerifiedStudent as registered (if applicable)
+        if user.student_id:
+            try:
+                verified_student = VerifiedStudent.objects.get(
+                    student_id=user.student_id,
+                    is_active=True
+                )
+                verified_student.has_registered = True
+                verified_student.save()
+            except VerifiedStudent.DoesNotExist:
+                pass
         
         # Log user registration
         audit_logger.log_user_registration(user, request)
         
-        # Send verification email
-        verification = VerificationService.create_verification(user)
-        email_sent = VerificationService.send_verification_email(user, verification.code)
-        
-        if email_sent:
-            audit_logger.log_action(
-                user=user,
-                action_type='user_registered',
-                action_description=f'Verification code sent to {user.email} upon registration',
-                severity='info',
-                metadata={
-                    'verification_code_sent': True,
-                    'email': user.email,
-                    'username': user.username,
-                    'account_inactive_pending_verification': True
-                },
-                request=request
-            )
+        # Log successful registration with verified email
+        audit_logger.log(
+            user=user,
+            action_type='user_registered',
+            action_description=f'User registered successfully with verified email: {user.email}',
+            severity='info',
+            metadata={
+                'email': user.email,
+                'username': user.username,
+                'email_verified': True
+            },
+            request=request
+        )
         
         return Response({
             'token': token.key,
@@ -190,12 +196,15 @@ def send_verification_code_view(request):
         email_sent = VerificationService.send_verification_email(user, verification.code)
         
         if email_sent:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_SENT',
-                description=f'Verification code sent to {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_SENT',
+                action_description=f'Verification code sent to {email}',
+                severity='info',
+                metadata={
+                    'email': email
+                },
+                request=request
             )
             
             return Response({
@@ -266,12 +275,16 @@ def verify_email_view(request):
                     pass
             
             # Log successful verification
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFIED',
-                description=f'Email {email} successfully verified and account activated',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFIED',
+                action_description=f'Email {email} successfully verified and account activated',
+                severity='success',
+                metadata={
+                    'email': email,
+                    'account_activated': True
+                },
+                request=request
             )
             
             # Generate token for login
@@ -284,12 +297,16 @@ def verify_email_view(request):
                 'user': UserSerializer(user, context={'request': request}).data
             }, status=status.HTTP_200_OK)
         else:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_FAILED',
-                description=f'Failed verification attempt for {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_FAILED',
+                action_description=f'Failed verification attempt for {email}',
+                severity='warning',
+                metadata={
+                    'email': email,
+                    'reason': result.get('message', 'Invalid code')
+                },
+                request=request
             )
             
             return Response({
@@ -337,12 +354,15 @@ def resend_verification_code_view(request):
         result = VerificationService.resend_verification_code(user)
         
         if result['success']:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_RESENT',
-                description=f'Verification code resent to {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_RESENT',
+                action_description=f'Verification code resent to {email}',
+                severity='info',
+                metadata={
+                    'email': email
+                },
+                request=request
             )
             
             return Response({
@@ -366,25 +386,22 @@ def resend_verification_code_view(request):
 def verify_student_view(request):
     """
     Verify student information against verified student database before registration.
+    Only requires Student ID number for verification.
     
     Expected payload:
     {
-        "student_id": "22-00001",
-        "first_name": "Vennee Jones",
-        "last_name": "Abaigar",
-        "middle_initial": "R"
+        "student_id": "22-00001"
     }
+    
+    Returns student information if verified.
     """
     student_id = request.data.get('student_id', '').strip()
-    first_name = request.data.get('first_name', '').strip()
-    last_name = request.data.get('last_name', '').strip()
-    middle_initial = request.data.get('middle_initial', '').strip()
     
-    # Validate required fields
-    if not student_id or not first_name or not last_name:
+    # Validate required field
+    if not student_id:
         return Response({
             'verified': False,
-            'message': 'Student ID, First Name, and Last Name are required.'
+            'message': 'Student ID is required.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Look up verified student in database
@@ -396,7 +413,7 @@ def verify_student_view(request):
     except VerifiedStudent.DoesNotExist:
         return Response({
             'verified': False,
-            'message': 'Student ID not found in verified records.'
+            'message': 'Student ID not found in verified records. Please ensure you are using your correct TCU Student ID.'
         }, status=status.HTTP_403_FORBIDDEN)
     
     # Check if student has already registered
@@ -406,29 +423,34 @@ def verify_student_view(request):
             'message': 'This student has already registered. Please contact the administrator if you need assistance.'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    # Verify identity using the model's method
-    result = verified_student.verify_identity(first_name, last_name, middle_initial)
+    # Student is verified - return their information
+    result = {
+        'verified': True,
+        'message': 'Student verified successfully!',
+        'student_data': {
+            'student_id': verified_student.student_id,
+            'first_name': verified_student.first_name,
+            'last_name': verified_student.last_name,
+            'middle_initial': verified_student.middle_initial,
+            'sex': verified_student.sex,
+            'course': verified_student.course,
+            'year_level': verified_student.year_level
+        }
+    }
     
-    if result['verified']:
-        # Log successful verification (optional)
-        audit_logger.log_action(
-            user=None,
-            action='STUDENT_VERIFIED',
-            description=f"Student {student_id} successfully verified for registration",
-            ip_address=request.META.get('REMOTE_ADDR'),
-            user_agent=request.META.get('HTTP_USER_AGENT')
-        )
-        return Response(result, status=status.HTTP_200_OK)
-    else:
-        # Log failed verification attempt
-        audit_logger.log_action(
-            user=None,
-            action='STUDENT_VERIFICATION_FAILED',
-            description=f"Failed verification attempt for student ID {student_id}: {result['message']}",
-            ip_address=request.META.get('REMOTE_ADDR'),
-            user_agent=request.META.get('HTTP_USER_AGENT')
-        )
-        return Response(result, status=status.HTTP_403_FORBIDDEN)
+    # Log successful verification
+    audit_logger.log(
+        user=None,
+        action_type='STUDENT_VERIFIED',
+        action_description=f"Student {student_id} successfully verified for registration",
+        severity='info',
+        metadata={
+            'student_id': student_id
+        },
+        request=request
+    )
+    
+    return Response(result, status=status.HTTP_200_OK)
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
@@ -653,18 +675,20 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
         email_sent = ApplicationEmailService.send_confirmation_email(application)
         
         # Log application submission
-        audit_logger.log_action(
+        audit_logger.log(
             user=application.student,
-            action='APPLICATION_SUBMITTED',
-            description=f'Allowance application #{application.id} submitted. Email notification {"sent" if email_sent else "failed"}.',
-            ip_address=self.request.META.get('REMOTE_ADDR'),
-            user_agent=self.request.META.get('HTTP_USER_AGENT'),
+            action_type='APPLICATION_SUBMITTED',
+            action_description=f'Allowance application #{application.id} submitted. Email notification {"sent" if email_sent else "failed"}.',
+            severity='info',
+            target_model='AllowanceApplication',
+            target_object_id=application.id,
             metadata={
                 'application_id': application.id,
                 'application_type': application.application_type,
                 'amount': float(application.amount),
                 'email_sent': email_sent
-            }
+            },
+            request=self.request
         )
         
         return application

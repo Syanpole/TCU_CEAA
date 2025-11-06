@@ -88,13 +88,13 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
-    // Step 2: Verify Student Information
+    // Step 2: Verify Student Information (Student ID only)
     try {
       const verificationResult = await authService.verifyStudent({
         studentId: formData.studentId,
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        middleInitial: formData.middleInitial.replace('.', '').trim()
+        firstName: '',  // Not validated during verification
+        lastName: '',   // Not validated during verification
+        middleInitial: '' // Not validated during verification
       });
 
       if (!verificationResult.verified) {
@@ -106,10 +106,10 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       console.error('Verification error:', verificationError);
       if (verificationError.response?.status === 403) {
         const errorData = verificationError.response?.data;
-        setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
+        setError(`Verification failed: ${errorData?.message || 'Student ID not found or already registered.'}`);
       } else if (verificationError.response?.status === 400) {
         const errorData = verificationError.response?.data;
-        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
+        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check your Student ID.'}`);
       } else {
         setError('Verification failed: Unable to verify student information. Please try again later.');
       }
