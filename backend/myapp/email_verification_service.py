@@ -10,7 +10,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
-from .models import EmailVerification, CustomUser
+from .models import EmailVerificationCode, CustomUser
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class VerificationService:
         return ''.join(random.choices(string.digits, k=VerificationService.CODE_LENGTH))
     
     @classmethod
-    def create_verification(cls, user: CustomUser) -> 'EmailVerification':
+    def create_verification(cls, user: CustomUser) -> 'EmailVerificationCode':
         """
         Create a new email verification record for a user
         
@@ -47,12 +47,12 @@ class VerificationService:
             user: The CustomUser instance
             
         Returns:
-            EmailVerification: The created verification record
+            EmailVerificationCode: The created verification record
         """
         # Invalidate any existing active verifications for this user
-        EmailVerification.objects.filter(
-            user=user,
-            is_verified=False,
+        EmailVerificationCode.objects.filter(
+            email=user.email,
+            is_used=False,
             expires_at__gt=timezone.now()
         ).update(is_used=True)
         
@@ -61,8 +61,8 @@ class VerificationService:
         expires_at = timezone.now() + timedelta(minutes=cls.CODE_EXPIRY_MINUTES)
         
         # Create verification record
-        verification = EmailVerification.objects.create(
-            user=user,
+        verification = EmailVerificationCode.objects.create(
+            email=user.email,
             code=code,
             expires_at=expires_at
         )
@@ -125,15 +125,14 @@ class VerificationService:
             code: The verification code to validate
             
         Returns:
-            dict: {'valid': bool, 'message': str, 'verification': EmailVerification or None}
+            dict: {'valid': bool, 'message': str, 'verification': EmailVerificationCode or None}
         """
         try:
             # Find the verification record
-            verification = EmailVerification.objects.filter(
-                user=user,
+            verification = EmailVerificationCode.objects.filter(
+                email=user.email,
                 code=code,
-                is_used=False,
-                is_verified=False
+                is_used=False
             ).first()
             
             if not verification:
@@ -151,13 +150,12 @@ class VerificationService:
                     'verification': None
                 }
             
-            # Mark as verified
-            verification.is_verified = True
-            verification.verified_at = timezone.now()
-            verification.save()
+            # Mark as used
+            verification.mark_as_used()
             
             # Update user email verification status
             user.is_email_verified = True
+            user.email_verified_at = timezone.now()
             user.save()
             
             logger.info(f"Email verified successfully for user {user.username}")
@@ -190,8 +188,8 @@ class VerificationService:
         one_hour_ago = timezone.now() - timedelta(hours=1)
         
         # Count verification codes sent in the last hour
-        recent_codes = EmailVerification.objects.filter(
-            user=user,
+        recent_codes = EmailVerificationCode.objects.filter(
+            email=user.email,
             created_at__gte=one_hour_ago
         ).count()
         
@@ -200,8 +198,8 @@ class VerificationService:
         
         # Check if there's a recent code (within 1 minute)
         one_minute_ago = timezone.now() - timedelta(minutes=1)
-        very_recent_code = EmailVerification.objects.filter(
-            user=user,
+        very_recent_code = EmailVerificationCode.objects.filter(
+            email=user.email,
             created_at__gte=one_minute_ago
         ).exists()
         
