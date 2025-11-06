@@ -19,10 +19,8 @@ Date: November 2025
 
 import os
 import logging
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Any
 from django.conf import settings
-from io import BytesIO
-import json
 
 logger = logging.getLogger(__name__)
 

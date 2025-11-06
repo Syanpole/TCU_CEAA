@@ -891,7 +891,6 @@ class AIGradeAnalyzer:
                         
                         if ocr_result['success']:
                             extracted_text = ocr_result['text'].lower()
-                            ocr_method = 'advanced_ocr'
                             result['verification_method'] = 'advanced_ocr'
                             
                             logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} characters (confidence: {ocr_result.get('confidence', 0):.1f}%)")
@@ -928,7 +927,6 @@ class AIGradeAnalyzer:
                     results = reader.readtext(img_array)
                     extracted_text = ' '.join([text for (bbox, text, conf) in results]).lower()
                     
-                    ocr_method = 'autonomous_ai_easyocr'
                     result['verification_method'] = 'autonomous_ai'
                     
                     img.close()
@@ -967,7 +965,6 @@ class AIGradeAnalyzer:
                             img = img.resize(new_size, Image.Resampling.LANCZOS)
                         
                         extracted_text = pytesseract.image_to_string(img).lower()
-                        ocr_method = 'tesseract_ocr'
                         result['verification_method'] = 'tesseract_fallback'
                         
                         img.close()

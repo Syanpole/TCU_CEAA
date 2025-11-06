@@ -4,7 +4,6 @@ Tests the complete email verification and notification system
 """
 
 import os
-import sys
 import django
 
 # Setup Django environment
@@ -12,7 +11,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 from myapp.models import EmailVerification, AllowanceApplication, GradeSubmission, DocumentSubmission
 from myapp.email_verification_service import VerificationService
 from myapp.application_email_service import ApplicationEmailService

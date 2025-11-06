@@ -5,7 +5,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 django.setup()
 
 from myapp.models import FullApplication
-from django.utils import timezone
 
 # Find all submitted applications without submitted_at timestamp
 apps = FullApplication.objects.filter(is_submitted=True, submitted_at__isnull=True)
