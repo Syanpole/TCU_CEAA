@@ -142,7 +142,7 @@ Automated Email System
     
     try:
         # Send the email
-        result = send_mail(
+        send_mail(
             subject=subject,
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
@@ -193,4 +193,5 @@ Automated Email System
 
 
 if __name__ == '__main__':
-    test_send_email()
+    result = test_send_email()
+    sys.exit(0 if result else 1)

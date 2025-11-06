@@ -127,7 +127,7 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
       }, 200);
 
       // Upload to backend
-      const response = await apiClient.post('/documents/', formData, {
+      await apiClient.post('/documents/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
