@@ -18,8 +18,6 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 
-import io
-
 
 class Command(BaseCommand):
     help = 'Test cloud storage (S3) connection and permissions'

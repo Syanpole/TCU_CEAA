@@ -75,9 +75,8 @@ class CustomUserAdmin(UserAdmin):
     
     delete_users_with_records.short_description = '🗑️ Delete selected users and ALL their records'
 
-@admin.register(CustomUser)
-class CustomUserAdminRegistered(CustomUserAdmin):
-    pass
+# Register CustomUser with CustomUserAdmin
+admin.site.register(CustomUser, CustomUserAdmin)
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
@@ -378,3 +377,24 @@ class FullApplicationAdmin(admin.ModelAdmin):
         self.message_user(request, f'Successfully unlocked {updated} application(s).')
     unlock_applications.short_description = 'Unlock selected applications'
 
+
+@admin.register(EmailVerificationCode)
+class EmailVerificationCodeAdmin(admin.ModelAdmin):
+    list_display = ['email', 'code', 'is_used', 'attempts', 'created_at', 'expires_at', 'is_code_valid']
+    list_filter = ['is_used', 'created_at', 'expires_at']
+    search_fields = ['email', 'code']
+    readonly_fields = ['created_at', 'expires_at']
+    
+    def is_code_valid(self, obj):
+        """Display if the code is still valid"""
+        return obj.is_valid()
+    is_code_valid.short_description = 'Valid'
+    is_code_valid.boolean = True
+    
+    def has_add_permission(self, request):
+        # Verification codes should only be created programmatically
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers can delete verification codes
+        return request.user.is_superuser

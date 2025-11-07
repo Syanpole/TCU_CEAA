@@ -114,9 +114,29 @@ class RegisterSerializer(serializers.ModelSerializer):
                         'This student ID has already been registered. Please contact the admin if you need assistance.'
                     )
                 
+<<<<<<< HEAD
                 # Student ID verified successfully!
                 # Name verification is NOT performed - students can use any name format
                 # This allows for typos, nicknames, and preferred name formatting
+=======
+                # Verify name matches (case-insensitive comparison)
+                first_name = data.get('first_name', '').strip().lower()
+                last_name = data.get('last_name', '').strip().lower()
+                middle_initial = data.get('middle_initial', '').strip().upper()
+                
+                # ===== IMPORTANT: Only Student ID is validated =====
+                # Names and middle initial are NOT validated to allow flexibility
+                # Students can input any name they want - only Student ID must match
+                
+                # Optional: Store verified student's official name for reference
+                # but do NOT enforce it during registration
+                verified_first = verified_student.first_name.strip().lower()
+                verified_last = verified_student.last_name.strip().lower()
+                verified_middle = verified_student.middle_initial.strip().upper() if verified_student.middle_initial else ''
+                
+                # NO NAME VALIDATION - Student ID verification is sufficient
+                # This allows students to use preferred names, nicknames, or correct spelling variations
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
                 
             except VerifiedStudent.DoesNotExist:
                 raise serializers.ValidationError(

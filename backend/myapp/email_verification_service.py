@@ -50,9 +50,17 @@ class VerificationService:
             EmailVerificationCode: The created verification record
         """
         # Invalidate any existing active verifications for this user
+<<<<<<< HEAD
         # Note: EmailVerificationCode uses 'email' field, not 'user' field
         # This service appears to be for a different verification system
         # Skipping invalidation for now
+=======
+        EmailVerificationCode.objects.filter(
+            email=user.email,
+            is_used=False,
+            expires_at__gt=timezone.now()
+        ).update(is_used=True)
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
         
         # Generate new code
         code = cls.generate_verification_code()
@@ -60,7 +68,11 @@ class VerificationService:
         
         # Create verification record
         verification = EmailVerificationCode.objects.create(
+<<<<<<< HEAD
             user=user,
+=======
+            email=user.email,
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
             code=code,
             expires_at=expires_at
         )
@@ -128,10 +140,13 @@ class VerificationService:
         try:
             # Find the verification record
             verification = EmailVerificationCode.objects.filter(
+<<<<<<< HEAD
                 user=user,
+=======
+                email=user.email,
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
                 code=code,
-                is_used=False,
-                is_verified=False
+                is_used=False
             ).first()
             
             if not verification:
@@ -149,13 +164,12 @@ class VerificationService:
                     'verification': None
                 }
             
-            # Mark as verified
-            verification.is_verified = True
-            verification.verified_at = timezone.now()
-            verification.save()
+            # Mark as used
+            verification.mark_as_used()
             
             # Update user email verification status
             user.is_email_verified = True
+            user.email_verified_at = timezone.now()
             user.save()
             
             logger.info(f"Email verified successfully for user {user.username}")
@@ -189,7 +203,11 @@ class VerificationService:
         
         # Count verification codes sent in the last hour
         recent_codes = EmailVerificationCode.objects.filter(
+<<<<<<< HEAD
             user=user,
+=======
+            email=user.email,
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
             created_at__gte=one_hour_ago
         ).count()
         
@@ -199,7 +217,11 @@ class VerificationService:
         # Check if there's a recent code (within 1 minute)
         one_minute_ago = timezone.now() - timedelta(minutes=1)
         very_recent_code = EmailVerificationCode.objects.filter(
+<<<<<<< HEAD
             user=user,
+=======
+            email=user.email,
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
             created_at__gte=one_minute_ago
         ).exists()
         

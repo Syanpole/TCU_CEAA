@@ -3,7 +3,6 @@
 Check database tables related to email verification
 """
 import os
-import sys
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')

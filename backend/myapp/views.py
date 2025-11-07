@@ -109,16 +109,28 @@ def register_view(request):
         # Create user with verified email
         user = serializer.save()
         user.is_email_verified = True
+        user.is_active = True  # Activate account since email is verified
+        user.email_verified_at = timezone.now()
         user.save()
         
         token, created = Token.objects.get_or_create(user=user)
         
-        # NOTE: VerifiedStudent linking moved to email verification step
-        # Account remains inactive until email is verified
+        # Mark VerifiedStudent as registered (if applicable)
+        if user.student_id:
+            try:
+                verified_student = VerifiedStudent.objects.get(
+                    student_id=user.student_id,
+                    is_active=True
+                )
+                verified_student.has_registered = True
+                verified_student.save()
+            except VerifiedStudent.DoesNotExist:
+                pass
         
         # Log user registration
         audit_logger.log_user_registration(user, request)
         
+<<<<<<< HEAD
         # Email verification was already completed BEFORE registration
         # Mark user as email verified AND activate account
         user.is_email_verified = True
@@ -128,6 +140,21 @@ def register_view(request):
         
         # Log successful registration
         logger.info(f'User {user.username} registered successfully with verified email {user.email}')
+=======
+        # Log successful registration with verified email
+        audit_logger.log(
+            user=user,
+            action_type='user_registered',
+            action_description=f'User registered successfully with verified email: {user.email}',
+            severity='info',
+            metadata={
+                'email': user.email,
+                'username': user.username,
+                'email_verified': True
+            },
+            request=request
+        )
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
         
         return Response({
             'token': token.key,
@@ -148,7 +175,6 @@ def send_verification_code_view(request):
         "email": "user@example.com"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     
@@ -182,12 +208,15 @@ def send_verification_code_view(request):
         email_sent = VerificationService.send_verification_email(user, verification.code)
         
         if email_sent:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_SENT',
-                description=f'Verification code sent to {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_SENT',
+                action_description=f'Verification code sent to {email}',
+                severity='info',
+                metadata={
+                    'email': email
+                },
+                request=request
             )
             
             return Response({
@@ -219,7 +248,6 @@ def verify_email_view(request):
         "code": "123456"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     code = request.data.get('code', '').strip()
@@ -259,12 +287,16 @@ def verify_email_view(request):
                     pass
             
             # Log successful verification
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFIED',
-                description=f'Email {email} successfully verified and account activated',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFIED',
+                action_description=f'Email {email} successfully verified and account activated',
+                severity='success',
+                metadata={
+                    'email': email,
+                    'account_activated': True
+                },
+                request=request
             )
             
             # Generate token for login
@@ -277,12 +309,16 @@ def verify_email_view(request):
                 'user': UserSerializer(user, context={'request': request}).data
             }, status=status.HTTP_200_OK)
         else:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_FAILED',
-                description=f'Failed verification attempt for {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_FAILED',
+                action_description=f'Failed verification attempt for {email}',
+                severity='warning',
+                metadata={
+                    'email': email,
+                    'reason': result.get('message', 'Invalid code')
+                },
+                request=request
             )
             
             return Response({
@@ -307,7 +343,6 @@ def resend_verification_code_view(request):
         "email": "user@example.com"
     }
     """
-    from .email_verification_service import VerificationService
     
     email = request.data.get('email', '').strip()
     
@@ -331,12 +366,15 @@ def resend_verification_code_view(request):
         result = VerificationService.resend_verification_code(user)
         
         if result['success']:
-            audit_logger.log_action(
+            audit_logger.log(
                 user=user,
-                action='EMAIL_VERIFICATION_RESENT',
-                description=f'Verification code resent to {email}',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT')
+                action_type='EMAIL_VERIFICATION_RESENT',
+                action_description=f'Verification code resent to {email}',
+                severity='info',
+                metadata={
+                    'email': email
+                },
+                request=request
             )
             
             return Response({
@@ -359,6 +397,7 @@ def resend_verification_code_view(request):
 @permission_classes([AllowAny])
 def verify_student_view(request):
     """
+<<<<<<< HEAD
     Verify student against verified student database before registration.
     ONLY verifies Student Number - name verification is optional/informational.
     
@@ -368,11 +407,25 @@ def verify_student_view(request):
         "first_name": "Vennee Jones",  // Optional - not used for verification
         "last_name": "Abaigar",        // Optional - not used for verification
         "middle_initial": "R"           // Optional - not used for verification
+=======
+    Verify student information against verified student database before registration.
+    Only requires Student ID number for verification.
+    
+    Expected payload:
+    {
+        "student_id": "22-00001"
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
     }
+    
+    Returns student information if verified.
     """
     student_id = request.data.get('student_id', '').strip()
     
+<<<<<<< HEAD
     # Validate required field (only Student ID is required)
+=======
+    # Validate required field
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
     if not student_id:
         return Response({
             'verified': False,
@@ -388,7 +441,11 @@ def verify_student_view(request):
     except VerifiedStudent.DoesNotExist:
         return Response({
             'verified': False,
+<<<<<<< HEAD
             'message': 'Student ID not found in verified records. Please check your Student Number and try again.'
+=======
+            'message': 'Student ID not found in verified records. Please ensure you are using your correct TCU Student ID.'
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
         }, status=status.HTTP_403_FORBIDDEN)
     
     # Check if student has already registered
@@ -398,29 +455,54 @@ def verify_student_view(request):
             'message': 'This student has already registered. Please contact the administrator if you need assistance.'
         }, status=status.HTTP_403_FORBIDDEN)
     
+<<<<<<< HEAD
     # SUCCESS - Student ID found and student hasn't registered yet
     # Return student information from database for auto-fill (optional)
     result = {
         'verified': True,
         'message': 'Student ID verified successfully! You may now complete your registration.',
+=======
+    # Student is verified - return their information
+    result = {
+        'verified': True,
+        'message': 'Student verified successfully!',
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
         'student_data': {
             'student_id': verified_student.student_id,
             'first_name': verified_student.first_name,
             'last_name': verified_student.last_name,
             'middle_initial': verified_student.middle_initial,
+<<<<<<< HEAD
             'course': verified_student.course,
             'year_level': verified_student.year_level,
             'sex': verified_student.sex
+=======
+            'sex': verified_student.sex,
+            'course': verified_student.course,
+            'year_level': verified_student.year_level
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
         }
     }
     
     # Log successful verification
+<<<<<<< HEAD
     audit_logger.log_action(
         user=None,
         action='STUDENT_VERIFIED',
         description=f"Student {student_id} ({verified_student.first_name} {verified_student.last_name}) successfully verified for registration",
         ip_address=request.META.get('REMOTE_ADDR'),
         user_agent=request.META.get('HTTP_USER_AGENT')
+=======
+    audit_logger.log(
+        user=None,
+        action_type='STUDENT_VERIFIED',
+        action_description=f"Student {student_id} successfully verified for registration",
+        severity='info',
+        metadata={
+            'student_id': student_id
+        },
+        request=request
+>>>>>>> 1f47f61323e6487aa00052ff57f5203903e794bb
     )
     
     return Response(result, status=status.HTTP_200_OK)
@@ -648,18 +730,20 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
         email_sent = ApplicationEmailService.send_confirmation_email(application)
         
         # Log application submission
-        audit_logger.log_action(
+        audit_logger.log(
             user=application.student,
-            action='APPLICATION_SUBMITTED',
-            description=f'Allowance application #{application.id} submitted. Email notification {"sent" if email_sent else "failed"}.',
-            ip_address=self.request.META.get('REMOTE_ADDR'),
-            user_agent=self.request.META.get('HTTP_USER_AGENT'),
+            action_type='APPLICATION_SUBMITTED',
+            action_description=f'Allowance application #{application.id} submitted. Email notification {"sent" if email_sent else "failed"}.',
+            severity='info',
+            target_model='AllowanceApplication',
+            target_object_id=application.id,
             metadata={
                 'application_id': application.id,
                 'application_type': application.application_type,
                 'amount': float(application.amount),
                 'email_sent': email_sent
-            }
+            },
+            request=self.request
         )
         
         return application
@@ -673,7 +757,6 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Only admins can process applications'}, status=status.HTTP_403_FORBIDDEN)
         
         application = self.get_object()
-        previous_status = application.status
         new_status = request.data.get('status')
         admin_notes = request.data.get('admin_notes', '')
         
@@ -2072,9 +2155,7 @@ class FullApplicationViewSet(viewsets.ModelViewSet):
         
         audit_logger.log_admin_action(
             admin_user=request.user,
-            action_type='update',
-            description=f"Unlocked application for {application.user.username}",
-            target_user=application.user,
+            action_description=f"Unlocked application for {application.user.username}",
             severity='warning',
             request=request
         )
