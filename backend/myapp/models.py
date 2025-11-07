@@ -23,6 +23,10 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
     
+    # Email verification
+    is_email_verified = models.BooleanField(default=False, help_text="Email address has been verified")
+    email_verified_at = models.DateTimeField(null=True, blank=True, help_text="When email was verified")
+    
     def is_admin(self):
         return self.role == 'admin'
     
@@ -856,6 +860,7 @@ class SystemAnalytics(models.Model):
         return analytics
 
 
+
 class EmailVerificationCode(models.Model):
     """
     Model to store email verification codes for new user registration.
@@ -1015,4 +1020,130 @@ class BasicQualification(models.Model):
     
     def __str__(self):
         return f"Qualification for {self.student.username} - {'Qualified' if self.is_qualified else 'Not Qualified'}"
+
+
+class FullApplication(models.Model):
+    """
+    Complete application form submitted by students.
+    Contains all personal, contact, academic, and family information.
+    """
+    SEMESTER_CHOICES = [
+        ('1st', 'First Semester'),
+        ('2nd', 'Second Semester'),
+        ('summer', 'Summer'),
+    ]
+    
+    APPLICATION_TYPE_CHOICES = [
+        ('new', 'New Application'),
+        ('renewal', 'Renewal'),
+    ]
+    
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='full_applications',
+        limit_choices_to={'role': 'student'}
+    )
+    
+    # Application Details
+    facebook_link = models.URLField(max_length=500, blank=True, null=True)
+    application_type = models.CharField(max_length=10, choices=APPLICATION_TYPE_CHOICES, default='new')
+    scholarship_type = models.CharField(max_length=100, default='TCU-CEAA')
+    school_year = models.CharField(max_length=20, help_text="School year (e.g., 2024-2025)")
+    semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES, default='1st')
+    applying_for_merit = models.CharField(max_length=10, blank=True, null=True)
+    
+    # Personal Information
+    first_name = models.CharField(max_length=100, default='')
+    middle_name = models.CharField(max_length=100, blank=True, default='')
+    last_name = models.CharField(max_length=100, default='')
+    house_no = models.CharField(max_length=50, default='')
+    street = models.CharField(max_length=200, default='')
+    zip_code = models.CharField(max_length=10, default='')
+    barangay = models.CharField(max_length=100, help_text='Barangay of residence', default='')
+    district = models.CharField(max_length=50, blank=True, default='')
+    mobile_no = models.CharField(max_length=15, help_text='Contact number', default='')
+    other_contact = models.CharField(max_length=15, blank=True, null=True)
+    email = models.EmailField(help_text="Student's email address", default='')
+    date_of_birth = models.DateField(help_text='Date of birth', null=True, blank=True)
+    age = models.IntegerField(blank=True, null=True)
+    citizenship = models.CharField(max_length=50, default='Filipino')
+    sex = models.CharField(max_length=10, default='')
+    marital_status = models.CharField(max_length=20, default='')
+    religion = models.CharField(max_length=100, default='')
+    place_of_birth = models.CharField(max_length=200, default='')
+    years_of_residency = models.CharField(max_length=50, default='')
+    
+    # School Information
+    course_name = models.CharField(max_length=200, default='')
+    ladderized = models.CharField(max_length=10, default='NO')
+    year_level = models.CharField(max_length=50, default='')
+    swa_input = models.CharField(max_length=100, blank=True, null=True)
+    units_enrolled = models.CharField(max_length=50, default='')
+    course_duration = models.CharField(max_length=50, default='')
+    school_name = models.CharField(max_length=200, default='TAGUIG CITY UNIVERSITY (TCU)')
+    school_address = models.CharField(max_length=500, default='Gen. Santos Ave., Central Bicutan, Taguig City')
+    graduating_this_term = models.CharField(max_length=10, default='')
+    semesters_to_graduate = models.CharField(max_length=50, blank=True, null=True)
+    with_honors = models.CharField(max_length=50, blank=True, null=True)
+    transferee = models.CharField(max_length=10, default='')
+    shiftee = models.CharField(max_length=10, default='')
+    status = models.CharField(max_length=50, default='')
+    
+    # Educational Background - Senior High School
+    shs_attended = models.CharField(max_length=200, blank=True)
+    shs_type = models.CharField(max_length=50, blank=True)
+    shs_address = models.CharField(max_length=500, blank=True)
+    shs_years = models.CharField(max_length=50, blank=True)
+    shs_honors = models.CharField(max_length=200, blank=True)
+    
+    # Educational Background - Junior High School
+    jhs_attended = models.CharField(max_length=200, blank=True)
+    jhs_type = models.CharField(max_length=50, blank=True)
+    jhs_address = models.CharField(max_length=500, blank=True)
+    jhs_years = models.CharField(max_length=50, blank=True)
+    jhs_honors = models.CharField(max_length=200, blank=True)
+    
+    # Educational Background - Elementary
+    elem_attended = models.CharField(max_length=200, blank=True)
+    elem_type = models.CharField(max_length=50, blank=True)
+    elem_address = models.CharField(max_length=500, blank=True)
+    elem_years = models.CharField(max_length=50, blank=True)
+    elem_honors = models.CharField(max_length=200, blank=True)
+    
+    # Parents Information - Father
+    father_name = models.CharField(max_length=200, blank=True)
+    father_address = models.CharField(max_length=500, blank=True)
+    father_contact = models.CharField(max_length=15, blank=True)
+    father_occupation = models.CharField(max_length=200, blank=True)
+    father_place_of_work = models.CharField(max_length=200, blank=True)
+    father_education = models.CharField(max_length=200, blank=True)
+    father_deceased = models.BooleanField(default=False)
+    
+    # Parents Information - Mother
+    mother_name = models.CharField(max_length=200, blank=True)
+    mother_address = models.CharField(max_length=500, blank=True)
+    mother_contact = models.CharField(max_length=15, blank=True)
+    mother_occupation = models.CharField(max_length=200, blank=True)
+    mother_place_of_work = models.CharField(max_length=200, blank=True)
+    mother_education = models.CharField(max_length=200, blank=True)
+    mother_deceased = models.BooleanField(default=False)
+    
+    # Status Fields
+    is_submitted = models.BooleanField(default=False, help_text='Whether the application has been submitted')
+    is_locked = models.BooleanField(default=False, help_text='Whether the application is locked for editing')
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(null=True, blank=True, help_text='When the application was submitted')
+    
+    class Meta:
+        verbose_name = "Full Application"
+        verbose_name_plural = "Full Applications"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Application for {self.user.username} - {self.school_year} {self.semester}"
+
 

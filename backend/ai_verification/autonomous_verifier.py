@@ -50,33 +50,37 @@ class AutonomousDocumentVerifier:
                 'required_keywords': ['birth', 'certificate', 'born', 'registry', 'civil', 'philippines', 'republic', 'registrar'],
                 'forbidden_keywords': ['school', 'student', 'grade', 'transcript'],
                 'expected_structure': 'government_document',
-                'confidence_threshold': 0.75
+                'confidence_threshold': 0.90  # 90% for high accuracy
             },
             'school_id': {
                 'required_keywords': ['student', 'university', 'college', 'taguig', 'tcu', 'id', 'no'],
                 'forbidden_keywords': ['birth', 'certificate', 'born', 'diploma', 'graduated'],
                 'expected_structure': 'id_card',
-                'confidence_threshold': 0.70
+                'confidence_threshold': 0.85  # 85% for ID cards
             },
             'certificate_of_enrollment': {
                 'required_keywords': ['certificate', 'enrollment', 'enrolled', 'student'],
                 'forbidden_keywords': ['birth', 'diploma', 'graduated'],
-                'expected_structure': 'certificate'
+                'expected_structure': 'certificate',
+                'confidence_threshold': 0.88  # 88% for certificates
             },
             'grade_10_report_card': {
                 'required_keywords': ['grade', 'report', '10', 'subject', 'quarter'],
                 'forbidden_keywords': ['birth', 'certificate', 'diploma', '11', '12'],
-                'expected_structure': 'grade_sheet'
+                'expected_structure': 'grade_sheet',
+                'confidence_threshold': 0.87  # 87% for grade sheets
             },
             'grade_12_report_card': {
                 'required_keywords': ['grade', 'report', '12', 'subject', 'senior'],
                 'forbidden_keywords': ['birth', 'certificate', 'diploma', '10', '11'],
-                'expected_structure': 'grade_sheet'
+                'expected_structure': 'grade_sheet',
+                'confidence_threshold': 0.87  # 87% for grade sheets
             },
             'diploma': {
                 'required_keywords': ['diploma', 'graduated', 'completion', 'degree'],
                 'forbidden_keywords': ['enrollment', 'report card'],
-                'expected_structure': 'certificate'
+                'expected_structure': 'certificate',
+                'confidence_threshold': 0.92  # 92% for diplomas
             }
         }
     

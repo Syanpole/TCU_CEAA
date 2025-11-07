@@ -88,13 +88,13 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
-    // Step 2: Verify Student Information
+    // Step 2: Verify Student Information (Student ID only)
     try {
       const verificationResult = await authService.verifyStudent({
         studentId: formData.studentId,
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        middleInitial: formData.middleInitial.replace('.', '').trim()
+        firstName: '',  // Not validated during verification
+        lastName: '',   // Not validated during verification
+        middleInitial: '' // Not validated during verification
       });
 
       if (!verificationResult.verified) {
@@ -106,10 +106,10 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       console.error('Verification error:', verificationError);
       if (verificationError.response?.status === 403) {
         const errorData = verificationError.response?.data;
-        setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
+        setError(`Verification failed: ${errorData?.message || 'Student ID not found or already registered.'}`);
       } else if (verificationError.response?.status === 400) {
         const errorData = verificationError.response?.data;
-        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
+        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check your Student ID.'}`);
       } else {
         setError('Verification failed: Unable to verify student information. Please try again later.');
       }
@@ -177,7 +177,9 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         verification_code: code
       });
 
+      // Registration successful
       setSuccess(true);
+      setShowVerificationModal(false);
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
       
@@ -188,17 +190,28 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
           setError(`Registration failed: ${errorData}`);
         } else if (errorData.detail) {
           setError(`Registration failed: ${errorData.detail}`);
+        } else if (errorData.non_field_errors) {
+          // This catches our VerifiedStudent validation errors
+          if (Array.isArray(errorData.non_field_errors)) {
+            setError(errorData.non_field_errors[0]);
+          } else {
+            setError(`${errorData.non_field_errors}`);
+          }
         } else if (errorData.username) {
           setError('Registration failed: This username is already taken. Please choose a different username.');
         } else if (errorData.email) {
           setError('Registration failed: This email is already registered.');
         } else if (errorData.student_id) {
           setError('Registration failed: This student ID is already registered.');
-        } else if (errorData.non_field_errors) {
-          setError(`Registration failed: ${errorData.non_field_errors[0]}`);
         } else {
-          const errorMessages = Object.values(errorData).flat();
-          setError(`Registration failed: ${errorMessages.join(', ')}`);
+          // Show all validation errors
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => {
+              const messageArray = Array.isArray(messages) ? messages : [messages];
+              return messageArray.join(', ');
+            })
+            .filter(msg => msg);
+          setError(errorMessages.join(' | '));
         }
       } else {
         setError('Registration failed: An unexpected error occurred. Please try again.');

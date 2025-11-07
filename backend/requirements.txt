@@ -58,6 +58,17 @@ setuptools>=75.1.0
 wheel>=0.44.0
 
 # ============================================================================
+# CLOUD STORAGE & ADVANCED OCR PROCESSING
+# ============================================================================
+
+# AWS SDK for cloud storage and document processing
+boto3==1.35.36
+botocore==1.35.36
+
+# Django S3 storage backend
+django-storages==1.14.4
+
+# ============================================================================
 # OPTIONAL ADVANCED AI FEATURES (Install separately if needed)
 # ============================================================================
 # tensorflow>=2.13.0        # For deep learning models

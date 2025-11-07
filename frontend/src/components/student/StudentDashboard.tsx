@@ -91,6 +91,8 @@ const StudentDashboard: React.FC = () => {
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   
   // Enhanced smooth theme toggle function
   const toggleTheme = () => {
@@ -205,24 +207,27 @@ const StudentDashboard: React.FC = () => {
           }
         ]);
         
+        setLastRefresh(new Date());
         setError('');
       } catch (error: any) {
         console.error('Error fetching student data:', error);
         setError('Unable to load some information. Please check your connection and try again.');
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
 
     fetchStudentData();
     
-    // Set up interval to refresh data every 5 minutes (less frequent and less disruptive)
+    // Set up interval to refresh data every 30 seconds
     const interval = setInterval(() => {
       // Only refresh if user is not currently interacting with modals
       if (!showDocumentForm && !showGradeForm && !showAllowanceForm && !showNotification) {
+        setIsRefreshing(true);
         fetchStudentData();
       }
-    }, 300000); // 5 minutes instead of 30 seconds
+    }, 30000); // 30 seconds for auto-refresh
 
     return () => clearInterval(interval);
   }, []);
@@ -235,6 +240,84 @@ const StudentDashboard: React.FC = () => {
       setDocuments(fetchedDocuments);
     } catch (error) {
       console.error('Error refreshing documents:', error);
+    }
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    setIsRefreshing(true);
+    try {
+      const [documentsRes, gradesRes, applicationsRes, dashboardRes] = await Promise.all([
+        apiClient.get<DocumentSubmission[]>('/documents/').catch(() => ({ data: [] as DocumentSubmission[] })),
+        apiClient.get<GradeSubmission[]>('/grades/').catch(() => ({ data: [] as GradeSubmission[] })),
+        apiClient.get<AllowanceApplication[]>('/applications/').catch(() => ({ data: [] as AllowanceApplication[] })),
+        apiClient.get<StudentDashboardData>('/dashboard/student/').catch(() => ({ data: {} as StudentDashboardData }))
+      ]);
+
+      const fetchedDocuments = Array.isArray(documentsRes.data) ? documentsRes.data : [];
+      const fetchedGrades = Array.isArray(gradesRes.data) ? gradesRes.data : [];
+      const fetchedApplications = Array.isArray(applicationsRes.data) ? applicationsRes.data : [];
+
+      setDocuments(fetchedDocuments);
+      setGrades(fetchedGrades);
+      setApplications(fetchedApplications);
+
+      if (dashboardRes.data && dashboardRes.data.stats) {
+        setStats(dashboardRes.data.stats);
+      } else {
+        setStats({
+          total_documents: fetchedDocuments.length,
+          approved_documents: fetchedDocuments.filter(d => d.status === 'approved').length,
+          total_applications: fetchedApplications.length,
+          approved_applications: fetchedApplications.filter(a => a.status === 'approved' || a.status === 'disbursed').length
+        });
+      }
+
+      // Update assignments
+      const currentApprovedDocuments = fetchedDocuments.filter(d => d.status === 'approved').length;
+      setAssignments([
+        {
+          id: 1,
+          title: 'Submit Required Documents',
+          description: 'Upload all required documents for TCU-CEAA verification (Birth Certificate, Report Card, etc.)',
+          due_date: '',
+          submitted: fetchedDocuments.length > 0
+        },
+        {
+          id: 2,
+          title: 'Submit Grade Records',
+          description: `Upload your latest semester grades for allowance evaluation and eligibility check. Requires 2+ approved documents (Currently: ${currentApprovedDocuments}/2 approved)`,
+          due_date: '',
+          submitted: fetchedGrades.length > 0
+        },
+        {
+          id: 3,
+          title: 'Complete Allowance Application',
+          description: 'Apply for your educational assistance allowance once requirements are met',
+          due_date: '',
+          submitted: fetchedApplications.length > 0
+        }
+      ]);
+
+      setLastRefresh(new Date());
+      
+      // Show brief success notification
+      setNotificationType('info');
+      setNotificationTitle('Dashboard Refreshed');
+      setNotificationMessage('Your data has been updated successfully!');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 2000);
+      
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+      setNotificationType('error');
+      setNotificationTitle('Refresh Failed');
+      setNotificationMessage('Unable to refresh dashboard. Please try again.');
+      setShowNotification(true);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -454,9 +537,33 @@ const StudentDashboard: React.FC = () => {
                 <div className="live-dot"></div>
                 <span>Live Dashboard</span>
                 <div className="last-update">
-                  {currentDateTime.toLocaleDateString()} • {currentDateTime.toLocaleTimeString()}
+                  Last updated: {lastRefresh.toLocaleTimeString()}
                 </div>
               </div>
+              <button 
+                className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`}
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                title="Refresh dashboard data"
+              >
+                <svg 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={isRefreshing ? 'spin' : ''}
+                >
+                  <path 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
               <button 
                 className="theme-toggle-btn"
                 onClick={toggleTheme}

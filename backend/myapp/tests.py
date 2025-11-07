@@ -1,11 +1,17 @@
+"""
+Django tests for TCU CEAA application
+Tests authentication, user model, and API endpoints
+"""
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
+from myapp.models import VerifiedStudent  # Changed from relative to absolute import
 
 User = get_user_model()
+
 
 class AuthenticationTestCase(TestCase):
     def setUp(self):
@@ -16,9 +22,23 @@ class AuthenticationTestCase(TestCase):
             'password': 'testpass123',
             'first_name': 'Test',
             'last_name': 'User',
+            'middle_initial': 'T',
             'role': 'student',
             'student_id': '23-00001'
         }
+        
+        # Create a verified student record first (required for registration)
+        self.verified_student = VerifiedStudent.objects.create(
+            student_id='23-00001',
+            first_name='Test',
+            last_name='User',
+            middle_initial='T',
+            sex='M',
+            course='BSCS',
+            year_level=1,
+            is_active=True,
+            has_registered=False
+        )
 
     def test_user_registration(self):
         """Test user registration with valid data"""
@@ -38,9 +58,18 @@ class AuthenticationTestCase(TestCase):
             'password_confirm': 'testpass123',
             'verification_code': '123456'  # Include verification code
         })
+        
+        # Registration should succeed (returns 201)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('token', response.data)
+        self.assertIn('user', response.data)
+        self.assertIn('message', response.data)
         self.assertEqual(response.data['user']['username'], 'testuser')
+        
+        # User should be created and active since email is verified
+        user = User.objects.get(username='testuser')
+        self.assertTrue(user.is_active)  # Active after email verification
+        self.assertTrue(user.is_email_verified)  # Email is verified
 
     def test_user_login(self):
         """Test user login with valid credentials"""

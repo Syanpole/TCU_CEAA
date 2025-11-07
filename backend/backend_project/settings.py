@@ -91,14 +91,15 @@ WSGI_APPLICATION = 'backend_project.wsgi.application'
 # }
 
 # PostgreSQL configuration
+# Supports both POSTGRES_* (CI standard) and DB_* (local dev) environment variables
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'tcu_ceaa_database'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'TCU@ADMIN!scholarship'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': os.environ.get('POSTGRES_DB', os.environ.get('DB_NAME', 'tcu_ceaa_database')),
+        'USER': os.environ.get('POSTGRES_USER', os.environ.get('DB_USER', 'postgres')),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', os.environ.get('DB_PASSWORD', 'TCU@ADMIN!scholarship')),
+        'HOST': os.environ.get('DATABASE_HOST', os.environ.get('DB_HOST', 'localhost')),
+        'PORT': os.environ.get('DATABASE_PORT', os.environ.get('DB_PORT', '5432')),
     }
 }
 
@@ -172,6 +173,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'myapp.CustomUser'
 
+# Email Configuration
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'TCU-CEAA Portal <noreply@tcu-ceaa.edu.ph>')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Email sending timeout (in seconds)
+EMAIL_TIMEOUT = 30
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -216,21 +230,3 @@ TEST_DISCOVER_PATTERN = 'test*.py'
 
 # This prevents Django from discovering test_*.py files in the backend root directory
 # Those are manual testing scripts, not Django test cases
-
-# Email Configuration
-# For development, you can use console backend to see emails in console
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
-# For production with Gmail SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')  # Your Gmail address
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')  # Your Gmail app password
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'TCU-CEAA <noreply@tcu.edu.ph>')
-
-# Note: For Gmail, you need to:
-# 1. Enable 2-factor authentication on your Google account
-# 2. Generate an "App Password" for this application
-# 3. Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your .env file

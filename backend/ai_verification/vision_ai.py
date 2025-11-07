@@ -162,6 +162,9 @@ class VisionAI:
 # Create default instance
 default_vision_ai = VisionAI()
 
+# Export alias for backwards compatibility
+vision_ai = default_vision_ai
+
 
 def get_vision_ai():
     """Get the default Vision AI instance."""

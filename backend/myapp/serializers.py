@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
 import json
@@ -99,12 +99,54 @@ class RegisterSerializer(serializers.ModelSerializer):
             # Check if student_id already exists
             if CustomUser.objects.filter(student_id=student_id).exists():
                 raise serializers.ValidationError('This student ID is already registered.')
+            
+            # ===== NEW SECURITY CHECK: Verify against VerifiedStudent model =====
+            try:
+                verified_student = VerifiedStudent.objects.get(
+                    student_id=student_id,
+                    is_active=True
+                )
+                
+                # Check if already registered
+                if verified_student.has_registered:
+                    raise serializers.ValidationError(
+                        'This student ID has already been registered. Please contact the admin if you need assistance.'
+                    )
+                
+                # Verify name matches (case-insensitive comparison)
+                first_name = data.get('first_name', '').strip().lower()
+                last_name = data.get('last_name', '').strip().lower()
+                middle_initial = data.get('middle_initial', '').strip().upper()
+                
+                # ===== IMPORTANT: Only Student ID is validated =====
+                # Names and middle initial are NOT validated to allow flexibility
+                # Students can input any name they want - only Student ID must match
+                
+                # Optional: Store verified student's official name for reference
+                # but do NOT enforce it during registration
+                verified_first = verified_student.first_name.strip().lower()
+                verified_last = verified_student.last_name.strip().lower()
+                verified_middle = verified_student.middle_initial.strip().upper() if verified_student.middle_initial else ''
+                
+                # NO NAME VALIDATION - Student ID verification is sufficient
+                # This allows students to use preferred names, nicknames, or correct spelling variations
+                
+            except VerifiedStudent.DoesNotExist:
+                raise serializers.ValidationError(
+                    'Your student ID is not in our verified student database. '
+                    'Please contact the scholarship office to be added to the verified student list before registering.'
+                )
         
         return data
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = CustomUser.objects.create_user(**validated_data)
+        
+        # ===== NEW: Account is inactive until email is verified =====
+        user.is_active = False
+        user.save()
+        
         return user
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -1203,6 +1245,7 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
 class BasicQualificationSerializer(serializers.ModelSerializer):
     """Serializer for Basic Qualification criteria"""
     student_name = serializers.SerializerMethodField()
+    student_id = serializers.SerializerMethodField()
     applicant_type_display = serializers.CharField(source='get_applicant_type_display', read_only=True)
     
     class Meta:
@@ -1211,6 +1254,7 @@ class BasicQualificationSerializer(serializers.ModelSerializer):
             'id',
             'student',
             'student_name',
+            'student_id',
             'is_enrolled',
             'is_resident',
             'is_eighteen_or_older',
@@ -1224,10 +1268,13 @@ class BasicQualificationSerializer(serializers.ModelSerializer):
             'completed_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'is_qualified', 'completed_at', 'updated_at', 'student_name', 'applicant_type_display']
+        read_only_fields = ['id', 'is_qualified', 'completed_at', 'updated_at', 'student_name', 'student_id', 'applicant_type_display']
     
     def get_student_name(self, obj):
         return f"{obj.student.first_name} {obj.student.last_name}"
+    
+    def get_student_id(self, obj):
+        return obj.student.student_id if obj.student and obj.student.student_id else 'N/A'
     
     def create(self, validated_data):
         # Log the qualification submission
@@ -1262,3 +1309,83 @@ class BasicQualificationSerializer(serializers.ModelSerializer):
             )
         
         return qualification
+
+
+class FullApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for Full Application Form"""
+    user = UserSerializer(read_only=True)
+    student_name = serializers.SerializerMethodField()
+    student_id = serializers.SerializerMethodField()
+    semester_display = serializers.CharField(source='get_semester_display', read_only=True)
+    application_type_display = serializers.CharField(source='get_application_type_display', read_only=True)
+    
+    class Meta:
+        model = FullApplication
+        fields = '__all__'  # Include all fields
+        read_only_fields = ['id', 'user', 'student_name', 'student_id', 'created_at', 'updated_at', 'submitted_at', 
+                           'semester_display', 'application_type_display']
+    
+    def get_student_name(self, obj):
+        """Get full name from form data or user profile"""
+        if obj.first_name and obj.last_name:
+            name_parts = [obj.first_name]
+            if obj.middle_name:
+                name_parts.append(obj.middle_name)
+            name_parts.append(obj.last_name)
+            return ' '.join(name_parts)
+        return f"{obj.user.first_name} {obj.user.last_name}" if obj.user else 'N/A'
+    
+    def get_student_id(self, obj):
+        """Get student ID from user profile"""
+        return obj.user.student_id if obj.user and obj.user.student_id else 'N/A'
+    
+    def create(self, validated_data):
+        # Get the user from the request context
+        request = self.context.get('request')
+        validated_data['user'] = request.user
+        
+        # If being submitted, set submitted_at timestamp
+        if validated_data.get('is_submitted'):
+            from django.utils import timezone
+            validated_data['submitted_at'] = timezone.now()
+        
+        application = super().create(validated_data)
+        
+        if request:
+            audit_logger.log(
+                user=request.user,
+                action_type='application_submitted',
+                action_description=f"Created full application for {application.school_year} {application.get_semester_display()}",
+                severity='info',
+                target_model='FullApplication',
+                target_object_id=application.id,
+                request=request
+            )
+        
+        return application
+    
+    def update(self, instance, validated_data):
+        # Prevent updates if the application is locked
+        if instance.is_locked and not self.context.get('force_update', False):
+            raise serializers.ValidationError("Cannot update a locked application.")
+        
+        request = self.context.get('request')
+        
+        # If being submitted, set submitted_at timestamp
+        if validated_data.get('is_submitted') and not instance.is_submitted:
+            validated_data['submitted_at'] = timezone.now()
+            
+        application = super().update(instance, validated_data)
+        
+        if request:
+            audit_logger.log(
+                user=request.user,
+                action_type='application_submitted',
+                action_description=f"Updated full application for {application.school_year} {application.get_semester_display()}",
+                severity='info',
+                target_model='FullApplication',
+                target_object_id=application.id,
+                request=request
+            )
+        
+        return application

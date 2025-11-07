@@ -2,6 +2,7 @@
 AI Service for TCU-CEAA Document and Grade Analysis
 This module provides advanced AI capabilities for analyzing student documents and grades.
 Now includes Autonomous AI (EasyOCR) for grade sheet name verification!
+Enhanced with Advanced OCR for superior accuracy!
 """
 
 import os
@@ -17,6 +18,14 @@ import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Import Advanced OCR Service
+try:
+    from myapp.advanced_ocr_service import get_advanced_ocr_service
+    ADVANCED_OCR_AVAILABLE = True
+except ImportError:
+    ADVANCED_OCR_AVAILABLE = False
+    logger.warning("Advanced OCR service not available")
 
 def check_optional_imports(imports):
     try:
@@ -225,20 +234,60 @@ class AIDocumentAnalyzer:
         return analysis
 
     def _extract_text_from_file(self, file_obj) -> str:
-        """Extract text from various file formats"""
+        """
+        Extract text from various file formats
+        Priority: Advanced OCR → Local OCR → Basic extraction
+        """
         filename = file_obj.name.lower()
         extracted_text = ""
+        ocr_method = "unknown"
         
         try:
+            # Try Advanced OCR first (if enabled) - HIGHEST ACCURACY
+            if ADVANCED_OCR_AVAILABLE and (filename.endswith(('.jpg', '.jpeg', '.png', '.pdf'))):
+                try:
+                    advanced_ocr = get_advanced_ocr_service()
+                    if advanced_ocr.is_enabled():
+                        logger.info("📡 Using Advanced OCR (95-98% accuracy)")
+                        
+                        # Read file bytes
+                        file_obj.seek(0)
+                        file_bytes = file_obj.read()
+                        file_obj.seek(0)  # Reset file pointer
+                        
+                        # Extract text with Advanced OCR
+                        result = advanced_ocr.extract_text(file_bytes)
+                        
+                        if result['success']:
+                            extracted_text = result['text']
+                            confidence = result['confidence']
+                            ocr_method = "advanced_ocr"
+                            logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} chars (confidence: {confidence:.1f}%)")
+                            return extracted_text
+                        else:
+                            logger.warning(f"Advanced OCR failed: {result.get('error')}, falling back to local OCR")
+                except Exception as e:
+                    logger.warning(f"Advanced OCR error: {str(e)}, falling back to local OCR")
+            
+            # Fallback to local OCR methods (original code)
             if filename.endswith('.pdf') and PDF_PYPDF2_AVAILABLE:
+                logger.info("📄 Using local PDF text extraction")
                 extracted_text = self._extract_text_from_pdf(file_obj)
+                ocr_method = "local_pdf"
             elif filename.endswith(('.jpg', '.jpeg', '.png')) and (CV2_AVAILABLE and PYTESSERACT_AVAILABLE):
+                logger.info("🔍 Using local OCR (Tesseract, ~85% accuracy)")
                 extracted_text = self._extract_text_from_image(file_obj)
+                ocr_method = "local_tesseract"
             elif filename.endswith(('.doc', '.docx')):
                 # For demonstration - in production, use python-docx
                 extracted_text = "Document text extraction not implemented for Word files"
+                ocr_method = "unsupported"
+                
+            if extracted_text:
+                logger.info(f"✅ Text extraction completed using {ocr_method}")
         except Exception as e:
             extracted_text = f"Text extraction failed: {str(e)}"
+            logger.error(f"Text extraction error: {str(e)}")
         
         return extracted_text
 
@@ -674,7 +723,10 @@ class AIGradeAnalyzer:
         return validation
 
     def _analyze_grade_sheet(self, grade_sheet_file) -> Dict[str, Any]:
-        """Analyze the uploaded grade sheet for additional validation"""
+        """
+        Analyze the uploaded grade sheet for additional validation
+        Uses Advanced OCR for best accuracy, falls back to local OCR
+        """
         extracted_data = {
             'text_extracted': '',
             'grades_found': [],
@@ -682,16 +734,54 @@ class AIGradeAnalyzer:
             'swa_found': [],
             'subjects_found': [],
             'units_found': [],
-            'analysis_confidence': 0.0
+            'analysis_confidence': 0.0,
+            'ocr_method': 'unknown'
         }
         
         try:
-            # Create AI document analyzer instance
-            doc_analyzer = AIDocumentAnalyzer()
+            # Try Advanced OCR first (if enabled) - BEST ACCURACY
+            if ADVANCED_OCR_AVAILABLE:
+                try:
+                    advanced_ocr = get_advanced_ocr_service()
+                    if advanced_ocr.is_enabled():
+                        logger.info("📡 Using Advanced OCR for grade sheet analysis")
+                        
+                        # Read file bytes
+                        grade_sheet_file.seek(0)
+                        file_bytes = grade_sheet_file.read()
+                        grade_sheet_file.seek(0)  # Reset
+                        
+                        # Extract with Advanced OCR
+                        result = advanced_ocr.process_grade_document(file_bytes)
+                        
+                        if result['overall_success']:
+                            # Get text extraction
+                            text_result = result['text_extraction']
+                            extracted_text = text_result.get('text', '')
+                            extracted_data['text_extracted'] = extracted_text
+                            extracted_data['ocr_method'] = 'advanced_ocr'
+                            
+                            logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} chars ({text_result.get('confidence', 0):.1f}% confidence)")
+                            
+                            # Extract grade information
+                            if extracted_text and len(extracted_text.strip()) > 10:
+                                doc_analyzer = AIDocumentAnalyzer()
+                                grade_info = doc_analyzer._extract_grade_information(extracted_text)
+                                extracted_data.update(grade_info)
+                                
+                                # Use Advanced OCR confidence
+                                extracted_data['analysis_confidence'] = text_result.get('confidence', 0) / 100
+                                
+                                return extracted_data
+                except Exception as e:
+                    logger.warning(f"Advanced OCR failed for grade sheet: {str(e)}, falling back to local OCR")
             
-            # Extract text from the file
+            # Fallback to local OCR (original code)
+            logger.info("🔍 Using local OCR for grade sheet analysis")
+            doc_analyzer = AIDocumentAnalyzer()
             extracted_text = doc_analyzer._extract_text_from_file(grade_sheet_file)
             extracted_data['text_extracted'] = extracted_text
+            extracted_data['ocr_method'] = 'local_ocr'
             
             if extracted_text and len(extracted_text.strip()) > 10:
                 # Extract grade information
@@ -724,6 +814,7 @@ class AIGradeAnalyzer:
             
         except Exception as e:
             extracted_data['text_extracted'] = f"Error extracting text: {str(e)}"
+            logger.error(f"Grade sheet analysis error: {str(e)}")
         
         return extracted_data
     
@@ -780,61 +871,43 @@ class AIGradeAnalyzer:
                 temp_file.close()
                 file_path = temp_file.name
             
-            # 🤖 AUTONOMOUS AI VERIFICATION - Try EasyOCR first (preferred)
+            # 🤖 OCR VERIFICATION - Try Advanced OCR first, then local methods
             extracted_text = None
             ocr_method = None
             
-            try:
-                import easyocr
-                import numpy as np
-                
-                # Load image
-                img = Image.open(file_path)
-                
-                # Resize if needed
-                max_size = 2000
-                if img.width > max_size or img.height > max_size:
-                    ratio = min(max_size / img.width, max_size / img.height)
-                    new_size = (int(img.width * ratio), int(img.height * ratio))
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
-                
-                # Convert to numpy array
-                img_array = np.array(img)
-                
-                # Initialize EasyOCR
-                reader = easyocr.Reader(['en'], gpu=False)
-                
-                # Extract text
-                results = reader.readtext(img_array)
-                extracted_text = ' '.join([text for (bbox, text, conf) in results]).lower()
-                
-                ocr_method = 'autonomous_ai_easyocr'
-                result['verification_method'] = 'autonomous_ai'
-                
-                img.close()
-                
-                logger.info(f"✅ Autonomous AI (EasyOCR) extracted {len(extracted_text)} characters from grade sheet")
-                
-            except Exception as easyocr_error:
-                logger.warning(f"EasyOCR failed: {str(easyocr_error)}, trying Tesseract fallback...")
-                
-                # Fallback to Tesseract OCR
+            # Priority 1: Advanced OCR (95-98% accuracy)
+            if ADVANCED_OCR_AVAILABLE:
                 try:
-                    import pytesseract
+                    advanced_ocr = get_advanced_ocr_service()
+                    if advanced_ocr.is_enabled():
+                        logger.info("📡 Using Advanced OCR for name verification")
+                        
+                        # Read file bytes
+                        with open(file_path, 'rb') as f:
+                            file_bytes = f.read()
+                        
+                        # Extract text with Advanced OCR
+                        ocr_result = advanced_ocr.extract_text(file_bytes)
+                        
+                        if ocr_result['success']:
+                            extracted_text = ocr_result['text'].lower()
+                            result['verification_method'] = 'advanced_ocr'
+                            
+                            logger.info(f"✅ Advanced OCR extracted {len(extracted_text)} characters (confidence: {ocr_result.get('confidence', 0):.1f}%)")
+                        else:
+                            logger.warning(f"Advanced OCR failed: {ocr_result.get('error')}, falling back to local OCR")
+                except Exception as e:
+                    logger.warning(f"Advanced OCR error: {str(e)}, falling back to local OCR")
+            
+            # Priority 2: Autonomous AI (EasyOCR) - Local fallback
+            if extracted_text is None:
+                try:
+                    import easyocr
+                    import numpy as np
                     
-                    # Configure Tesseract path
-                    tesseract_paths = [
-                        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-                        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
-                        r'C:\Users\Public\tesseract\tesseract.exe'
-                    ]
+                    logger.info("🤖 Using Autonomous AI (EasyOCR) for name verification")
                     
-                    for path in tesseract_paths:
-                        if os.path.exists(path):
-                            pytesseract.pytesseract.tesseract_cmd = path
-                            logger.info(f"📄 Using Tesseract at: {path}")
-                            break
-                    
+                    # Load image
                     img = Image.open(file_path)
                     
                     # Resize if needed
@@ -844,23 +917,69 @@ class AIGradeAnalyzer:
                         new_size = (int(img.width * ratio), int(img.height * ratio))
                         img = img.resize(new_size, Image.Resampling.LANCZOS)
                     
-                    extracted_text = pytesseract.image_to_string(img).lower()
-                    ocr_method = 'tesseract_ocr'
-                    result['verification_method'] = 'tesseract_fallback'
+                    # Convert to numpy array
+                    img_array = np.array(img)
+                    
+                    # Initialize EasyOCR
+                    reader = easyocr.Reader(['en'], gpu=False)
+                    
+                    # Extract text
+                    results = reader.readtext(img_array)
+                    extracted_text = ' '.join([text for (bbox, text, conf) in results]).lower()
+                    
+                    result['verification_method'] = 'autonomous_ai'
                     
                     img.close()
                     
-                    logger.info(f"✅ Tesseract OCR extracted {len(extracted_text)} characters from grade sheet")
+                    logger.info(f"✅ Autonomous AI (EasyOCR) extracted {len(extracted_text)} characters from grade sheet")
                     
-                except Exception as tesseract_error:
-                    # BOTH OCR METHODS FAILED - CRITICAL SECURITY ISSUE
+                except Exception as easyocr_error:
+                    logger.warning(f"EasyOCR failed: {str(easyocr_error)}, trying Tesseract fallback...")
                     
-                    # ⚠️ WITHOUT OCR, WE CANNOT VERIFY NAMES - MUST REJECT FOR SECURITY
-                    result['name_match'] = False
-                    result['confidence'] = 0.0
-                    result['mismatch_reason'] = f'🔒 SECURITY REJECTION: Cannot verify student name on grade sheet. OCR text extraction failed (tried EasyOCR and Tesseract). This is required to prevent fraud. Please ensure your grade sheet image is clear and readable. Technical details: EasyOCR error: {str(easyocr_error)[:50]}, Tesseract error: {str(tesseract_error)[:50]}'
-                    result['verification_method'] = 'failed_both_ocr_methods'
-                    return result
+                    # Priority 3: Tesseract OCR - Final fallback
+                    try:
+                        import pytesseract
+                        
+                        logger.info("📄 Using Tesseract OCR for name verification")
+                        
+                        # Configure Tesseract path
+                        tesseract_paths = [
+                            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+                            r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+                            r'C:\Users\Public\tesseract\tesseract.exe'
+                        ]
+                        
+                        for path in tesseract_paths:
+                            if os.path.exists(path):
+                                pytesseract.pytesseract.tesseract_cmd = path
+                                logger.info(f"📄 Using Tesseract at: {path}")
+                                break
+                        
+                        img = Image.open(file_path)
+                        
+                        # Resize if needed
+                        max_size = 2000
+                        if img.width > max_size or img.height > max_size:
+                            ratio = min(max_size / img.width, max_size / img.height)
+                            new_size = (int(img.width * ratio), int(img.height * ratio))
+                            img = img.resize(new_size, Image.Resampling.LANCZOS)
+                        
+                        extracted_text = pytesseract.image_to_string(img).lower()
+                        result['verification_method'] = 'tesseract_fallback'
+                        
+                        img.close()
+                        
+                        logger.info(f"✅ Tesseract OCR extracted {len(extracted_text)} characters from grade sheet")
+                        
+                    except Exception as tesseract_error:
+                        # ALL OCR METHODS FAILED - CRITICAL SECURITY ISSUE
+                        
+                        # ⚠️ WITHOUT OCR, WE CANNOT VERIFY NAMES - MUST REJECT FOR SECURITY
+                        result['name_match'] = False
+                        result['confidence'] = 0.0
+                        result['mismatch_reason'] = f'🔒 SECURITY REJECTION: Cannot verify student name on grade sheet. All OCR methods failed (Advanced OCR, EasyOCR, and Tesseract). This is required to prevent fraud. Please ensure your grade sheet image is clear and readable.'
+                        result['verification_method'] = 'failed_all_ocr_methods'
+                        return result
             
             # Validate extracted text
             if not extracted_text or len(extracted_text.strip()) < 20:
