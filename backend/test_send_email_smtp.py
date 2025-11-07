@@ -190,7 +190,7 @@ Automated Email System
     
     try:
         # Send the email via SMTP
-        result = send_mail(
+        send_mail(
             subject=subject,
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,

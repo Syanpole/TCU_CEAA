@@ -1,11 +1,17 @@
+"""
+Django tests for TCU CEAA application
+Tests authentication, user model, and API endpoints
+"""
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
+from myapp.models import VerifiedStudent  # Changed from relative to absolute import
 
 User = get_user_model()
+
 
 class AuthenticationTestCase(TestCase):
     def setUp(self):
@@ -55,12 +61,15 @@ class AuthenticationTestCase(TestCase):
         
         # Registration should succeed (returns 201)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn('email_sent', response.data)
-        self.assertEqual(response.data['username'], 'testuser')
+        self.assertIn('token', response.data)
+        self.assertIn('user', response.data)
+        self.assertIn('message', response.data)
+        self.assertEqual(response.data['user']['username'], 'testuser')
         
-        # User should be created but inactive until email verification
+        # User should be created and active since email is verified
         user = User.objects.get(username='testuser')
-        self.assertFalse(user.is_active)  # Inactive until email verified
+        self.assertTrue(user.is_active)  # Active after email verification
+        self.assertTrue(user.is_email_verified)  # Email is verified
 
     def test_user_login(self):
         """Test user login with valid credentials"""

@@ -118,23 +118,18 @@ class RegisterSerializer(serializers.ModelSerializer):
                 last_name = data.get('last_name', '').strip().lower()
                 middle_initial = data.get('middle_initial', '').strip().upper()
                 
+                # ===== IMPORTANT: Only Student ID is validated =====
+                # Names and middle initial are NOT validated to allow flexibility
+                # Students can input any name they want - only Student ID must match
+                
+                # Optional: Store verified student's official name for reference
+                # but do NOT enforce it during registration
                 verified_first = verified_student.first_name.strip().lower()
                 verified_last = verified_student.last_name.strip().lower()
                 verified_middle = verified_student.middle_initial.strip().upper() if verified_student.middle_initial else ''
                 
-                # Check first and last name match
-                if first_name != verified_first or last_name != verified_last:
-                    raise serializers.ValidationError(
-                        'The name you provided does not match our records for this student ID. '
-                        'Please ensure your name matches your official university records.'
-                    )
-                
-                # Check middle initial if provided (optional match)
-                if middle_initial and verified_middle and middle_initial != verified_middle:
-                    raise serializers.ValidationError(
-                        f'The middle initial "{middle_initial}" does not match our records. '
-                        f'Please use "{verified_middle}" or leave it blank.'
-                    )
+                # NO NAME VALIDATION - Student ID verification is sufficient
+                # This allows students to use preferred names, nicknames, or correct spelling variations
                 
             except VerifiedStudent.DoesNotExist:
                 raise serializers.ValidationError(
