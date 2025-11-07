@@ -102,16 +102,21 @@ export const authService = {
 
   verifyStudent: async (studentData: {
     studentId: string;
-    firstName: string;
-    lastName: string;
-    middleInitial: string;
+    firstName?: string;  // Optional - not required for verification
+    lastName?: string;   // Optional - not required for verification
+    middleInitial?: string;  // Optional - not required for verification
   }): Promise<VerifyStudentResponse> => {
-    const response = await axios.post<VerifyStudentResponse>(`${API_BASE_URL}/auth/verify-student/`, {
+    // Only Student ID is required for verification
+    const requestData: any = {
       student_id: studentData.studentId,
-      first_name: studentData.firstName,
-      last_name: studentData.lastName,
-      middle_initial: studentData.middleInitial,
-    });
+    };
+    
+    // Include name fields if provided (optional)
+    if (studentData.firstName) requestData.first_name = studentData.firstName;
+    if (studentData.lastName) requestData.last_name = studentData.lastName;
+    if (studentData.middleInitial) requestData.middle_initial = studentData.middleInitial;
+    
+    const response = await axios.post<VerifyStudentResponse>(`${API_BASE_URL}/auth/verify-student/`, requestData);
     return response.data;
   },
 

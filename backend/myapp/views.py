@@ -16,6 +16,7 @@ from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, Regis
                          AllowanceApplicationSerializer, AllowanceApplicationCreateSerializer,
                          BasicQualificationSerializer, FullApplicationSerializer)
 from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
+from .email_verification_service import VerificationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -118,24 +119,15 @@ def register_view(request):
         # Log user registration
         audit_logger.log_user_registration(user, request)
         
-        # Send verification email
-        verification = VerificationService.create_verification(user)
-        email_sent = VerificationService.send_verification_email(user, verification.code)
+        # Email verification was already completed BEFORE registration
+        # Mark user as email verified AND activate account
+        user.is_email_verified = True
+        user.email_verified_at = timezone.now()
+        user.is_active = True  # Activate account after successful email verification
+        user.save()
         
-        if email_sent:
-            AuditLogger.log(
-                user=user,
-                action_type='user_registered',
-                action_description=f'Verification code sent to {user.email} upon registration',
-                severity='info',
-                metadata={
-                    'verification_code_sent': True,
-                    'email': user.email,
-                    'username': user.username,
-                    'account_inactive_pending_verification': True
-                },
-                request=request
-            )
+        # Log successful registration
+        logger.info(f'User {user.username} registered successfully with verified email {user.email}')
         
         return Response({
             'token': token.key,
@@ -367,29 +359,27 @@ def resend_verification_code_view(request):
 @permission_classes([AllowAny])
 def verify_student_view(request):
     """
-    Verify student information against verified student database before registration.
+    Verify student against verified student database before registration.
+    ONLY verifies Student Number - name verification is optional/informational.
     
     Expected payload:
     {
         "student_id": "22-00001",
-        "first_name": "Vennee Jones",
-        "last_name": "Abaigar",
-        "middle_initial": "R"
+        "first_name": "Vennee Jones",  // Optional - not used for verification
+        "last_name": "Abaigar",        // Optional - not used for verification
+        "middle_initial": "R"           // Optional - not used for verification
     }
     """
     student_id = request.data.get('student_id', '').strip()
-    first_name = request.data.get('first_name', '').strip()
-    last_name = request.data.get('last_name', '').strip()
-    middle_initial = request.data.get('middle_initial', '').strip()
     
-    # Validate required fields
-    if not student_id or not first_name or not last_name:
+    # Validate required field (only Student ID is required)
+    if not student_id:
         return Response({
             'verified': False,
-            'message': 'Student ID, First Name, and Last Name are required.'
+            'message': 'Student ID is required.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Look up verified student in database
+    # Look up verified student in database BY STUDENT ID ONLY
     try:
         verified_student = VerifiedStudent.objects.get(
             student_id=student_id.upper(),
@@ -398,7 +388,7 @@ def verify_student_view(request):
     except VerifiedStudent.DoesNotExist:
         return Response({
             'verified': False,
-            'message': 'Student ID not found in verified records.'
+            'message': 'Student ID not found in verified records. Please check your Student Number and try again.'
         }, status=status.HTTP_403_FORBIDDEN)
     
     # Check if student has already registered
@@ -408,29 +398,32 @@ def verify_student_view(request):
             'message': 'This student has already registered. Please contact the administrator if you need assistance.'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    # Verify identity using the model's method
-    result = verified_student.verify_identity(first_name, last_name, middle_initial)
+    # SUCCESS - Student ID found and student hasn't registered yet
+    # Return student information from database for auto-fill (optional)
+    result = {
+        'verified': True,
+        'message': 'Student ID verified successfully! You may now complete your registration.',
+        'student_data': {
+            'student_id': verified_student.student_id,
+            'first_name': verified_student.first_name,
+            'last_name': verified_student.last_name,
+            'middle_initial': verified_student.middle_initial,
+            'course': verified_student.course,
+            'year_level': verified_student.year_level,
+            'sex': verified_student.sex
+        }
+    }
     
-    if result['verified']:
-        # Log successful verification (optional)
-        audit_logger.log_action(
-            user=None,
-            action='STUDENT_VERIFIED',
-            description=f"Student {student_id} successfully verified for registration",
-            ip_address=request.META.get('REMOTE_ADDR'),
-            user_agent=request.META.get('HTTP_USER_AGENT')
-        )
-        return Response(result, status=status.HTTP_200_OK)
-    else:
-        # Log failed verification attempt
-        audit_logger.log_action(
-            user=None,
-            action='STUDENT_VERIFICATION_FAILED',
-            description=f"Failed verification attempt for student ID {student_id}: {result['message']}",
-            ip_address=request.META.get('REMOTE_ADDR'),
-            user_agent=request.META.get('HTTP_USER_AGENT')
-        )
-        return Response(result, status=status.HTTP_403_FORBIDDEN)
+    # Log successful verification
+    audit_logger.log_action(
+        user=None,
+        action='STUDENT_VERIFIED',
+        description=f"Student {student_id} ({verified_student.first_name} {verified_student.last_name}) successfully verified for registration",
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT')
+    )
+    
+    return Response(result, status=status.HTTP_200_OK)
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
@@ -1102,6 +1095,24 @@ def send_verification_code(request):
     
     # Rate limiting: Check if user has requested too many codes recently
     from datetime import timedelta
+    
+    # Prevent duplicate sends within 30 seconds (catches double-clicks and frontend issues)
+    very_recent_code = EmailVerificationCode.objects.filter(
+        email=email,
+        created_at__gte=timezone.now() - timedelta(seconds=30)
+    ).first()
+    
+    if very_recent_code:
+        logger.info(f"Duplicate verification code request blocked for {email} (within 30 seconds)")
+        # Return success so frontend doesn't think it failed, but don't send duplicate email
+        return Response({
+            'success': True,
+            'message': 'Verification code already sent! Please check your email inbox.',
+            'email': email,
+            'debug': 'Duplicate request prevented - code already sent within 30 seconds' if settings.DEBUG else None
+        }, status=status.HTTP_200_OK)
+    
+    # Check for rate limiting abuse (max 3 codes per 5 minutes)
     recent_codes = EmailVerificationCode.objects.filter(
         email=email,
         created_at__gte=timezone.now() - timedelta(minutes=5)
@@ -1130,6 +1141,7 @@ def send_verification_code(request):
         
         # For security: DO NOT return the actual code to frontend
         return Response({
+            'success': True,
             'message': 'Verification code sent to your email! Please check your inbox.',
             'email': email,
             'expires_in_minutes': 10,
@@ -1205,6 +1217,7 @@ def verify_email_code(request):
         logger.info(f"Email verified successfully for {email}")
         
         return Response({
+            'success': True,
             'message': 'Email verified successfully! You can now complete your registration.',
             'email': email,
             'verified': True
@@ -1263,6 +1276,7 @@ def resend_verification_code(request):
         
         # For security: DO NOT return the actual code to frontend
         return Response({
+            'success': True,
             'message': 'New verification code sent to your email! Please check your inbox.',
             'email': email,
             'expires_in_minutes': 10,

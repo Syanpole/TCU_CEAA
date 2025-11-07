@@ -436,16 +436,54 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       if (error.response?.data) {
         const data = error.response.data;
         
-        // If it's a validation error object with field-specific errors
-        if (typeof data === 'object' && !data.error && !data.detail) {
-          const errors = Object.entries(data).map(([field, messages]) => {
-            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages;
-            return `${fieldName}: ${errorMsg}`;
-          }).join('\n');
+        // Handle errors object from backend (e.g., {success: false, errors: {...}})
+        if (data.errors && typeof data.errors === 'object') {
+          const errorEntries = Object.entries(data.errors);
+          if (errorEntries.length === 0) {
+            errorMessage = 'Validation failed, but no specific errors were provided.';
+          } else {
+            const errors = errorEntries.map(([field, messages]) => {
+              const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              let errorMsg = '';
+              if (Array.isArray(messages)) {
+                errorMsg = messages.join(', ');
+              } else if (typeof messages === 'object') {
+                errorMsg = JSON.stringify(messages, null, 2);
+              } else {
+                errorMsg = String(messages);
+              }
+              return `• ${fieldName}: ${errorMsg}`;
+            }).join('\n');
+            errorMessage = 'Please fix the following errors:\n\n' + errors;
+          }
+        } else if (data.error) {
+          // Single error message
+          errorMessage = data.error;
+        } else if (data.detail) {
+          // Detail error message
+          errorMessage = data.detail;
+        } else if (data.message) {
+          // Generic message
+          errorMessage = data.message;
+        } else if (typeof data === 'object' && !data.success) {
+          // If it's a validation error object with field-specific errors (without the errors key)
+          const errors = Object.entries(data)
+            .filter(([key]) => key !== 'success') // Exclude the success field
+            .map(([field, messages]) => {
+              const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              let errorMsg = '';
+              if (Array.isArray(messages)) {
+                errorMsg = messages.join(', ');
+              } else if (typeof messages === 'object') {
+                errorMsg = JSON.stringify(messages, null, 2);
+              } else {
+                errorMsg = String(messages);
+              }
+              return `${fieldName}: ${errorMsg}`;
+            }).join('\n');
           errorMessage = errors || 'Validation failed';
         } else {
-          errorMessage = data.error || data.detail || JSON.stringify(data);
+          errorMessage = JSON.stringify(data, null, 2);
         }
       } else {
         errorMessage = error.message || 'Network error';
@@ -1281,9 +1319,81 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
 
       <div className="review-section">
         <h3>Educational Background</h3>
-        <div className="review-item"><strong>Senior High:</strong> {formData.shs_attended}</div>
-        <div className="review-item"><strong>Junior High:</strong> {formData.jhs_attended}</div>
-        <div className="review-item"><strong>Elementary:</strong> {formData.elem_attended}</div>
+        
+        {/* Senior High School */}
+        <div className="review-subsection">
+          <div className="review-label" style={{ fontWeight: '600', fontSize: '15px', marginBottom: '8px' }}>Senior High:</div>
+          <div className="review-item">
+            <div className="review-label">School Name</div>
+            <div className="review-value">{formData.shs_attended || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Type</div>
+            <div className="review-value">{formData.shs_type || 'Not provided'}</div>
+          </div>
+          <div className="review-item full-width">
+            <div className="review-label">Address</div>
+            <div className="review-value">{formData.shs_address || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Years Attended</div>
+            <div className="review-value">{formData.shs_years || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Honors/Awards</div>
+            <div className="review-value">{formData.shs_honors || 'None'}</div>
+          </div>
+        </div>
+
+        {/* Junior High School */}
+        <div className="review-subsection" style={{ marginTop: '16px' }}>
+          <div className="review-label" style={{ fontWeight: '600', fontSize: '15px', marginBottom: '8px' }}>Junior High:</div>
+          <div className="review-item">
+            <div className="review-label">School Name</div>
+            <div className="review-value">{formData.jhs_attended || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Type</div>
+            <div className="review-value">{formData.jhs_type || 'Not provided'}</div>
+          </div>
+          <div className="review-item full-width">
+            <div className="review-label">Address</div>
+            <div className="review-value">{formData.jhs_address || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Years Attended</div>
+            <div className="review-value">{formData.jhs_years || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Honors/Awards</div>
+            <div className="review-value">{formData.jhs_honors || 'None'}</div>
+          </div>
+        </div>
+
+        {/* Elementary School */}
+        <div className="review-subsection" style={{ marginTop: '16px' }}>
+          <div className="review-label" style={{ fontWeight: '600', fontSize: '15px', marginBottom: '8px' }}>Elementary:</div>
+          <div className="review-item">
+            <div className="review-label">School Name</div>
+            <div className="review-value">{formData.elem_attended || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Type</div>
+            <div className="review-value">{formData.elem_type || 'Not provided'}</div>
+          </div>
+          <div className="review-item full-width">
+            <div className="review-label">Address</div>
+            <div className="review-value">{formData.elem_address || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Years Attended</div>
+            <div className="review-value">{formData.elem_years || 'Not provided'}</div>
+          </div>
+          <div className="review-item">
+            <div className="review-label">Honors/Awards</div>
+            <div className="review-value">{formData.elem_honors || 'None'}</div>
+          </div>
+        </div>
       </div>
 
       <div className="review-section">

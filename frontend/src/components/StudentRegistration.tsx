@@ -88,10 +88,11 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
-    // Step 2: Verify Student Information
+    // Step 2: Verify Student ID (only Student ID is verified, names are optional)
     try {
       const verificationResult = await authService.verifyStudent({
         studentId: formData.studentId,
+        // Name fields are optional - they won't block verification if they have typos
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         middleInitial: formData.middleInitial.replace('.', '').trim()
@@ -102,14 +103,21 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
         setLoading(false);
         return;
       }
+      
+      // Optionally show info message if student data was returned
+      if (verificationResult.student_data) {
+        console.log('Verified student data:', verificationResult.student_data);
+        // Note: Student data from CSV is available but not enforced
+        // Student can use their preferred spelling/formatting of their name
+      }
     } catch (verificationError: any) {
       console.error('Verification error:', verificationError);
       if (verificationError.response?.status === 403) {
         const errorData = verificationError.response?.data;
-        setError(`Verification failed: ${errorData?.message || 'Student ID or Name details do not match our records. Please check your input.'}`);
+        setError(`Verification failed: ${errorData?.message || 'Student ID not found in our records. Please check your Student Number.'}`);
       } else if (verificationError.response?.status === 400) {
         const errorData = verificationError.response?.data;
-        setError(`Verification error: ${errorData?.message || 'Invalid request. Please check all fields.'}`);
+        setError(`Verification error: ${errorData?.message || 'Invalid request. Please provide your Student ID.'}`);
       } else {
         setError('Verification failed: Unable to verify student information. Please try again later.');
       }
