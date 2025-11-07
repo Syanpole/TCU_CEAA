@@ -119,15 +119,23 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
       const formData = new FormData();
       formData.append('document_type', documentTypeMapping[documentType]);
       formData.append('file', selectedFile);
-      formData.append('description', description);
+      if (description) {
+        formData.append('description', description);
+      }
 
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
+      console.log('Uploading document...', {
+        documentType: documentTypeMapping[documentType],
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+      });
+
       // Upload to backend
-      await apiClient.post('/documents/', formData, {
+      const response = await apiClient.post('/documents/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -135,6 +143,8 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
 
       clearInterval(progressInterval);
       setUploadProgress(100);
+
+      console.log('Upload response:', response.data);
 
       // Show success message
       setSuccessMessage('✅ Document uploaded successfully! AI is now analyzing your document...');
@@ -154,7 +164,34 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
 
     } catch (error: any) {
       console.error('Error uploading document:', error);
-      setError(error.response?.data?.error || error.response?.data?.message || 'Failed to upload document. Please try again.');
+      console.error('Error response:', error.response);
+      
+      let errorMessage = 'Failed to upload document. Please try again.';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'object') {
+          // Handle field-specific errors
+          if (error.response.data.file) {
+            errorMessage = Array.isArray(error.response.data.file) 
+              ? error.response.data.file[0] 
+              : error.response.data.file;
+          } else if (error.response.data.document_type) {
+            errorMessage = Array.isArray(error.response.data.document_type)
+              ? error.response.data.document_type[0]
+              : error.response.data.document_type;
+          } else if (error.response.data.error || error.response.data.message) {
+            errorMessage = error.response.data.error || error.response.data.message;
+          } else if (error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+          }
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       setUploadProgress(0);
     } finally {
       setLoading(false);
