@@ -17,6 +17,7 @@ import DocumentsManagement from './components/DocumentsManagement';
 import GradesManagement from './components/GradesManagement';
 import ApplicationsManagement from './components/ApplicationsManagement';
 import AdminAIDashboard from './components/AdminAIDashboard';
+import ModernLoadingSpinner from './components/ModernLoadingSpinner';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -79,12 +80,7 @@ const AppContent: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <div className="loading-text">Initializing application...</div>
-      </div>
-    );
+    return <ModernLoadingSpinner text="Initializing application..." />;
   }
 
   if (!user) {

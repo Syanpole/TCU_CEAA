@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import { formatCurrency } from '../utils/numberUtils';
 import AdminAIDashboard from './AdminAIDashboard';
+import ModernLoadingSpinner from './ModernLoadingSpinner';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -518,15 +519,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   };
 
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-content">
-          <div className="loading-spinner"></div>
-          <h2 className="loading-title">Loading Dashboard</h2>
-          <p className="loading-text">Please wait...</p>
-        </div>
-      </div>
-    );
+    return <ModernLoadingSpinner text="Loading Admin Dashboard..." />;
   }
 
   if (error) {

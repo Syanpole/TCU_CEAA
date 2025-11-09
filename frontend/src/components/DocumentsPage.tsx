@@ -61,41 +61,45 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
   };
 
   return (
-    <div className={`documents-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      <div className="page-header">
-        <h1>Document Submission</h1>
-        <p>Upload your required documents to proceed with your application</p>
+    <div className={`dp-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
+      <div className="dp-header">
+        <div className="dp-header-content">
+          <div className="dp-header-text">
+            <h1>📄 Submission of Requirements</h1>
+            <p>Upload your required documents to proceed with your application</p>
+          </div>
+        </div>
       </div>
 
       {/* Upload Summary */}
       {documents.length > 0 && (
-        <div className="uploaded-documents">
+        <div className="dp-uploaded-documents">
           <h3>Your Uploaded Documents ({documents.length})</h3>
-          <div className="document-list">
+          <div className="dp-document-list">
             {documents.map((doc, index) => (
-              <div key={doc.id} className="document-item">
-                <span className="document-icon">
+              <div key={doc.id} className="dp-document-item">
+                <span className="dp-document-icon">
                   {getStatusIcon(doc.status)}
                 </span>
-                <div className="document-info">
-                  <span className="document-name">{doc.document_type_display}</span>
-                  <span className="document-date">
+                <div className="dp-document-info">
+                  <span className="dp-document-name">{doc.document_type_display}</span>
+                  <span className="dp-document-date">
                     {new Date(doc.submitted_at).toLocaleDateString()}
                   </span>
                 </div>
                 <span 
-                  className="status-badge"
+                  className="dp-status-badge"
                   style={{ backgroundColor: getStatusColor(doc.status) }}
                 >
                   {doc.status_display}
                 </span>
                 {doc.ai_analysis_notes && (
                   <button 
-                    className="ai-details-button"
+                    className="dp-ai-details-button"
                     onClick={() => setSelectedDocForDetails(doc)}
                     title="View AI Analysis Details"
                   >
-                    AI Details
+                    🤖 AI Details
                   </button>
                 )}
               </div>
@@ -105,16 +109,16 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
       )}
 
       {/* Main Upload Button */}
-      <div className="upload-section">
-        <div className="upload-card">
-          <div className="upload-icon">📁</div>
+      <div className="dp-upload-section">
+        <div className="dp-upload-card">
+          <div className="dp-upload-icon">📁</div>
           <h2>Upload Documents</h2>
           <p>Click the button below to submit your required documents</p>
           <button 
-            className="main-upload-button"
+            className="dp-main-upload-button"
             onClick={() => setShowDocumentForm(true)}
           >
-            Upload Documents
+            📤 Upload Documents
           </button>
         </div>
       </div>
@@ -129,22 +133,22 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
 
       {/* AI Analysis Details Modal */}
       {selectedDocForDetails && (
-        <div className="ai-details-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
-          <div className="ai-details-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ai-modal-header">
+        <div className="dp-ai-details-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
+          <div className="dp-ai-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dp-ai-modal-header">
               <h2>🤖 AI Document Analysis</h2>
               <button 
-                className="close-button"
+                className="dp-close-button"
                 onClick={() => setSelectedDocForDetails(null)}
               >
                 ✕
               </button>
             </div>
             
-            <div className="ai-modal-content">
-              <div className="ai-doc-info">
+            <div className="dp-ai-modal-content">
+              <div className="dp-ai-doc-info">
                 <h3>{selectedDocForDetails.document_type_display}</h3>
-                <div className="ai-doc-meta">
+                <div className="dp-ai-doc-meta">
                   <span>📅 Submitted: {new Date(selectedDocForDetails.submitted_at).toLocaleString()}</span>
                   {selectedDocForDetails.ai_auto_approved !== undefined && (
                     <span>🔄 {selectedDocForDetails.ai_auto_approved ? 'Auto-Approved by AI' : 'Auto-Rejected by AI'}</span>
@@ -156,17 +160,17 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
               </div>
 
               {selectedDocForDetails.ai_analysis_notes && (
-                <div className="ai-analysis-details">
-                  <pre className="ai-notes-text">{selectedDocForDetails.ai_analysis_notes}</pre>
+                <div className="dp-ai-analysis-details">
+                  <pre className="dp-ai-notes-text">{selectedDocForDetails.ai_analysis_notes}</pre>
                 </div>
               )}
 
-              <div className="ai-modal-footer">
+              <div className="dp-ai-modal-footer">
                 <button 
-                  className="close-ai-modal-button"
+                  className="dp-close-ai-modal-button"
                   onClick={() => setSelectedDocForDetails(null)}
                 >
-                  Close
+                  ✕ Close
                 </button>
               </div>
             </div>

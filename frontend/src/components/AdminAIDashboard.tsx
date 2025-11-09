@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { aiService, AIDashboardStats } from '../services/aiService';
 import AIVerificationDashboard from './AIVerificationDashboard';
+import ModernLoadingSpinner from './ModernLoadingSpinner';
 import './AdminAIDashboard.css';
 
 interface AdminAIDashboardProps {
@@ -102,15 +103,7 @@ const AdminAIDashboard: React.FC<AdminAIDashboardProps> = ({
   };
 
   if (loading && !dashboardStats) {
-    return (
-      <div className="admin-ai-dashboard loading">
-        <div className="loading-container">
-          <div className="loading-spinner">🤖</div>
-          <h2>Loading AI System Dashboard...</h2>
-          <p>Gathering AI performance metrics and system status...</p>
-        </div>
-      </div>
-    );
+    return <ModernLoadingSpinner text="Loading AI System Dashboard..." />;
   }
 
   if (error && !dashboardStats) {
