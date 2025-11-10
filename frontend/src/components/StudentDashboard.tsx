@@ -16,6 +16,7 @@ import FastDocumentUploadSimple from './FastDocumentUploadSimple';
 import DocumentRequirements from './DocumentRequirements';
 import BasicQualification, { QualificationData } from './BasicQualification';
 import FullApplicationForm from './FullApplicationForm';
+import ModernLoadingSpinner from './ModernLoadingSpinner';
 import { StudentIcon, EmailIcon, MoneyIcon, DocumentIcon, ChartIcon, WarningIcon, CheckIcon, GradeIcon, ApplicationIcon } from './Icons';
 import './StudentDashboard.css';
 
@@ -353,12 +354,7 @@ const StudentDashboard: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p className="loading-text">Loading your dashboard...</p>
-      </div>
-    );
+    return <ModernLoadingSpinner text="Loading your dashboard..." />;
   }
 
   if (error) {
