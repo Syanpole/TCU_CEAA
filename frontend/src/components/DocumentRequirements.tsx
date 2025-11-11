@@ -36,19 +36,24 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
   // Fetch documents from backend
   const [uploadedDocuments, setUploadedDocuments] = useState<DocumentSubmission[]>([]);
   const [fetchingDocuments, setFetchingDocuments] = useState(true);
+  const [selectedDocForDetails, setSelectedDocForDetails] = useState<DocumentSubmission | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<DocumentSubmission | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Document type mapping - frontend labels to backend values
   const documentTypeMapping: Record<string, string> = {
-    '[A] Certificate of Matriculation for 1st Semester, S.Y. 2024-2025': 'certificate_of_enrollment',
-    '[B] Certificate of Grades - Last Semester': 'transcript_of_records',
-    '[C] Junior High School Certificate/Grade 10 Report Card (New Applicant)': 'grade_10_report_card',
-    '[D] Senior High School Diploma/Grade 12 Report Card (New Applicant)': 'grade_12_report_card',
-    '[E] School ID or Valid Government-Issued ID': 'school_id',
-    '[F] Parent\'s Voter Registration - Taguig City': 'voter_certification',
-    '[G] Student\'s Voter Registration - Taguig City (18+ years old)': 'voters_id',
-    '[H] Birth Certificate (PSA/NSO/Civil Registry)': 'birth_certificate',
-    '[I] Form 137 - Elementary/High School': 'form_137',
-    '[J] Certificate of Academic Excellence (Honors Scholars)': 'other'
+    '[A] Certificate of Enrollment for 1st Semester, S.Y. 2024-2025': 'certificate_of_enrollment',
+    '[B] Certificate of Enrollment for 2nd Semester, S.Y. 2024-2025': 'certificate_of_enrollment',
+    '[C] Certificate of Grades - Last Semester': 'transcript_of_records',
+    '[D] Junior High School Certificate/Grade 10 Report Card (New Applicant)': 'grade_10_report_card',
+    '[E] Senior High School Diploma/Grade 12 Report Card (New Applicant)': 'grade_12_report_card',
+    '[F] School ID or Valid Government-Issued ID': 'school_id',
+    '[G] Parent\'s Voter Registration - Taguig City': 'voter_certification',
+    '[H] Student\'s Voter Registration - Taguig City (18+ years old)': 'voters_id',
+    '[I] Birth Certificate (PSA/NSO/Civil Registry)': 'birth_certificate',
+    '[J] Form 137 - Elementary/High School': 'form_137',
+    '[K] Certificate of Academic Excellence (Honors Scholars)': 'other'
   };
 
   const documentTypes = Object.keys(documentTypeMapping);
@@ -239,25 +244,38 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
     }
   };
 
-  const handleDeleteDocument = async (docId: number) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
-      try {
-        await apiClient.delete(`/documents/${docId}/`);
-        setSuccessMessage('Document deleted successfully');
-        await fetchDocuments();
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } catch (error: any) {
-        console.error('Error deleting document:', error);
-        setError('Failed to delete document');
-        setTimeout(() => setError(''), 3000);
-      }
+  const handleDeleteDocument = async (doc: DocumentSubmission) => {
+    setDocumentToDelete(doc);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await apiClient.delete(`/documents/${documentToDelete.id}/`);
+      setSuccessMessage('Document deleted successfully');
+      setShowDeleteModal(false);
+      setDocumentToDelete(null);
+      await fetchDocuments();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error: any) {
+      console.error('Error deleting document:', error);
+      setError('Failed to delete document');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDocumentToDelete(null);
+  };
+
   const handleViewDocument = (doc: DocumentSubmission) => {
-    // Open document in new tab or show details modal
-    console.log('View document:', doc);
-    alert(`Document: ${doc.document_type_display}\nStatus: ${doc.status_display}\nConfidence: ${doc.ai_confidence_score ? (doc.ai_confidence_score * 100).toFixed(1) + '%' : 'N/A'}\n\n${doc.ai_analysis_notes || 'AI analysis in progress...'}`);
+    setSelectedDocForDetails(doc);
   };
 
   return (
@@ -407,6 +425,10 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
           <p className="header-subtitle">Upload and manage your scholarship documents</p>
         </div>
         <div className="header-right">
+          <button className="refresh-btn" onClick={fetchDocuments} disabled={fetchingDocuments} title="Refresh documents">
+            <span className={`refresh-icon ${fetchingDocuments ? 'spinning' : ''}`}>🔄</span>
+            Refresh
+          </button>
           <button className="add-document-btn" onClick={handleAddRequirement}>
             <span className="btn-plus">+</span>
             Add Document
@@ -443,7 +465,7 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                   </div>
                   <button 
                     className="delete-btn"
-                    onClick={() => handleDeleteDocument(doc.id)}
+                    onClick={() => handleDeleteDocument(doc)}
                     title="Delete document"
                   >
                     ×
@@ -461,7 +483,6 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                       </span>
                     </div>
                     <div className="info-item">
-                      <span className="info-icon">�</span>
                       <span className="info-text">
                         Status: <span style={{ color: getStatusColor(doc.status), fontWeight: 600 }}>
                           {doc.status_display}
@@ -470,7 +491,6 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                     </div>
                     {doc.ai_confidence_score !== undefined && doc.ai_confidence_score !== null && (
                       <div className="info-item">
-                        <span className="info-icon">🤖</span>
                         <span className="info-text">
                           AI Confidence: <strong>{(doc.ai_confidence_score * 100).toFixed(1)}%</strong>
                         </span>
@@ -504,6 +524,151 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && documentToDelete && (
+        <div className="delete-modal-overlay" onClick={cancelDelete}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-icon">
+              <span className="warning-icon">⚠️</span>
+            </div>
+            
+            <h2 className="delete-modal-title">Delete Document?</h2>
+            <p className="delete-modal-message">
+              Are you sure you want to delete <strong>{documentToDelete.document_type_display}</strong>?
+            </p>
+            <p className="delete-modal-warning">
+              This action cannot be undone.
+            </p>
+
+            <div className="delete-modal-actions">
+              <button 
+                className="btn-cancel-delete"
+                onClick={cancelDelete}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-confirm-delete"
+                onClick={confirmDeleteDocument}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <span className="delete-icon">🗑️</span>
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modern AI Analysis Details Modal */}
+      {selectedDocForDetails && (
+        <div className="doc-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
+          <div className="doc-modal-modern" onClick={(e) => e.stopPropagation()}>
+            {/* Close Button */}
+            <button 
+              className="doc-modal-close-btn"
+              onClick={() => setSelectedDocForDetails(null)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+
+            {/* Modal Content */}
+            <div className="doc-modal-content">
+              {/* Header Section */}
+              <div className="doc-modal-header-section">
+                <div className="doc-modal-icon-wrapper">
+                  <span className="doc-modal-emoji">🤖</span>
+                </div>
+                <h2 className="doc-modal-heading">AI Analysis Report</h2>
+                <p className="doc-modal-subheading">{selectedDocForDetails.document_type_display}</p>
+              </div>
+
+              {/* Status Badge */}
+              <div className="doc-status-badge-container">
+                <span className={`doc-status-badge-modern status-${selectedDocForDetails.status}`}>
+                  {selectedDocForDetails.status === 'approved' && '✅ '}
+                  {selectedDocForDetails.status === 'rejected' && '❌ '}
+                  {selectedDocForDetails.status === 'pending' && '⏳ '}
+                  {selectedDocForDetails.status_display}
+                </span>
+              </div>
+
+              {/* Main Info Grid */}
+              <div className="doc-modal-info-grid">
+                <div className="doc-modal-info-box">
+                  <div className="doc-info-box-label">Submitted</div>
+                  <div className="doc-info-box-value">
+                    {new Date(selectedDocForDetails.submitted_at).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
+                  </div>
+                </div>
+
+                {selectedDocForDetails.ai_confidence_score !== undefined && (
+                  <div className="doc-modal-info-box">
+                    <div className="doc-info-box-label">AI Confidence</div>
+                    <div className="doc-info-box-value doc-confidence-value">
+                      {(selectedDocForDetails.ai_confidence_score * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confidence Progress Bar */}
+              {selectedDocForDetails.ai_confidence_score !== undefined && (
+                <div className="doc-confidence-container">
+                  <div className="doc-progress-bar-modern">
+                    <div 
+                      className="doc-progress-fill-modern"
+                      style={{ 
+                        width: `${selectedDocForDetails.ai_confidence_score * 100}%`,
+                        backgroundColor: selectedDocForDetails.ai_confidence_score >= 0.8 ? '#10b981' : 
+                                       selectedDocForDetails.ai_confidence_score >= 0.6 ? '#f59e0b' : '#ef4444'
+                      }}
+                    />
+                  </div>
+                  <div className="doc-confidence-status">
+                    {selectedDocForDetails.ai_confidence_score >= 0.8 ? 'High Confidence' : 
+                     selectedDocForDetails.ai_confidence_score >= 0.6 ? 'Medium Confidence' : 'Low Confidence'}
+                  </div>
+                </div>
+              )}
+
+              {/* Analysis Details */}
+              {selectedDocForDetails.ai_analysis_notes && (
+                <div className="doc-analysis-section">
+                  <h3 className="doc-section-title">Analysis Details</h3>
+                  <div className="doc-analysis-content">
+                    {selectedDocForDetails.ai_analysis_notes}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button */}
+              <button 
+                className="doc-modal-action-btn"
+                onClick={() => setSelectedDocForDetails(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -95,6 +95,8 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [draftFadingOut, setDraftFadingOut] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(true);
+  const [hasExistingApplication, setHasExistingApplication] = useState(false);
   const totalSteps = 5;
 
   const [formData, setFormData] = useState<ApplicationData>({
@@ -168,8 +170,49 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
     mother_deceased: false,
   });
 
+  // Check for existing application on mount
+  useEffect(() => {
+    const checkExistingApplication = async () => {
+      try {
+        setCheckingExisting(true);
+        const response = await apiClient.get('/full-application/');
+        const applications = Array.isArray(response.data) ? response.data : [];
+        
+        if (applications.length > 0) {
+          // User already has a submitted application
+          const latestApp = applications[0];
+          console.log('⚠️ Found existing application:', latestApp);
+          setHasExistingApplication(true);
+          
+          // Notify parent that user already has an application
+          setTimeout(() => {
+            alert('You have already submitted an application. You can only submit one application at a time.');
+            onCancel();
+          }, 500);
+        } else {
+          setHasExistingApplication(false);
+        }
+      } catch (error: any) {
+        console.error('Error checking existing application:', error);
+        // If error is 404 or empty, user has no applications (which is good)
+        if (error.response?.status === 404 || error.response?.status === 400) {
+          setHasExistingApplication(false);
+        }
+      } finally {
+        setCheckingExisting(false);
+      }
+    };
+
+    checkExistingApplication();
+  }, [onCancel]);
+
   // Load saved draft from localStorage on component mount
   useEffect(() => {
+    // Don't load draft if user already has a submitted application
+    if (hasExistingApplication || checkingExisting) {
+      return;
+    }
+
     const savedDraft = localStorage.getItem('fullApplicationDraft');
     if (savedDraft) {
       try {
@@ -184,7 +227,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         console.error('Error loading saved draft:', error);
       }
     }
-  }, [applicantType]);
+  }, [applicantType, hasExistingApplication, checkingExisting]);
 
   // Auto-hide draft notification after 45 seconds
   useEffect(() => {
@@ -427,11 +470,14 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       };
 
       console.log('📤 Submitting application data:', applicationData);
+      console.log('📊 Data keys:', Object.keys(applicationData));
+      console.log('📊 Data field count:', Object.keys(applicationData).length);
 
       // Submit to backend API
       const response = await apiClient.post('/full-application/', applicationData);
       
       console.log('✅ Application submitted successfully:', response.data);
+      console.log('✅ Response status:', response.status);
 
       // Clear the draft from localStorage after successful submission
       localStorage.removeItem('fullApplicationDraft');
@@ -449,27 +495,52 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       setIsSubmitting(false);
       
       // Better error message formatting
-      let errorMessage;
+      let errorMessage = '';
       
       if (error.response?.data) {
         const data = error.response.data;
         
-        // If it's a validation error object with field-specific errors
-        if (typeof data === 'object' && !data.error && !data.detail) {
-          const errors = Object.entries(data).map(([field, messages]) => {
+        // Handle the case where backend returns {success: false, errors: {...}}
+        if (data.success === false && data.errors) {
+          const errorObj = data.errors;
+          errorMessage = Object.entries(errorObj).map(([field, messages]) => {
             const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages;
-            return `${fieldName}: ${errorMsg}`;
+            let errorMsg = '';
+            if (Array.isArray(messages)) {
+              errorMsg = messages.join(', ');
+            } else if (typeof messages === 'object') {
+              errorMsg = JSON.stringify(messages);
+            } else {
+              errorMsg = String(messages);
+            }
+            return `• ${fieldName}: ${errorMsg}`;
           }).join('\n');
-          errorMessage = errors || 'Validation failed';
-        } else {
-          errorMessage = data.error || data.detail || JSON.stringify(data);
+        }
+        // If it's a validation error object with field-specific errors
+        else if (typeof data === 'object' && !data.error && !data.detail && !data.message) {
+          errorMessage = Object.entries(data).map(([field, messages]) => {
+            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            let errorMsg = '';
+            if (Array.isArray(messages)) {
+              errorMsg = messages.join(', ');
+            } else if (typeof messages === 'object') {
+              errorMsg = JSON.stringify(messages);
+            } else {
+              errorMsg = String(messages);
+            }
+            return `• ${fieldName}: ${errorMsg}`;
+          }).join('\n');
+        } 
+        // Handle standard error/detail/message fields
+        else {
+          errorMessage = data.error || data.detail || data.message || JSON.stringify(data);
         }
       } else {
-        errorMessage = error.message || 'Network error';
+        errorMessage = error.message || 'Network error - please check your connection';
       }
       
-      alert('Failed to submit application. Please check the following:\n\n' + errorMessage);
+      // Show error dialog with formatted message
+      alert('Failed to submit application. Please check the following:\n\n' + (errorMessage || 'Unknown error occurred. Please try again.'));
     }
   };
 
@@ -1453,6 +1524,25 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       </div>
     </div>
   );
+
+  // Show loading while checking for existing application
+  if (checkingExisting) {
+    return (
+      <div className="faf-overlay">
+        <div className="faf-container">
+          <div className="loading-overlay">
+            <div className="loading-spinner"></div>
+            <p>Checking for existing application...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render form if user already has an application
+  if (hasExistingApplication) {
+    return null;
+  }
 
   return (
     <div className="faf-overlay">
