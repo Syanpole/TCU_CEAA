@@ -66,6 +66,20 @@ interface AllowanceApplication {
   applied_at: string;
 }
 
+interface FullApplicationData {
+  id: number;
+  school_year: string;
+  semester: string;
+  status: string;
+  is_submitted: boolean;
+  is_locked: boolean;
+  submitted_at: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string;
+  [key: string]: any; // Allow other fields
+}
+
 interface DashboardStats {
   total_documents: number;
   approved_documents: number;
@@ -182,14 +196,16 @@ const StudentDashboard: React.FC = () => {
           gradesResponse,
           applicationsResponse,
           dashboardResponse,
-          qualificationResponse
+          qualificationResponse,
+          fullApplicationResponse
         ] = await Promise.all([
           apiClient.get('/tasks/'),
           apiClient.get('/documents/'),
           apiClient.get('/grades/'),
           apiClient.get('/applications/'),
           apiClient.get('/dashboard/student/'),
-          apiClient.get('/basic-qualification/check_status/')
+          apiClient.get('/basic-qualification/check_status/'),
+          apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no application exists
         ]);
 
         setAssignments((assignmentsResponse.data as Assignment[]) || []);
@@ -206,6 +222,23 @@ const StudentDashboard: React.FC = () => {
         const qualificationData = qualificationResponse.data as QualificationCheckResponse;
         setHasCompletedQualification(qualificationData.completed || false);
         setIsQualified(qualificationData.qualified || false);
+
+        // Check if user has submitted full application
+        const fullApplications = Array.isArray(fullApplicationResponse.data) 
+          ? (fullApplicationResponse.data as FullApplicationData[])
+          : [];
+        
+        if (fullApplications.length > 0) {
+          const latestApplication = fullApplications[0];
+          setHasCompletedApplication(true);
+          setApplicationData({
+            school_year: latestApplication.school_year || '',
+            semester: latestApplication.semester || ''
+          });
+          console.log('✅ Found existing full application:', latestApplication);
+        } else {
+          console.log('⚠️ No full application found yet');
+        }
 
       } catch (err: any) {
         console.error('Error fetching student data:', err);

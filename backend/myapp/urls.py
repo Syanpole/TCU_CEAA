@@ -8,7 +8,7 @@ from .views import (
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
     send_verification_code, verify_email_code, resend_verification_code,
     request_password_reset, verify_reset_code, reset_password,
-    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process
+    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard
 )
 
 router = DefaultRouter()
@@ -46,5 +46,7 @@ urlpatterns = [
     path('api/ai/status/<int:document_id>/', ai_analysis_status, name='ai-analysis-status'),
     path('api/ai/dashboard-stats/', ai_dashboard_stats, name='ai-dashboard-stats'),
     path('api/ai/batch-process/', ai_batch_process, name='ai-batch-process'),
+    # 📊 Admin Document Management
+    path('api/admin/documents/dashboard/', admin_document_dashboard, name='admin-document-dashboard'),
 ]
 

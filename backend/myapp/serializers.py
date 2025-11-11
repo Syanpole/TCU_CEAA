@@ -345,36 +345,203 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         
     def run_comprehensive_ai_analysis(self, document):
         """
-        Run AI document verification
-        Uses Autonomous AI (EasyOCR) as primary method, falls back to Lightning if needed
+        🆕 Run AI document verification using specialized services
+        Routes to COE or ID verification services based on document type
         """
+        from django.utils import timezone
+        
         try:
-            verification_result = None
+            request = self.context.get('request')
             
-            # Try Autonomous AI first (preferred - no external dependencies)
-            if AUTONOMOUS_AI_AVAILABLE:
-                try:
-                    logger.info("Using Autonomous AI Verifier (EasyOCR)")
-                    verification_result = autonomous_verifier.verify_document(document, document.document_file)
-                    logger.info(f"✅ Autonomous AI verification completed in {verification_result.get('processing_time', 0):.2f}s")
-                except Exception as e:
-                    logger.warning(f"Autonomous AI failed: {str(e)}, falling back to Lightning verifier")
-                    verification_result = None
+            # ============================================================================
+            # 🆕 ROUTE TO SPECIALIZED VERIFICATION SERVICES
+            # ============================================================================
             
-            # Fallback to Lightning verifier (requires Tesseract OCR)
-            if verification_result is None:
-                try:
-                    from ai_verification.lightning_verifier import lightning_verifier
-                    logger.info("Using Lightning Verifier (Tesseract OCR)")
-                    verification_result = lightning_verifier.lightning_verify(document, document.document_file)
-                except Exception as e:
-                    logger.error(f"All verification methods failed: {str(e)}")
-                    raise serializers.ValidationError({
-                        'document_file': f'Document verification system error: {str(e)}. Please contact administrator.'
-                    })
+            # Check if document is COE (Certificate of Enrollment)
+            if document.document_type == 'certificate_of_enrollment':
+                logger.info(f"🎓 Routing to COE Verification Service for document {document.id}")
+                from myapp.coe_verification_service import get_coe_verification_service
+                
+                coe_service = get_coe_verification_service()
+                coe_result = coe_service.verify_coe_document(
+                    image_path=document.document_file.path,
+                    confidence_threshold=0.5,
+                    include_ocr=True
+                )
+                
+                # Process COE results
+                confidence = coe_result.get('confidence', 0.0)
+                is_valid = coe_result.get('is_valid', False)
+                
+                if is_valid and confidence >= 0.70:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.50:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                document.ai_analysis_notes = f"COE Verification ({status_msg})\nConfidence: {confidence:.1%}\nStatus: {coe_result.get('status')}\n\nExtracted Info:\n{coe_result.get('extracted_info', {})}"
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='coe_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'COE Verification Service (YOLO + Advanced OCR)',
+                        'extracted_fields': len([v for v in coe_result.get('extracted_info', {}).values() if v])
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document, 
+                        reason=f"AI confidence too low: {confidence:.1%}. {', '.join(coe_result.get('recommendations', []))}",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ COE verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
             
-            # Process results with new dual verification system
-            self._process_dual_verification_results(document, verification_result)
+            # Check if document is ID (Student ID, Government ID, School ID)
+            elif document.document_type in ['student_id', 'government_id', 'school_id']:
+                logger.info(f"🪪 Routing to ID Verification Service for document {document.id}")
+                from myapp.id_verification_service import get_id_verification_service
+                
+                id_service = get_id_verification_service()
+                
+                id_result = id_service.verify_id_card(
+                    image_path=document.document_file.path,
+                    document_type=document.document_type,
+                    user=document.student
+                )
+                
+                # Process ID results
+                confidence = id_result.get('confidence', 0.0)
+                is_valid = id_result.get('is_valid', False)
+                checks_passed = id_result.get('checks_passed', 0)
+                
+                if is_valid and confidence >= 0.70:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.50 or checks_passed >= 5:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                
+                # Build comprehensive notes
+                notes_parts = [
+                    f"ID Verification ({status_msg})",
+                    f"Status: {id_result.get('status', 'UNKNOWN')}",
+                    f"Confidence: {confidence:.1%}",
+                    f"Checks Passed: {checks_passed}",
+                ]
+                
+                if id_result.get('identity_verification'):
+                    identity = id_result['identity_verification']
+                    notes_parts.append(f"Identity Match: {identity.get('match', False)}")
+                
+                if id_result.get('extracted_fields'):
+                    notes_parts.append(f"\nExtracted Fields:")
+                    for field, value in id_result['extracted_fields'].items():
+                        if value:
+                            notes_parts.append(f"  {field}: {value}")
+                
+                if id_result.get('errors'):
+                    notes_parts.append(f"\nErrors: {', '.join(id_result['errors'])}")
+                
+                if id_result.get('recommendations'):
+                    notes_parts.append(f"\nRecommendations: {', '.join(id_result['recommendations'])}")
+                
+                document.ai_analysis_notes = "\n".join(notes_parts)
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='id_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'ID Verification Service (YOLO + Advanced OCR + Identity Matching)',
+                        'name_match': id_result.get('name_match', False),
+                        'id_match': id_result.get('id_match', False)
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document,
+                        reason=f"AI confidence too low: {confidence:.1%} or identity verification failed",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ ID verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
+            
+            # ============================================================================
+            # FALLBACK: Use legacy verification for other document types
+            # ============================================================================
+            else:
+                logger.info(f"📄 Using legacy verification for document type: {document.document_type}")
+                verification_result = None
+                
+                # Try Autonomous AI first (if available)
+                if AUTONOMOUS_AI_AVAILABLE:
+                    try:
+                        logger.info("Using Autonomous AI Verifier (EasyOCR)")
+                        verification_result = autonomous_verifier.verify_document(document, document.document_file)
+                        logger.info(f"✅ Autonomous AI verification completed in {verification_result.get('processing_time', 0):.2f}s")
+                    except Exception as e:
+                        logger.warning(f"Autonomous AI failed: {str(e)}, falling back to Lightning verifier")
+                        verification_result = None
+                
+                # Fallback to Lightning verifier
+                if verification_result is None:
+                    try:
+                        from ai_verification.lightning_verifier import lightning_verifier
+                        logger.info("Using Lightning Verifier (Tesseract OCR)")
+                        verification_result = lightning_verifier.lightning_verify(document, document.document_file)
+                    except Exception as e:
+                        logger.error(f"All verification methods failed: {str(e)}")
+                        raise serializers.ValidationError({
+                            'document_file': f'Document verification system error: {str(e)}. Please contact administrator.'
+                        })
+                
+                # Process results with legacy dual verification system
+                self._process_dual_verification_results(document, verification_result)
             
             # Log the final decision
             logger.info(
@@ -1282,11 +1449,17 @@ class BasicQualificationSerializer(serializers.ModelSerializer):
         qualification = super().create(validated_data)
         
         if request:
-            audit_logger.log_user_action(
+            audit_logger.log(
                 user=validated_data['student'],
-                action_type='create',
-                description=f"Completed basic qualification criteria - {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
+                action_type='qualification_submitted',
+                action_description=f"Completed basic qualification criteria - {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
                 severity='info',
+                target_model='BasicQualificationCriteria',
+                target_object_id=qualification.id,
+                metadata={
+                    'is_qualified': qualification.is_qualified,
+                    'student_id': validated_data['student'].student_id
+                },
                 request=request
             )
         
@@ -1300,11 +1473,18 @@ class BasicQualificationSerializer(serializers.ModelSerializer):
         qualification = super().update(instance, validated_data)
         
         if request and old_qualified != qualification.is_qualified:
-            audit_logger.log_user_action(
+            audit_logger.log(
                 user=instance.student,
-                action_type='update',
-                description=f"Updated basic qualification - Status changed to {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
+                action_type='qualification_updated',
+                action_description=f"Updated basic qualification - Status changed to {'Qualified' if qualification.is_qualified else 'Not Qualified'}",
                 severity='info',
+                target_model='BasicQualificationCriteria',
+                target_object_id=qualification.id,
+                metadata={
+                    'old_qualified': old_qualified,
+                    'new_qualified': qualification.is_qualified,
+                    'student_id': instance.student.student_id
+                },
                 request=request
             )
         
