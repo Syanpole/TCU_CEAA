@@ -268,280 +268,163 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   };
 
   return (
-    <div className="grade-submission-form">
-      <div className="form-header">
-        <h3>Submit Grades</h3>
-        <p>Upload your grade sheet for TCU-CEAA allowance evaluation</p>
+    <div className="grade-submission-form-compact">
+      {/* Header with Icon */}
+      <div className="compact-header">
+        <h2>Submit Grades</h2>
+        <p className="header-subtitle">Academic Performance Submission</p>
       </div>
 
-      {/* Document Status Check */}
-      <div className="document-status-section">
-        <h4>Document Verification Status</h4>
-        {documentsLoading ? (
-          <div className="loading-documents">
-            <div className="loading-spinner"></div>
-            <span>Checking your document status...</span>
-          </div>
-        ) : eligibility ? (
-          <>
-            {eligibility.requiredDocuments.length > 0 ? (
-              <div className="document-requirements">
-                {eligibility.requiredDocuments.map(docType => {
-                  const isApproved = eligibility.approvedDocuments.includes(docType);
-                  const isPending = eligibility.pendingDocuments.includes(docType);
-                  const isMissing = eligibility.missingDocuments.includes(docType);
-                  
-                  return (
-                    <div key={docType} className={`requirement-item ${isApproved ? 'approved' : isPending ? 'pending' : 'missing'}`}>
-                      <div className="requirement-icon">
-                        {isApproved ? '✅' : isPending ? '⏳' : '❌'}
-                      </div>
-                      <div className="requirement-info">
-                        <span className="requirement-name">
-                          {documentService.getDocumentTypeLabel(docType)}
-                        </span>
-                        <span className="requirement-status">
-                          {isApproved ? 'Approved' : isPending ? 'Under Review' : 'Not Submitted'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="no-documents-message">
-                <div className="info-icon">ℹ️</div>
-                <div className="info-text">
-                  <strong>No Documents Submitted Yet</strong>
-                  <p>Please submit at least one of the following documents before submitting grades: Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.</p>
-                </div>
-              </div>
-            )}
-            {!eligibility.canSubmit && (
-              <div className="document-warning">
-                <div className="warning-icon">⚠️</div>
-                <div className="warning-text">
-                  <strong>Document Approval Required</strong>
-                  {eligibility.missingDocuments.length > 0 && eligibility.requiredDocuments.length === 0 && (
-                    <p>
-                      No documents submitted yet. Please upload at least one supporting document (Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records) before submitting grades.
-                    </p>
-                  )}
-                  {eligibility.missingDocuments.length > 0 && eligibility.requiredDocuments.length > 0 && (
-                    <p>
-                      Missing documents: {eligibility.missingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}. 
-                      Please upload these documents first.
-                    </p>
-                  )}
-                  {eligibility.pendingDocuments.length > 0 && eligibility.approvedDocuments.length === 0 && (
-                    <p>
-                      Pending approval: {eligibility.pendingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}. 
-                      Please wait for admin approval (usually 3-5 business days).
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            {eligibility.canSubmit && (
-              <div className="document-success">
-                <div className="success-icon">✅</div>
-                <div className="success-text">
-                  <strong>You're all set!</strong>
-                  <p>Your documents have been approved. You can now submit your grades.</p>
-                </div>
-              </div>
-            )}
-          </>
-        ) : null}
-      </div>
-
-      {error && (
-        <div className="error-alert">
-          <span className="error-icon">⚠️</span>
-          {error}
+      {/* Quick Status Check */}
+      {!documentsLoading && eligibility && !eligibility.canSubmit && (
+        <div className="quick-warning">
+          ⚠️ Document approval required
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="submission-form">
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="semester">Semester *</label>
+      {/* Document Status Check - Minimized */}
+      {documentsLoading ? (
+        <div className="compact-loading">
+          <div className="loading-spinner-small"></div>
+          <span>Verifying eligibility...</span>
+        </div>
+      ) : eligibility && !eligibility.canSubmit ? (
+        <div className="compact-status-section">
+          <h4>📋 Document Status</h4>
+          {eligibility.requiredDocuments.map(docType => {
+            const isApproved = eligibility.approvedDocuments.includes(docType);
+            const isPending = eligibility.pendingDocuments.includes(docType);
+            
+            return (
+              <div key={docType} className="compact-doc-item">
+                <span className="doc-icon">{isApproved ? '✅' : isPending ? '⏳' : '❌'}</span>
+                <span className="doc-name">{documentService.getDocumentTypeLabel(docType)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* Compact Form */}
+      <form onSubmit={handleSubmit} className="compact-form">
+        {error && (
+          <div className="compact-error">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* Form Grid */}
+        <div className="compact-grid">
+          <div className="compact-field">
+            <label>Semester</label>
             <select
-              id="semester"
               name="semester"
               value={formData.semester}
               onChange={handleInputChange}
               required
-              className="form-select"
+              className="compact-input"
             >
-              <option value="">Select semester...</option>
+              <option value="">Select...</option>
               {semesters.map(sem => (
-                <option key={sem.value} value={sem.value}>
-                  {sem.label}
-                </option>
+                <option key={sem.value} value={sem.value}>{sem.label}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="academic_year">Academic Year *</label>
+          <div className="compact-field">
+            <label>Academic Year</label>
             <input
               type="text"
-              id="academic_year"
               name="academic_year"
               value={formData.academic_year}
               onChange={handleInputChange}
-              placeholder="e.g., 2024-2025"
+              placeholder="2024-2025"
               required
-              className="form-input"
+              className="compact-input"
             />
           </div>
-        </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="total_units">Total Units *</label>
+          <div className="compact-field">
+            <label>GWA</label>
             <input
               type="number"
-              id="total_units"
-              name="total_units"
-              value={formData.total_units}
-              onChange={handleInputChange}
-              min="1"
-              max="30"
-              placeholder="e.g., 21"
-              required
-              className="form-input"
-            />
-            <small>Number of units enrolled this semester (1-30)</small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="general_weighted_average">General Weighted Average (GWA) *</label>
-            <input
-              type="number"
-              id="general_weighted_average"
               name="general_weighted_average"
               value={formData.general_weighted_average}
               onChange={handleInputChange}
               min="1"
               max="5"
               step="any"
-              placeholder="e.g., 1.75, 1.7, 2, 2.35"
+              placeholder="1.75"
               required
-              className="form-input"
+              className="compact-input"
             />
-            <small>Enter any GWA between 1.0 and 5.0 (Examples: 1, 1.5, 1.75, 2.0, 2.35, 3.5)</small>
-            <div className="grading-scale-hint">
-              <details>
-                <summary>📊 Official University Grading Scale</summary>
-                <div className="scale-table">
-                  <div className="scale-header">
-                    <span><strong>Grade</strong></span>
-                    <span></span>
-                    <span><strong>%</strong></span>
-                    <span><strong>Remarks</strong></span>
-                    <span><strong>Eligibility</strong></span>
-                  </div>
-                  <div className="scale-row merit"><span>1.0</span> <span>=</span> <span>96-100</span> <span>Excellent</span> <span>✅ Merit + Basic</span></div>
-                  <div className="scale-row merit"><span>1.25</span> <span>=</span> <span>93-95</span> <span>Very Good</span> <span>✅ Merit + Basic</span></div>
-                  <div className="scale-row merit"><span>1.5</span> <span>=</span> <span>90-92</span> <span>Good</span> <span>✅ Merit + Basic</span></div>
-                  <div className="scale-row merit"><span>1.75</span> <span>=</span> <span>87-89</span> <span>Satisfactory</span> <span>✅ Merit + Basic</span></div>
-                  <div className="scale-row basic"><span>2.0</span> <span>=</span> <span>84-86</span> <span>Fair</span> <span>✓ Basic Only</span></div>
-                  <div className="scale-row basic"><span>2.25</span> <span>=</span> <span>81-83</span> <span>Average</span> <span>✓ Basic Only</span></div>
-                  <div className="scale-row"><span>2.5</span> <span>=</span> <span>78-80</span> <span>Below Avg</span> <span>❌ None</span></div>
-                  <div className="scale-row"><span>2.75</span> <span>=</span> <span>75-77</span> <span>Passing</span> <span>❌ None</span></div>
-                  <div className="scale-row"><span>3.0</span> <span>=</span> <span>70-74</span> <span>Min. Pass</span> <span>❌ None</span></div>
-                  <div className="scale-row"><span>5.0</span> <span>=</span> <span>&lt;70</span> <span>Failing</span> <span>❌ None</span></div>
-                </div>
-                <div className="eligibility-note">
-                  <small>
-                    <strong>Basic Allowance:</strong> Requires ≥80% (GWA ≤2.25) + ≥15 units + no fails/inc/drops<br/>
-                    <strong>Merit Incentive:</strong> Requires ≥87% (GWA ≤1.75) + ≥15 units + no fails/inc/drops<br/>
-                    <em>Note: System accepts any decimal format (1, 1.0, 1.75, 1.91, etc.)</em>
-                  </small>
-                </div>
-              </details>
-            </div>
+          </div>
+
+          <div className="compact-field">
+            <label>Total Units</label>
+            <input
+              type="number"
+              name="total_units"
+              value={formData.total_units}
+              onChange={handleInputChange}
+              min="1"
+              max="30"
+              placeholder="21"
+              required
+              className="compact-input"
+            />
           </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="grade_sheet">Upload Grade Sheet *</label>
-          <input
-            type="file"
-            id="grade_sheet"
-            name="grade_sheet"
-            onChange={handleFileChange}
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-            required
-            className="form-file"
-          />
-          <div className="file-info">
-            <small>
-              Upload your official grade sheet. AI will automatically evaluate your grades for allowance qualification.
-            </small>
-            {formData.grade_sheet && (
-              <div className="selected-file">
-                {formData.grade_sheet.name} ({Math.round(formData.grade_sheet.size / 1024)} KB)
-              </div>
-            )}
-          </div>
+        {/* File Upload */}
+        <div className="compact-upload">
+          <label className="upload-label">
+            📄 Grade Sheet
+            <input
+              type="file"
+              name="grade_sheet"
+              onChange={handleFileChange}
+              accept=".pdf,.jpg,.jpeg,.png"
+              required
+              className="file-input-hidden"
+            />
+          </label>
+          {formData.grade_sheet && (
+            <div className="file-selected">
+              ✓ {formData.grade_sheet.name}
+            </div>
+          )}
         </div>
 
-        <div className="ai-processing-info">
-          <h4>Fully Autonomous AI Processing System</h4>
-          <div className="ai-features">
-            <div className="ai-feature-item">
-              <span>INSTANT AUTO-APPROVAL - No waiting for manual review</span>
-            </div>
-            <div className="ai-feature-item">
-              <span>Comprehensive document analysis with OCR text extraction</span>
-            </div>
-            <div className="ai-feature-item">
-              <span>Intelligent cross-validation and grade verification</span>
-            </div>
-            <div className="ai-feature-item">
-              <span>Advanced quality assessment and accuracy validation</span>
-            </div>
-            <div className="ai-feature-item">
-              <span>Automatic allowance eligibility calculation and approval</span>
-            </div>
-            <div className="ai-feature-item">
-              <span>Complete autonomous processing - Submit and get approved instantly!</span>
-            </div>
-          </div>
-          <div className="ai-confidence-note">
-            <strong>Revolutionary Processing:</strong> Our AI system has full authority to approve 
-            documents and grades automatically. No more waiting days for manual review - get instant 
-            approval and proceed immediately with your allowance application!
-          </div>
+        {/* AI Info - Compact */}
+        <div className="compact-ai-info">
+          <div className="ai-badge">🤖 AI AUTO-APPROVAL</div>
+          <p>Instant verification & processing</p>
         </div>
 
-        <div className="form-actions">
+        {/* Action Buttons */}
+        <div className="compact-actions">
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary"
+            className="btn-compact btn-cancel"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="btn-primary"
+            className="btn-compact btn-submit"
             disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || 
                      !formData.total_units || !formData.general_weighted_average || !formData.grade_sheet}
           >
             {loading ? (
               <>
-                <span className="loading-spinner"></span>
+                <span className="spinner-compact"></span>
                 Processing...
               </>
-            ) : !eligibility?.canSubmit ? (
-              'Documents Required'
             ) : (
-              'Submit for Instant AI Approval'
+              'Submit Grade'
             )}
           </button>
         </div>

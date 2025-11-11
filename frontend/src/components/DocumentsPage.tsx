@@ -64,64 +64,119 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
     <div className={`dp-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       <div className="dp-header">
         <div className="dp-header-content">
-          <div className="dp-header-text">
-            <h1>📄 Submission of Requirements</h1>
-            <p>Upload your required documents to proceed with your application</p>
-          </div>
+          <h1>📄 My Documents</h1>
+          <p>View and manage your submitted documents</p>
         </div>
+        <button 
+          className="dp-upload-button"
+          onClick={() => setShowDocumentForm(true)}
+        >
+          <span className="upload-icon">+</span>
+          Upload Document
+        </button>
       </div>
 
-      {/* Upload Summary */}
-      {documents.length > 0 && (
-        <div className="dp-uploaded-documents">
-          <h3>Your Uploaded Documents ({documents.length})</h3>
-          <div className="dp-document-list">
-            {documents.map((doc, index) => (
-              <div key={doc.id} className="dp-document-item">
-                <span className="dp-document-icon">
+      {/* Documents Grid - Horizontal Cards */}
+      {documents.length > 0 ? (
+        <div className="dp-documents-grid">
+          {documents.map((doc) => (
+            <div key={doc.id} className={`dp-document-card ${doc.status}`}>
+              {/* Card Header */}
+              <div className="dp-card-header">
+                <div className="dp-doc-icon">
                   {getStatusIcon(doc.status)}
-                </span>
-                <div className="dp-document-info">
-                  <span className="dp-document-name">{doc.document_type_display}</span>
-                  <span className="dp-document-date">
-                    {new Date(doc.submitted_at).toLocaleDateString()}
+                </div>
+                <div className="dp-card-actions">
+                  <button 
+                    className="dp-delete-btn"
+                    onClick={() => {/* Add delete functionality */}}
+                    title="Delete document"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              {/* Document Name */}
+              <div className="dp-doc-name">
+                {doc.document_type_display}
+              </div>
+
+              {/* Document Meta Info */}
+              <div className="dp-doc-meta">
+                <div className="dp-meta-item">
+                  <span className="dp-meta-icon">📅</span>
+                  <span className="dp-meta-text">
+                    {new Date(doc.submitted_at).toLocaleDateString('en-US', { 
+                      month: 'numeric', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
                   </span>
                 </div>
-                <span 
-                  className="dp-status-badge"
-                  style={{ backgroundColor: getStatusColor(doc.status) }}
-                >
-                  {doc.status_display}
-                </span>
-                {doc.ai_analysis_notes && (
-                  <button 
-                    className="dp-ai-details-button"
-                    onClick={() => setSelectedDocForDetails(doc)}
-                    title="View AI Analysis Details"
-                  >
-                    🤖 AI Details
-                  </button>
-                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Main Upload Button */}
-      <div className="dp-upload-section">
-        <div className="dp-upload-card">
-          <div className="dp-upload-icon">📁</div>
-          <h2>Upload Documents</h2>
-          <p>Click the button below to submit your required documents</p>
+              {/* Status Badge */}
+              <div className="dp-status-section">
+                <span 
+                  className={`dp-status-badge status-${doc.status}`}
+                >
+                  {doc.status === 'pending' ? 'Processing' : 
+                   doc.status === 'approved' ? 'Approved' : 
+                   doc.status === 'rejected' ? 'Rejected' : doc.status_display}
+                </span>
+              </div>
+
+              {/* AI Confidence */}
+              {doc.ai_confidence_score !== undefined && doc.ai_confidence_score > 0 && (
+                <div className="dp-ai-section">
+                  <div className="dp-ai-label">
+                    <span>
+                      <span className="dp-ai-icon">🤖</span>
+                      AI Confidence
+                    </span>
+                    <span className="dp-confidence-text">
+                      {(doc.ai_confidence_score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="dp-confidence-bar">
+                    <div 
+                      className="dp-confidence-fill"
+                      style={{ 
+                        width: `${doc.ai_confidence_score * 100}%`,
+                        backgroundColor: doc.ai_confidence_score >= 0.8 ? '#10b981' : doc.ai_confidence_score >= 0.6 ? '#f59e0b' : '#ef4444'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {/* View Details Button */}
+              {doc.ai_analysis_notes && (
+                <button 
+                  className="dp-view-details-btn"
+                  onClick={() => setSelectedDocForDetails(doc)}
+                >
+                  <span className="details-icon">👁️</span>
+                  View Details
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="dp-empty-state">
+          <h3>No Documents Yet</h3>
+          <p>Upload your first document to get started</p>
           <button 
-            className="dp-main-upload-button"
+            className="dp-upload-button-large"
             onClick={() => setShowDocumentForm(true)}
           >
-            📤 Upload Documents
+            <span className="upload-icon">+</span>
+            Upload Your First Document
           </button>
         </div>
-      </div>
+      )}
 
       {/* Document Submission Form Modal */}
       {showDocumentForm && (
@@ -131,48 +186,111 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
         />
       )}
 
-      {/* AI Analysis Details Modal */}
+      {/* Modern AI Analysis Details Modal */}
       {selectedDocForDetails && (
-        <div className="dp-ai-details-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
-          <div className="dp-ai-details-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="dp-ai-modal-header">
-              <h2>🤖 AI Document Analysis</h2>
-              <button 
-                className="dp-close-button"
-                onClick={() => setSelectedDocForDetails(null)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="dp-ai-modal-content">
-              <div className="dp-ai-doc-info">
-                <h3>{selectedDocForDetails.document_type_display}</h3>
-                <div className="dp-ai-doc-meta">
-                  <span>📅 Submitted: {new Date(selectedDocForDetails.submitted_at).toLocaleString()}</span>
-                  {selectedDocForDetails.ai_auto_approved !== undefined && (
-                    <span>🔄 {selectedDocForDetails.ai_auto_approved ? 'Auto-Approved by AI' : 'Auto-Rejected by AI'}</span>
-                  )}
-                  {selectedDocForDetails.ai_confidence_score !== undefined && (
-                    <span>📊 Confidence: {(selectedDocForDetails.ai_confidence_score * 100).toFixed(1)}%</span>
-                  )}
+        <div className="dp-modal-overlay" onClick={() => setSelectedDocForDetails(null)}>
+          <div className="dp-modal-modern" onClick={(e) => e.stopPropagation()}>
+            {/* Close Button */}
+            <button 
+              className="dp-modal-close-btn"
+              onClick={() => setSelectedDocForDetails(null)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+
+            {/* Modal Content */}
+            <div className="dp-modal-content">
+              {/* Header Section */}
+              <div className="dp-modal-header-section">
+                <div className="dp-modal-icon-wrapper">
+                  <span className="dp-modal-emoji">🤖</span>
                 </div>
+                <h2 className="dp-modal-heading">AI Analysis Report</h2>
+                <p className="dp-modal-subheading">{selectedDocForDetails.document_type_display}</p>
               </div>
 
-              {selectedDocForDetails.ai_analysis_notes && (
-                <div className="dp-ai-analysis-details">
-                  <pre className="dp-ai-notes-text">{selectedDocForDetails.ai_analysis_notes}</pre>
+              {/* Status Badge */}
+              <div className="dp-status-badge-container">
+                <span className={`dp-status-badge-modern status-${selectedDocForDetails.status}`}>
+                  {selectedDocForDetails.status === 'approved' && '✅ '}
+                  {selectedDocForDetails.status === 'rejected' && '❌ '}
+                  {selectedDocForDetails.status === 'pending' && '⏳ '}
+                  {selectedDocForDetails.status_display}
+                </span>
+              </div>
+
+              {/* Main Info Grid */}
+              <div className="dp-modal-info-grid">
+                <div className="dp-modal-info-box">
+                  <div className="dp-info-box-label">Submitted</div>
+                  <div className="dp-info-box-value">
+                    {new Date(selectedDocForDetails.submitted_at).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
+                  </div>
+                </div>
+
+                {selectedDocForDetails.ai_confidence_score !== undefined && (
+                  <div className="dp-modal-info-box">
+                    <div className="dp-info-box-label">AI Confidence</div>
+                    <div className="dp-info-box-value dp-confidence-value">
+                      {(selectedDocForDetails.ai_confidence_score * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confidence Progress Bar */}
+              {selectedDocForDetails.ai_confidence_score !== undefined && (
+                <div className="dp-confidence-container">
+                  <div className="dp-progress-bar-modern">
+                    <div 
+                      className="dp-progress-fill-modern"
+                      style={{ 
+                        width: `${selectedDocForDetails.ai_confidence_score * 100}%`,
+                        backgroundColor: selectedDocForDetails.ai_confidence_score >= 0.8 ? '#10b981' : 
+                                       selectedDocForDetails.ai_confidence_score >= 0.6 ? '#f59e0b' : '#ef4444'
+                      }}
+                    />
+                  </div>
+                  <div className="dp-confidence-status">
+                    {selectedDocForDetails.ai_confidence_score >= 0.8 ? 'High Confidence' : 
+                     selectedDocForDetails.ai_confidence_score >= 0.6 ? 'Medium Confidence' : 'Low Confidence'}
+                  </div>
                 </div>
               )}
 
-              <div className="dp-ai-modal-footer">
-                <button 
-                  className="dp-close-ai-modal-button"
-                  onClick={() => setSelectedDocForDetails(null)}
-                >
-                  ✕ Close
-                </button>
-              </div>
+              {/* Analysis Details */}
+              {selectedDocForDetails.ai_analysis_notes && (
+                <div className="dp-analysis-section">
+                  <h3 className="dp-section-title">Analysis Details</h3>
+                  <div className="dp-analysis-content">
+                    {selectedDocForDetails.ai_analysis_notes}
+                  </div>
+                </div>
+              )}
+
+              {/* Auto-Approval Notice */}
+              {selectedDocForDetails.ai_auto_approved && (
+                <div className="dp-success-notice">
+                  <span className="dp-notice-icon">✓</span>
+                  <div className="dp-notice-text">
+                    <strong>Auto-Approved</strong>
+                    <span>Automatically verified by AI</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button */}
+              <button 
+                className="dp-modal-action-btn"
+                onClick={() => setSelectedDocForDetails(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -151,6 +151,54 @@ class VisionAI:
         """Get list of available OCR/CV engines."""
         engines = []
         if self.easyocr_available:
+            engines.append('EasyOCR')
+        if self.pytesseract_available:
+            engines.append('Pytesseract')
+        if self.cv2_available:
+            engines.append('OpenCV')
+        return engines
+    
+    def analyze_document_structure(self, img_array):
+        """
+        Analyze document structure (stub for compatibility).
+        
+        Args:
+            img_array: NumPy array of the image
+            
+        Returns:
+            dict: Document structure analysis results
+        """
+        logger.debug("analyze_document_structure called (using fallback)")
+        
+        return {
+            'document_type': 'unknown',
+            'confidence': 0.5,
+            'layout_detected': False,
+            'available': False,
+            'note': 'Vision AI structure analysis not available - using basic validation'
+        }
+    
+    def extract_structured_data(self, img_array, declared_type):
+        """
+        Extract structured data from document (stub for compatibility).
+        
+        Args:
+            img_array: NumPy array of the image
+            declared_type: Declared document type
+            
+        Returns:
+            dict: Extracted structured data
+        """
+        logger.debug("extract_structured_data called (using fallback)")
+        
+        return {
+            'extracted_fields': {},
+            'confidence': 0.0,
+            'available': False,
+            'note': 'Structured data extraction not available - using basic OCR only'
+        }
+        engines = []
+        if self.easyocr_available:
             engines.append('easyocr')
         if self.pytesseract_available:
             engines.append('pytesseract')
