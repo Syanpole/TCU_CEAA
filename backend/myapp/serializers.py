@@ -100,7 +100,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             if CustomUser.objects.filter(student_id=student_id).exists():
                 raise serializers.ValidationError('This student ID is already registered.')
             
-            # ===== NEW SECURITY CHECK: Verify against VerifiedStudent model =====
+            # ===== SECURITY CHECK: Verify against VerifiedStudent model =====
+            # ONLY Student ID is verified - name fields are not checked
             try:
                 verified_student = VerifiedStudent.objects.get(
                     student_id=student_id,
@@ -113,31 +114,18 @@ class RegisterSerializer(serializers.ModelSerializer):
                         'This student ID has already been registered. Please contact the admin if you need assistance.'
                     )
                 
-                # Verify name matches (case-insensitive comparison)
-                first_name = data.get('first_name', '').strip().lower()
-                last_name = data.get('last_name', '').strip().lower()
-                middle_initial = data.get('middle_initial', '').strip().upper()
-                
-                # ===== IMPORTANT: Only Student ID is validated =====
-                # Names and middle initial are NOT validated to allow flexibility
-                # Students can input any name they want - only Student ID must match
-                
-                # Optional: Store verified student's official name for reference
-                # but do NOT enforce it during registration
-                verified_first = verified_student.first_name.strip().lower()
-                verified_last = verified_student.last_name.strip().lower()
-                verified_middle = verified_student.middle_initial.strip().upper() if verified_student.middle_initial else ''
-                
-                # NO NAME VALIDATION - Student ID verification is sufficient
-                # This allows students to use preferred names, nicknames, or correct spelling variations
-                
+                # Student ID verified successfully!
+                # Name verification is NOT performed - students can use any name format
+                # This allows for typos, nicknames, and preferred name formatting
             except VerifiedStudent.DoesNotExist:
-                raise serializers.ValidationError(
-                    'Your student ID is not in our verified student database. '
-                    'Please contact the scholarship office to be added to the verified student list before registering.'
-                )
-        
-        return data
+                # Student ID not found in the verified list
+                raise serializers.ValidationError('Student ID could not be verified. Please contact the administrator.')
+            except Exception as e:
+                # Unexpected error during verification - log and return a generic message
+                logger.exception("Error verifying student ID: %s", str(e))
+                raise serializers.ValidationError('An error occurred while verifying student ID. Please try again later.')
+            
+            return data
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
@@ -906,7 +894,7 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
         
         notes = [
             f"🤖 AI AUTO-DECISION SYSTEM",
-            f"=" * 50,
+            f"=" * 2,
             f"📅 Processed: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"⚡ Processing Time: {processing_time:.3f} seconds",
             f"🎯 AI Decision: {status_emoji}",

@@ -104,6 +104,20 @@ interface QualificationSubmitResponse {
   data: any;
 }
 
+interface FullApplicationRecord {
+  id: number;
+  school_year: string;
+  semester: string;
+  semester_display?: string;
+  first_name: string;
+  last_name: string;
+  is_submitted: boolean;
+  is_locked: boolean;
+  created_at: string;
+  updated_at: string;
+  submitted_at?: string;
+}
+
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -202,13 +216,11 @@ const StudentDashboard: React.FC = () => {
           apiClient.get('/tasks/'),
           apiClient.get('/documents/'),
           apiClient.get('/grades/'),
-          apiClient.get('/applications/'),
-          apiClient.get('/dashboard/student/'),
-          apiClient.get('/basic-qualification/check_status/'),
-          apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no application exists
-        ]);
-
-        setAssignments((assignmentsResponse.data as Assignment[]) || []);
+        apiClient.get('/applications/'),
+        apiClient.get('/dashboard/student/'),
+        apiClient.get('/basic-qualification/check_status/'),
+        apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no applications exist
+      ]);        setAssignments((assignmentsResponse.data as Assignment[]) || []);
         setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
         setGrades((gradesResponse.data as GradeSubmission[]) || []);
         setApplications((applicationsResponse.data as AllowanceApplication[]) || []);
@@ -220,27 +232,26 @@ const StudentDashboard: React.FC = () => {
 
         // Check basic qualification status
         const qualificationData = qualificationResponse.data as QualificationCheckResponse;
-        setHasCompletedQualification(qualificationData.completed || false);
-        setIsQualified(qualificationData.qualified || false);
+      setHasCompletedQualification(qualificationData.completed || false);
+      setIsQualified(qualificationData.qualified || false);
 
-        // Check if user has submitted full application
-        const fullApplications = Array.isArray(fullApplicationResponse.data) 
-          ? (fullApplicationResponse.data as FullApplicationData[])
-          : [];
-        
-        if (fullApplications.length > 0) {
-          const latestApplication = fullApplications[0];
-          setHasCompletedApplication(true);
-          setApplicationData({
-            school_year: latestApplication.school_year || '',
-            semester: latestApplication.semester || ''
-          });
-          console.log('✅ Found existing full application:', latestApplication);
-        } else {
-          console.log('⚠️ No full application found yet');
-        }
-
-      } catch (err: any) {
+      // Check if user has already submitted a full application
+      const fullApplications = Array.isArray(fullApplicationResponse.data)
+        ? (fullApplicationResponse.data as FullApplicationRecord[])
+        : [];
+      if (fullApplications.length > 0) {
+        // User has submitted application(s)
+        setHasCompletedApplication(true);
+        const latestApp = fullApplications[0]; // Most recent application
+        setApplicationData({
+          school_year: latestApp.school_year || '',
+          semester: latestApp.semester_display || latestApp.semester || ''
+        });
+        console.log('✅ Found existing full application:', latestApp);
+      } else {
+        setHasCompletedApplication(false);
+        console.log('ℹ️ No existing full application found');
+      }      } catch (err: any) {
         console.error('Error fetching student data:', err);
         if (err.response) {
           console.error('Response status:', err.response.status);
