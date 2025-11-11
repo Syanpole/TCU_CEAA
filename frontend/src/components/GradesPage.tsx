@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GradeSubmissionForm from './GradeSubmissionForm';
 import './GradesPage.css';
 
@@ -32,6 +32,34 @@ const GradesPage: React.FC<GradesPageProps> = ({
   onRefresh 
 }) => {
   const [showGradeForm, setShowGradeForm] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState<GradeSubmission | null>(null);
+  const [showGradeModal, setShowGradeModal] = useState(false);
+
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showGradeForm) setShowGradeForm(false);
+        if (showGradeModal) setShowGradeModal(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showGradeForm, showGradeModal]);
+
+  // Prevent body scroll when modals are open
+  useEffect(() => {
+    if (showGradeForm || showGradeModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showGradeForm, showGradeModal]);
 
   const completedSemesters = grades.length;
   const approvedGrades = grades.filter(g => g.status === 'approved').length;
@@ -72,160 +100,336 @@ const GradesPage: React.FC<GradesPageProps> = ({
     }
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const handleFormSuccess = () => {
     setShowGradeForm(false);
     onGradeSubmissionSuccess();
   };
 
-  const handleRefresh = () => {
-    onRefresh();
+  const handleRefreshClick = async () => {
+    setIsRefreshing(true);
+    await onRefresh();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
+  const handleViewGrade = (grade: GradeSubmission) => {
+    setSelectedGrade(grade);
+    setShowGradeModal(true);
+  };
+
+  const handleCloseGradeModal = () => {
+    setShowGradeModal(false);
+    setSelectedGrade(null);
   };
 
   return (
     <div className={`grades-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {/* Refresh Button - Always Visible */}
-      <button 
-        className="refresh-button-corner"
-        onClick={handleRefresh}
-        title="Refresh to see updated data"
-      >
-        🔄
-      </button>
-      
-      <div className="page-header">
-        <h1>Submit Grades</h1>
-        <p>Submit your grades for each semester to qualify for allowances</p>
+      {/* Modern Header with Refresh Button */}
+      <div className="grades-page-header">
+        <div className="header-left">
+          <h1>Grade Submissions</h1>
+          <p className="header-subtitle">Track your academic performance and allowance eligibility</p>
+        </div>
+        <div className="header-right">
+          <button 
+            className="refresh-btn-grades" 
+            onClick={handleRefreshClick} 
+            disabled={isRefreshing}
+            title="Refresh grades"
+          >
+            <span className={`refresh-icon ${isRefreshing ? 'spinning' : ''}`}>🔄</span>
+            Refresh
+          </button>
+          {canSubmitGrades && (
+            <button 
+              className="add-grades-btn"
+              onClick={() => setShowGradeForm(true)}
+            >
+              <span className="btn-plus">+</span>
+              Submit Grades
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">🎓</div>
-          <div className="stat-content">
-            <h3>Submission Progress</h3>
-            <div className="stat-value">{completionPercentage}% Complete</div>
-            <p>{approvedGrades} of {completedSemesters} semesters completed</p>
+      {/* Stats Overview Cards */}
+      <div className="stats-overview">
+        <div className="stat-card-modern">
+          <div className="stat-icon-wrapper progress-icon">
+            <span className="stat-emoji">🎓</span>
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Submission Progress</span>
+            <span className="stat-number">{completionPercentage}%</span>
+            <span className="stat-description">{approvedGrades} of {completedSemesters} semesters</span>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-content">
-            <h3>Average GPA</h3>
-            <div className="stat-value">{averageGPA}</div>
-            <p>Overall weighted average</p>
+        <div className="stat-card-modern">
+          <div className="stat-icon-wrapper gpa-icon">
+            <span className="stat-emoji">📊</span>
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Average GWA</span>
+            <span className="stat-number">{averageGPA}</span>
+            <span className="stat-description">Overall performance</span>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon">💰</div>
-          <div className="stat-content">
-            <h3>Eligibility Status</h3>
-            <div className="stat-value">
+        <div className="stat-card-modern">
+          <div className="stat-icon-wrapper eligibility-icon">
+            <span className="stat-emoji">
+              {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) ? '✅' : '⏳'}
+            </span>
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Allowance Status</span>
+            <span className="stat-number">
               {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) 
                 ? 'Eligible' 
-                : 'Not Eligible'}
-            </div>
-            <p>For allowance programs</p>
+                : 'Pending'}
+            </span>
+            <span className="stat-description">
+              {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive)
+                ? 'Qualified for benefits'
+                : 'Submit grades to qualify'}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Add New Grades Button */}
-      {canSubmitGrades && (
-        <div className="add-grades-section">
-          <button 
-            className="add-grades-button"
-            onClick={() => setShowGradeForm(true)}
-          >
-            Submit Grades
-          </button>
-          <p>Submit grades for a new semester to update your eligibility status</p>
-        </div>
-      )}
-
+      {/* Notice for Document Requirements */}
       {!canSubmitGrades && (
-        <div className="requirement-notice">
-          <div className="notice-icon">⚠️</div>
-          <div className="notice-content">
-            <h3>Documents Required</h3>
-            <p>You need to submit at least 2 approved documents before you can add your grades.</p>
+        <div className="info-banner warning">
+          <div className="banner-icon">⚠️</div>
+          <div className="banner-content">
+            <h3>Documents Required First</h3>
+            <p>You need to submit at least 2 approved documents before submitting grades.</p>
           </div>
         </div>
       )}
 
-      {/* Grades List */}
-      {grades.length > 0 ? (
-        <div className="grades-list">
-          <h2>Submitted Grades</h2>
-          <div className="grades-grid">
-            {grades.map((grade) => (
-              <div key={grade.id} className="grade-card">
-                <div className="grade-header">
-                  <div className="grade-info">
-                    <h3>{grade.semester_display} {grade.academic_year}</h3>
-                    <div className="grade-status">
-                      <span className="status-icon">
-                        {getStatusIcon(grade.status)}
-                      </span>
-                      <span 
-                        className="status-badge"
-                        style={{ backgroundColor: getStatusColor(grade.status) }}
-                      >
-                        {grade.status_display}
-                      </span>
+      {/* Grades List Section */}
+      <div className="grades-section">
+        {grades.length > 0 ? (
+          <>
+            <div className="section-header">
+              <h2>📚 Submitted Grades</h2>
+              <span className="grade-count">{grades.length} semester{grades.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="grades-grid-modern">
+              {grades.map((grade) => (
+                <div key={grade.id} className="grade-card-modern">
+                  <div className="card-top">
+                    <div className="semester-info">
+                      <h3 className="semester-title">{grade.semester_display}</h3>
+                      <span className="academic-year">{grade.academic_year}</span>
+                    </div>
+                    <span 
+                      className={`status-badge-modern status-${grade.status}`}
+                      style={{ backgroundColor: getStatusColor(grade.status) }}
+                    >
+                      {getStatusIcon(grade.status)} {grade.status_display}
+                    </span>
+                  </div>
+
+                  <div className="card-divider"></div>
+
+                  <div className="card-body-grade">
+                    <div className="gwa-display">
+                      <span className="gwa-label">General Weighted Average</span>
+                      <span className="gwa-value">{grade.general_weighted_average}</span>
+                    </div>
+
+                    <div className="eligibility-grid">
+                      <div className={`eligibility-badge ${grade.qualifies_for_basic_allowance ? 'qualified' : 'not-qualified'}`}>
+                        <span className="badge-icon">
+                          {grade.qualifies_for_basic_allowance ? '✅' : '❌'}
+                        </span>
+                        <div className="badge-text">
+                          <span className="badge-title">Basic Allowance</span>
+                          <span className="badge-status">
+                            {grade.qualifies_for_basic_allowance ? 'Qualified' : 'Not Qualified'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={`eligibility-badge ${grade.qualifies_for_merit_incentive ? 'qualified' : 'not-qualified'}`}>
+                        <span className="badge-icon">
+                          {grade.qualifies_for_merit_incentive ? '✅' : '❌'}
+                        </span>
+                        <div className="badge-text">
+                          <span className="badge-title">Merit Incentive</span>
+                          <span className="badge-status">
+                            {grade.qualifies_for_merit_incentive ? 'Qualified' : 'Not Qualified'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grade-details">
-                  <div className="grade-row">
-                    <span className="grade-label">General Weighted Average:</span>
-                    <span className="grade-value">{grade.general_weighted_average}</span>
+                  <div className="card-footer-grade">
+                    <button 
+                      className="btn-view-details"
+                      onClick={() => handleViewGrade(grade)}
+                    >
+                      View Details
+                    </button>
+                    <span className="submission-timestamp">
+                      📅 {new Date(grade.submitted_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </span>
                   </div>
                 </div>
-
-                <div className="eligibility-section">
-                  <h4>Allowance Eligibility</h4>
-                  <div className="eligibility-items">
-                    <div className={`eligibility-item ${grade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>
-                      <span className="eligibility-icon">
-                        {grade.qualifies_for_basic_allowance ? '✅' : '❌'}
-                      </span>
-                      <span>Basic Allowance</span>
-                    </div>
-                    <div className={`eligibility-item ${grade.qualifies_for_merit_incentive ? 'eligible' : 'not-eligible'}`}>
-                      <span className="eligibility-icon">
-                        {grade.qualifies_for_merit_incentive ? '✅' : '❌'}
-                      </span>
-                      <span>Merit Incentive</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="submission-info">
-                  <span className="submission-date">
-                    Submitted: {new Date(grade.submitted_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="empty-state-modern">
+            <div className="empty-icon-large">📚</div>
+            <h3>No Grades Submitted Yet</h3>
+            <p>Start tracking your academic performance by submitting your semester grades.</p>
+            {canSubmitGrades && (
+              <button 
+                className="btn-empty-action"
+                onClick={() => setShowGradeForm(true)}
+              >
+                <span className="btn-icon">+</span>
+                Submit Your First Grade
+              </button>
+            )}
           </div>
-        </div>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">📚</div>
-          <h3>No Grades Submitted</h3>
-          <p>Submit your semester grades to track your academic progress and eligibility for allowances.</p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Grade Submission Form Modal */}
       {showGradeForm && (
-        <GradeSubmissionForm
-          onCancel={() => setShowGradeForm(false)}
-          onSubmissionSuccess={handleFormSuccess}
-        />
+        <div className="grade-form-modal-overlay" onClick={() => setShowGradeForm(false)}>
+          <div className="modal-hint">Click outside or press ESC to close</div>
+          <div className="grade-form-modal-container" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="grade-form-close-btn"
+              onClick={() => setShowGradeForm(false)}
+              aria-label="Close form"
+              title="Close (Esc)"
+            >
+              ×
+            </button>
+            <GradeSubmissionForm
+              onCancel={() => setShowGradeForm(false)}
+              onSubmissionSuccess={handleFormSuccess}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Grade Details Modal */}
+      {showGradeModal && selectedGrade && (
+        <div className="grade-modal-overlay" onClick={handleCloseGradeModal}>
+          <div className="grade-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Close Button */}
+            <button 
+              className="grade-modal-close"
+              onClick={handleCloseGradeModal}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* Modal Header */}
+            <div className="grade-modal-header">
+              <div className="modal-header-icon">📊</div>
+              <h2>Grade Details</h2>
+              <p className="modal-subtitle">{selectedGrade.semester_display} • {selectedGrade.academic_year}</p>
+            </div>
+
+            {/* Status Badge */}
+            <div className="modal-status-container">
+              <span 
+                className={`modal-status-badge status-${selectedGrade.status}`}
+                style={{ backgroundColor: getStatusColor(selectedGrade.status) }}
+              >
+                {getStatusIcon(selectedGrade.status)} {selectedGrade.status_display}
+              </span>
+            </div>
+
+            {/* GWA Display */}
+            <div className="modal-gwa-section">
+              <div className="modal-gwa-card">
+                <span className="modal-gwa-label">General Weighted Average</span>
+                <span className="modal-gwa-number">{selectedGrade.general_weighted_average}</span>
+                <div className="modal-gwa-bar">
+                  <div 
+                    className="modal-gwa-fill"
+                    style={{ 
+                      width: `${Math.max(0, Math.min(100, (5 - Number(selectedGrade.general_weighted_average)) * 25))}%`,
+                      backgroundColor: Number(selectedGrade.general_weighted_average) <= 1.75 ? '#10b981' : 
+                                     Number(selectedGrade.general_weighted_average) <= 2.25 ? '#3b82f6' : '#64748b'
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Eligibility Section */}
+            <div className="modal-eligibility-section">
+              <h3 className="modal-section-title">Allowance Eligibility</h3>
+              <div className="modal-eligibility-cards">
+                <div className={`modal-eligibility-card ${selectedGrade.qualifies_for_basic_allowance ? 'qualified' : 'not-qualified'}`}>
+                  <div className="eligibility-card-icon">
+                    {selectedGrade.qualifies_for_basic_allowance ? '✅' : '❌'}
+                  </div>
+                  <div className="eligibility-card-content">
+                    <h4>Basic Allowance</h4>
+                    <p className="eligibility-requirement">Requires GWA ≤ 2.25 (≥80%)</p>
+                    <span className={`eligibility-result ${selectedGrade.qualifies_for_basic_allowance ? 'qualified' : 'not-qualified'}`}>
+                      {selectedGrade.qualifies_for_basic_allowance ? 'Qualified ✓' : 'Not Qualified'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`modal-eligibility-card ${selectedGrade.qualifies_for_merit_incentive ? 'qualified' : 'not-qualified'}`}>
+                  <div className="eligibility-card-icon">
+                    {selectedGrade.qualifies_for_merit_incentive ? '✅' : '❌'}
+                  </div>
+                  <div className="eligibility-card-content">
+                    <h4>Merit Incentive</h4>
+                    <p className="eligibility-requirement">Requires GWA ≤ 1.75 (≥87%)</p>
+                    <span className={`eligibility-result ${selectedGrade.qualifies_for_merit_incentive ? 'qualified' : 'not-qualified'}`}>
+                      {selectedGrade.qualifies_for_merit_incentive ? 'Qualified ✓' : 'Not Qualified'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submission Info */}
+            <div className="modal-info-section">
+              <div className="modal-info-item">
+                <span className="modal-info-label">Submitted On</span>
+                <span className="modal-info-value">
+                  {new Date(selectedGrade.submitted_at).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="modal-actions">
+              <button className="btn-modal-close" onClick={handleCloseGradeModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

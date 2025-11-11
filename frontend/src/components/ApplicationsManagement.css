@@ -52,11 +52,11 @@
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: white;
+  color: rgb(0, 0, 0);
 }
 
 .header-content p {
-  color: rgb(237, 237, 237);
+  color: rgb(0, 0, 0);
   margin: 0;
   font-size: 1rem;
 }

@@ -184,20 +184,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   Sign In
                 </button>
               </div>
-              <div className="hero-stats">
-                <div className="stat">
-                  <div className="stat-number">5,000+</div>
-                  <div className="stat-label">Active Students</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-number">98%</div>
-                  <div className="stat-label">Satisfaction Rate</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-number">24/7</div>
-                  <div className="stat-label">Support Available</div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -205,7 +191,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
         {/* TCU-CEAA Banner Section */}
         <section className="banner-section animate-section">
           <div className="banner-container">
-            {/* Full TCU-CEAA Banner Image */}
             <img 
               src="/images/TCU-CEAA-IMAGE.jpg" 
               alt="Taguig City University - City Educational Assistance Allowance Program" 
@@ -214,39 +199,21 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </section>
 
-        <section id="about" className="info-section animate-section">
-          <div className="LandingPage-section-header">
+        <section id="about" className="about-section animate-section">
+          <div className="about-content">
             <h3>About CEAA</h3>
-            <p>Financial assistance for TCU students</p>
-          </div>
-          <div className="info-grid">
-            <div className="info-card">
-              <div className="info-icon">
-                <img src="/images/financial-assistance.png" alt="Financial Assistance" />
+            <div className="about-text">
+              <p className="about-intro">
+                The City Educational Assistance Allowance (CEAA) program provides financial support 
+                to qualified Taguig City University students, helping them pursue their academic goals 
+                without financial burden.
+              </p>
+              <div className="about-features">
+                <p><strong>Financial Support</strong> — Get financial help to continue your studies at TCU.</p>
+                <p><strong>Easy Application</strong> — Simple online process to apply for your allowance.</p>
+                <p><strong>Quick Processing</strong> — Fast review of your application and quick approval.</p>
+                <p><strong>Track Status</strong> — Check your application status anytime through your dashboard.</p>
               </div>
-              <h4>Financial Support</h4>
-              <p>Get financial help to continue your studies at TCU.</p>
-            </div>
-            <div className="info-card">
-              <div className="info-icon">
-                <img src="/images/easy-application.png" alt="Easy Application" />
-              </div>
-              <h4>Easy Application</h4>
-              <p>Simple online process to apply for your allowance.</p>
-            </div>
-            <div className="info-card">
-              <div className="info-icon">
-                <img src="/images/quick-processing.png" alt="Quick Processing" />
-              </div>
-              <h4>Quick Processing</h4>
-              <p>Fast review of your application and quick approval.</p>
-            </div>
-            <div className="info-card">
-              <div className="info-icon">
-                <img src="/images/track-status.png" alt="Track Status" />
-              </div>
-              <h4>Track Status</h4>
-              <p>Check your application status anytime through your dashboard.</p>
             </div>
           </div>
         </section>

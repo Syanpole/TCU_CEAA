@@ -238,29 +238,31 @@ html, body {
 .banner-section {
   position: relative;
   width: 100%;
-  height: 650px;
+  max-width: 1400px;
+  height: auto;
   overflow: hidden;
-  margin-bottom: 3rem;
-  border-radius: 0 0 20px 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  align-self: stretch;
+  margin: 0 auto 2rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 0 2rem;
 }
 
 .banner-container {
   position: relative;
   width: 100%;
   height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .banner-image {
   width: 100%;
   height: auto;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
-  filter: brightness(0.8);
+  display: block;
   transition: all 0.3s ease;
-  transform: scale(1);
-  background: #f5f5f5;
+  background: #ffffff;
 }
 
 @media (max-width: 768px) {
@@ -278,8 +280,7 @@ html, body {
 }
 
 .banner-section:hover .banner-image {
-  filter: brightness(0.9);
-  transform: scale(1.02);
+  transform: scale(1.01);
 }
 
 .banner-fallback {
@@ -388,7 +389,7 @@ html, body {
 
 /* Hero Section */
 .hero {
-  min-height: 70vh;
+  min-height: 55vh;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
   display: flex;
   align-items: center;
@@ -398,7 +399,7 @@ html, body {
   align-self: stretch;
   width: 100%;
   text-align: center;
-  padding: 5rem 0;
+  padding: 3rem 0;
 }
 
 .hero::before {
@@ -438,10 +439,10 @@ html, body {
 }
 
 .hero-text h2 {
-  font-size: 3.2rem;
+  font-size: 2.8rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   line-height: 1.15;
   letter-spacing: -0.025em;
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
@@ -451,20 +452,19 @@ html, body {
 }
 
 .hero-text p {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: rgba(241, 245, 249, 0.9);
-  margin-bottom: 2.5rem;
-  line-height: 1.7;
+  margin-bottom: 2rem;
+  line-height: 1.6;
   font-weight: 400;
-  max-width: 700px;
+  max-width: 650px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .hero-buttons {
   display: flex;
-  gap: 1.2rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
 }
@@ -507,57 +507,17 @@ html, body {
   transform: translateY(-2px);
 }
 
-.hero-stats {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.stat {
-  text-align: center;
-  color: white;
-  padding: 1.4rem 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
-  min-width: 140px;
-}
-
-.stat:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 14px -4px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.stat-number {
-  font-size: 1.9rem;
-  font-weight: 800;
-  margin-bottom: 0.5rem;
-  color: #ffffff;
-  display: block;
-  letter-spacing: -0.02em;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  opacity: 0.9;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
 
 
 
-/* Info Section */
-.info-section {
-  padding: 120px 2rem;
+
+/* About Section - Text Only */
+.about-section {
+  padding: 60px 2rem;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   align-self: stretch;
   width: 100%;
-  scroll-margin-top: 100px; /* Account for fixed header */
+  scroll-margin-top: 100px;
 }
 
 .LandingPage-section-header {
@@ -569,7 +529,7 @@ html, body {
 }
 
 .LandingPage-section-header h3 {
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: #0f172a;
   margin-bottom: 1rem;
   font-weight: 700;
@@ -598,71 +558,97 @@ html, body {
   line-height: 1.7;
 }
 
-.info-grid {
-  max-width: 1400px;
+.about-content {
+  max-width: 1200px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  padding: 0 2rem;
 }
 
-.info-card {
-  background: white;
-  padding: 2.5rem 2rem;
-  border-radius: 20px;
-  text-align: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.info-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 8px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  border-color: #cbd5e1;
-}
-
-.info-icon {
-  font-size: 3rem;
-  margin-bottom: 1.5rem;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem auto;
-}
-
-.info-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transition: all 0.25s ease;
-}
-
-.info-card h4 {
-  font-size: 1.4rem;
+.about-content h3 {
+  font-size: 2.5rem;
   color: #0f172a;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  margin-bottom: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-align: center;
+  position: relative;
+  display: inline-block;
+  width: 100%;
 }
 
-.info-card p {
-  color: #64748b;
+.about-content h3::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 4px;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  border-radius: 2px;
+}
+
+.about-text {
+  background: white;
+  padding: 3rem 3.5rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.about-intro {
+  font-size: 1.2rem;
+  color: #1f2937;
+  line-height: 1.9;
+  margin-bottom: 2.5rem;
+  text-align: center;
+  font-weight: 400;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.about-features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.8rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.about-features p {
+  font-size: 1.05rem;
+  color: #374151;
   line-height: 1.7;
   margin: 0;
-  font-weight: 400;
-  font-size: 0.95rem;
+  padding-left: 1.8rem;
+  position: relative;
+  text-align: left;
+}
+
+.about-features p::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  width: 5px;
+  height: 1.3rem;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  border-radius: 3px;
+}
+
+.about-features strong {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 /* Features Section */
 .features-section {
-  padding: 80px 2rem;
+  padding: 60px 2rem;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   align-self: stretch;
   width: 100%;
-  scroll-margin-top: 100px; /* Account for fixed header */
+  scroll-margin-top: 100px;
 }
 
 .features-grid {
@@ -723,12 +709,12 @@ html, body {
 
 /* Process Section */
 .landing-process-section {
-  padding: 80px 2rem;
+  padding: 60px 2rem;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   position: relative;
   align-self: stretch;
   width: 100%;
-  scroll-margin-top: 100px; /* Account for fixed header */
+  scroll-margin-top: 100px;
 }
 
 .landing-process-section::before {
@@ -854,7 +840,7 @@ html, body {
 
 /* CTA Section */
 .cta-section {
-  padding: 80px 2rem;
+  padding: 60px 2rem;
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   text-align: center;
   position: relative;
@@ -1240,55 +1226,27 @@ html, body {
   }
   
   .banner-section {
-    height: 280px;
-    border-radius: 0 0 12px 12px;
+    padding: 0 1rem;
     margin-bottom: 1.5rem;
   }
   
-  .banner-content {
-    padding: 1rem;
-    backdrop-filter: blur(6px);
-  }
-  
-  .banner-content h2 {
-    font-size: 1.8rem;
-    margin-bottom: 0.6rem;
-  }
-  
-  .banner-content p {
-    font-size: 0.9rem;
+  .banner-container {
+    border-radius: 12px;
   }
   
   .hero {
-    min-height: 50vh;
+    min-height: 45vh;
     padding: 2rem 0;
   }
   
   .hero-text h2 {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
     line-height: 1.15;
   }
   
   .hero-text p {
-    font-size: 0.9rem;
+    font-size: 1rem;
     margin-bottom: 1.5rem;
-  }
-  
-  .hero-stats {
-    gap: 0.75rem;
-  }
-  
-  .stat {
-    min-width: 95px;
-    padding: 0.75rem 0.6rem;
-  }
-  
-  .stat-number {
-    font-size: 1.4rem;
-  }
-  
-  .stat-label {
-    font-size: 0.75rem;
   }
   
   .hero-buttons {
@@ -1296,42 +1254,46 @@ html, body {
     align-items: stretch;
     width: 100%;
     max-width: 350px;
-    margin: 0 auto 1.5rem;
+    margin: 0 auto;
   }
   
   .cta-primary, .cta-secondary {
     width: 100%;
     justify-content: center;
     padding: 0.85rem 1.4rem;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
   
-  .info-section {
+  .about-section {
     padding: 40px 1rem;
   }
   
-  .info-grid {
+  .about-content {
+    padding: 0 1rem;
+  }
+  
+  .about-content h3 {
+    font-size: 2rem;
+    margin-bottom: 1.8rem;
+  }
+  
+  .about-text {
+    padding: 2rem 1.5rem;
+  }
+  
+  .about-intro {
+    font-size: 1.05rem;
+    margin-bottom: 1.8rem;
+  }
+  
+  .about-features {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 1.2rem;
   }
   
-  .info-card {
-    padding: 1.5rem 1.2rem;
-  }
-  
-  .info-card h4 {
-    font-size: 1.15rem;
-    margin-bottom: 0.75rem;
-  }
-  
-  .info-card p {
-    font-size: 0.85rem;
-  }
-  
-  .info-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 1rem;
+  .about-features p {
+    font-size: 1rem;
+    padding-left: 1.4rem;
   }
   
   .landing-process-steps {
@@ -1504,23 +1466,12 @@ html, body {
   }
   
   .banner-section {
-    height: 220px;
+    padding: 0 0.75rem;
     margin-bottom: 1rem;
-    border-radius: 0 0 10px 10px;
   }
   
-  .banner-content {
-    padding: 0.75rem;
-  }
-  
-  .banner-content h2 {
-    font-size: 1.4rem;
-    margin-bottom: 0.5rem;
-    line-height: 1.15;
-  }
-  
-  .banner-content p {
-    font-size: 0.8rem;
+  .banner-container {
+    border-radius: 10px;
   }
   
   .hero {
@@ -1575,7 +1526,7 @@ html, body {
     font-size: 0.7rem;
   }
   
-  .info-section,
+  .about-section,
   .features-section,
   .landing-process-section,
   .cta-section {
@@ -1587,7 +1538,7 @@ html, body {
   }
 
   .LandingPage-section-header h3 {
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     margin-bottom: 0.6rem;
   }
   
@@ -1598,42 +1549,52 @@ html, body {
   }
   
   .LandingPage-section-header p {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
   
   .cta-content h3 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     line-height: 1.25;
     margin-bottom: 0.6rem;
   }
   
   .cta-content p {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     margin-bottom: 1.5rem;
   }
   
-  .info-grid {
-    gap: 0.85rem;
+  .about-content {
+    padding: 0 0.75rem;
   }
   
-  .info-card {
-    padding: 1.4rem 1.1rem;
+  .about-content h3 {
+    font-size: 1.7rem;
+    margin-bottom: 1.5rem;
   }
   
-  .info-icon {
-    width: 42px;
-    height: 42px;
-    margin-bottom: 0.85rem;
+  .about-text {
+    padding: 1.8rem 1.4rem;
   }
   
-  .info-card h4 {
-    font-size: 1.05rem;
-    margin-bottom: 0.6rem;
+  .about-intro {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
   }
   
-  .info-card p {
-    font-size: 0.8rem;
-    line-height: 1.5;
+  .about-features {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .about-features p {
+    font-size: 0.95rem;
+    padding-left: 1.2rem;
+  }
+  
+  .about-features p::before {
+    height: 1.1rem;
+    top: 0.45rem;
+    width: 4px;
   }
   
   .feature-category { 
