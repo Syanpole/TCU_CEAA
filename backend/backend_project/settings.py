@@ -186,6 +186,32 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 # Email sending timeout (in seconds)
 EMAIL_TIMEOUT = 30
 
+# ============================================================================
+# CLOUD STORAGE CONFIGURATION (Amazon S3)
+# ============================================================================
+USE_CLOUD_STORAGE = os.environ.get('USE_CLOUD_STORAGE', 'False') == 'True'
+
+if USE_CLOUD_STORAGE:
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')
+    AWS_S3_FILE_OVERWRITE = os.environ.get('AWS_S3_FILE_OVERWRITE', 'False') == 'True'
+    AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL', 'private')
+    
+    # Use S3 for media files
+    DEFAULT_FILE_STORAGE = 'myapp.storage_backends.MediaStorage'
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
+
+# ============================================================================
+# ADVANCED OCR CONFIGURATION (AWS Textract)
+# ============================================================================
+USE_ADVANCED_OCR = os.environ.get('USE_ADVANCED_OCR', 'False') == 'True'
+ADVANCED_OCR_REGION = os.environ.get('ADVANCED_OCR_REGION', 'us-east-1')
+OCR_CONFIDENCE_THRESHOLD = int(os.environ.get('OCR_CONFIDENCE_THRESHOLD', '80'))
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
