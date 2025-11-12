@@ -36,6 +36,11 @@ ENV/
 env/
 .env
 
+# Kubernetes Secrets (NEVER commit real secrets!)
+k8s/**/01-secrets.yaml
+k8s/**/secrets.yaml
+**/secrets-local.yaml
+
 # Node.js
 node_modules/
 npm-debug.log*

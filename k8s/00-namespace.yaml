@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tcu-ceaa
+  labels:
+    name: tcu-ceaa
+    environment: production

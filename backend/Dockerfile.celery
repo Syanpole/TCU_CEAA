@@ -1,0 +1,56 @@
+# Celery Worker Dockerfile for ML/Vision Tasks
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    C_FORCE_ROOT=true
+
+# Install system dependencies for ML/Vision tasks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    tesseract-ocr \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies including ML libraries
+COPY requirements.txt .
+# Install base requirements first
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir celery[redis] psycopg2-binary
+
+# Install CPU-only PyTorch and ML dependencies (no CUDA = 80% smaller!)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch>=2.0.0 torchvision>=0.15.0 \
+    && pip install --no-cache-dir opencv-python-headless>=4.8.0 easyocr>=1.7.0 \
+    imagehash>=4.3.1 pdf2image>=1.16.3 scikit-image>=0.21.0 \
+    fuzzywuzzy>=0.18.0 pyzbar>=0.1.9 qrcode>=7.4.2
+
+# Copy project files
+COPY . .
+
+# Download YOLOv8 models if not present
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" || true
+
+# Run as non-root user
+RUN useradd -m -u 1000 celeryuser && \
+    chown -R celeryuser:celeryuser /app
+USER celeryuser
+
+# Health check for Celery worker
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD celery -A backend_project inspect ping -d celery@$HOSTNAME || exit 1
+
+# Run Celery worker
+CMD ["celery", "-A", "backend_project", "worker", "--loglevel=info", "--concurrency=2", "--max-tasks-per-child=50"]
