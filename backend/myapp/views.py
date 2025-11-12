@@ -126,30 +126,30 @@ def register_view(request):
                 verified_student.save()
             except VerifiedStudent.DoesNotExist:
                 pass
-        
-        # Log user registration
-        audit_logger.log_user_registration(user, request)
-        
-        # Log successful registration with verified email
-        audit_logger.log(
-            user=user,
-            action_type='user_registered',
-            action_description=f'User registered successfully with verified email: {user.email}',
-            severity='info',
-            metadata={
-                'email': user.email,
-                'username': user.username,
-                'email_verified': True
-            },
-            request=request
-        )
-        
+            
+            # Log user registration
+            audit_logger.log_user_registration(user, request)
+            
+            # Log successful registration with verified email
+            audit_logger.log(
+                user=user,
+                action_type='user_registered',
+                action_description=f'User registered successfully with verified email: {user.email}',
+                severity='info',
+                metadata={
+                    'email': user.email,
+                    'username': user.username,
+                    'email_verified': True
+                },
+                request=request
+            )
+            
         return Response({
             'token': token.key,
             'user': UserSerializer(user, context={'request': request}).data,
             'message': 'Registration successful! Your email has been verified.'
         }, status=status.HTTP_201_CREATED)
-    
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -385,26 +385,29 @@ def resend_verification_code_view(request):
 @permission_classes([AllowAny])
 def verify_student_view(request):
     """
-    Verify student information against verified student database before registration.
-    Only requires Student ID number for verification.
+    Verify student against verified student database before registration.
+    ONLY verifies Student Number - name verification is optional/informational.
     
     Expected payload:
     {
-        "student_id": "22-00001"
+        "student_id": "22-00001",
+        "first_name": "Vennee Jones",  // Optional - not used for verification
+        "last_name": "Abaigar",        // Optional - not used for verification
+        "middle_initial": "R"           // Optional - not used for verification
     }
     
     Returns student information if verified.
     """
     student_id = request.data.get('student_id', '').strip()
     
-    # Validate required field
+    # Validate required field (only Student ID is required)
     if not student_id:
         return Response({
             'verified': False,
             'message': 'Student ID is required.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Look up verified student in database
+    # Look up verified student in database BY STUDENT ID ONLY
     try:
         verified_student = VerifiedStudent.objects.get(
             student_id=student_id.upper(),
@@ -413,7 +416,7 @@ def verify_student_view(request):
     except VerifiedStudent.DoesNotExist:
         return Response({
             'verified': False,
-            'message': 'Student ID not found in verified records. Please ensure you are using your correct TCU Student ID.'
+            'message': 'Student ID not found in verified records. Please check your Student Number and try again.'
         }, status=status.HTTP_403_FORBIDDEN)
     
     # Check if student has already registered
@@ -423,18 +426,19 @@ def verify_student_view(request):
             'message': 'This student has already registered. Please contact the administrator if you need assistance.'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    # Student is verified - return their information
+    # SUCCESS - Student ID found and student hasn't registered yet
+    # Return student information from database for auto-fill (optional)
     result = {
         'verified': True,
-        'message': 'Student verified successfully!',
+        'message': 'Student ID verified successfully! You may now complete your registration.',
         'student_data': {
             'student_id': verified_student.student_id,
             'first_name': verified_student.first_name,
             'last_name': verified_student.last_name,
             'middle_initial': verified_student.middle_initial,
-            'sex': verified_student.sex,
             'course': verified_student.course,
-            'year_level': verified_student.year_level
+            'year_level': verified_student.year_level,
+            'sex': verified_student.sex
         }
     }
     
@@ -596,124 +600,8 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
         document.reviewed_by = request.user
         document.save()
         
-        # Create audit log
-        AuditLog.objects.create(
-            user=request.user,
-            action_type='document_review',
-            description=f'Admin reviewed document: {document.get_document_type_display()} - Status: {new_status}',
-            details={
-                'document_id': document.id,
-                'student_id': document.student.student_id,
-                'document_type': document.document_type,
-                'new_status': new_status,
-                'admin_notes': admin_notes
-            },
-            ip_address=request.META.get('REMOTE_ADDR', ''),
-            user_agent=request.META.get('HTTP_USER_AGENT', '')
-        )
-        
         serializer = self.get_serializer(document)
         return Response(serializer.data)
-    
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
-    def ai_details(self, request, pk=None):
-        """Get detailed AI analysis results for admin review"""
-        if not request.user.is_admin():
-            return Response({'error': 'Only admins can view AI details'}, status=status.HTTP_403_FORBIDDEN)
-        
-        document = self.get_object()
-        
-        # Extract detailed information from AI analysis
-        ai_info = document.ai_key_information if document.ai_key_information else {}
-        
-        return Response({
-            'document_id': document.id,
-            'student': {
-                'name': document.student.get_full_name(),
-                'student_id': document.student.student_id,
-                'email': document.student.email
-            },
-            'document_type': document.document_type,
-            'document_type_display': document.get_document_type_display(),
-            'status': document.status,
-            'submitted_at': document.submitted_at,
-            'ai_analysis': {
-                'completed': document.ai_analysis_completed,
-                'confidence_score': document.ai_confidence_score,
-                'auto_approved': document.ai_auto_approved,
-                'analysis_notes': document.ai_analysis_notes,
-                'algorithms_results': ai_info.get('algorithms_results', {}),
-                'overall_analysis': ai_info.get('overall_analysis', {}),
-                'extracted_text': document.ai_extracted_text,
-                'recommendations': document.ai_recommendations
-            },
-            'review_info': {
-                'reviewed_at': document.reviewed_at,
-                'reviewed_by': document.reviewed_by.get_full_name() if document.reviewed_by else None,
-                'admin_notes': document.admin_notes
-            }
-        })
-    
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def reanalyze(self, request, pk=None):
-        """Trigger manual re-analysis of document by admin"""
-        if not request.user.is_admin():
-            return Response({'error': 'Only admins can trigger re-analysis'}, status=status.HTTP_403_FORBIDDEN)
-        
-        document = self.get_object()
-        
-        # Set status to processing
-        document.status = 'ai_processing'
-        document.save()
-        
-        # Trigger AI analysis
-        try:
-            from django.test import RequestFactory
-            factory = RequestFactory()
-            
-            # Create a mock request for ai_document_analysis
-            mock_request = factory.post('/api/ai/analyze-document/')
-            mock_request.user = document.student
-            mock_request.data = {'document_id': document.id}
-            mock_request.META = request.META
-            
-            # Import and call the AI analysis function
-            from myapp.views import ai_document_analysis
-            result = ai_document_analysis(mock_request)
-            
-            # Create audit log
-            AuditLog.objects.create(
-                user=request.user,
-                action_type='document_reanalysis',
-                description=f'Admin triggered re-analysis for document: {document.get_document_type_display()}',
-                details={
-                    'document_id': document.id,
-                    'student_id': document.student.student_id,
-                    'document_type': document.document_type
-                },
-                ip_address=request.META.get('REMOTE_ADDR', ''),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')
-            )
-            
-            # Refresh document from database
-            document.refresh_from_db()
-            serializer = self.get_serializer(document)
-            
-            return Response({
-                'success': True,
-                'message': 'Document re-analyzed successfully',
-                'document': serializer.data,
-                'new_confidence': document.ai_confidence_score,
-                'new_status': document.status
-            })
-            
-        except Exception as e:
-            document.status = 'pending'
-            document.save()
-            return Response({
-                'success': False,
-                'error': f'Re-analysis failed: {str(e)}'
-            }, status=500)
 
 class GradeSubmissionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -1239,6 +1127,24 @@ def send_verification_code(request):
     
     # Rate limiting: Check if user has requested too many codes recently
     from datetime import timedelta
+    
+    # Prevent duplicate sends within 30 seconds (catches double-clicks and frontend issues)
+    very_recent_code = EmailVerificationCode.objects.filter(
+        email=email,
+        created_at__gte=timezone.now() - timedelta(seconds=30)
+    ).first()
+    
+    if very_recent_code:
+        logger.info(f"Duplicate verification code request blocked for {email} (within 30 seconds)")
+        # Return success so frontend doesn't think it failed, but don't send duplicate email
+        return Response({
+            'success': True,
+            'message': 'Verification code already sent! Please check your email inbox.',
+            'email': email,
+            'debug': 'Duplicate request prevented - code already sent within 30 seconds' if settings.DEBUG else None
+        }, status=status.HTTP_200_OK)
+    
+    # Check for rate limiting abuse (max 3 codes per 5 minutes)
     recent_codes = EmailVerificationCode.objects.filter(
         email=email,
         created_at__gte=timezone.now() - timedelta(minutes=5)
@@ -1267,6 +1173,7 @@ def send_verification_code(request):
         
         # For security: DO NOT return the actual code to frontend
         return Response({
+            'success': True,
             'message': 'Verification code sent to your email! Please check your inbox.',
             'email': email,
             'expires_in_minutes': 10,
@@ -1342,6 +1249,7 @@ def verify_email_code(request):
         logger.info(f"Email verified successfully for {email}")
         
         return Response({
+            'success': True,
             'message': 'Email verified successfully! You can now complete your registration.',
             'email': email,
             'verified': True
@@ -1400,6 +1308,7 @@ def resend_verification_code(request):
         
         # For security: DO NOT return the actual code to frontend
         return Response({
+            'success': True,
             'message': 'New verification code sent to your email! Please check your inbox.',
             'email': email,
             'expires_in_minutes': 10,
@@ -1444,121 +1353,6 @@ def ai_document_analysis(request):
         document.status = 'ai_processing'
         document.save()
         
-        # ============================================================================
-        # 🆕 SPECIALIZED DOCUMENT VERIFICATION ROUTING
-        # Route to appropriate specialized service based on document type
-        # ============================================================================
-        
-        # Check if document is COE (Certificate of Enrollment)
-        if document.document_type == 'certificate_of_enrollment':
-            from myapp.coe_verification_service import get_coe_verification_service
-            
-            coe_service = get_coe_verification_service()
-            coe_result = coe_service.verify_coe_document(
-                image_path=document.document_file.path,
-                confidence_threshold=0.5,
-                include_ocr=True
-            )
-            
-            # Format response for COE verification
-            ai_results = {
-                'document_id': document_id,
-                'document_type': 'certificate_of_enrollment',
-                'processing_timestamp': timezone.now().isoformat(),
-                'service_used': 'COE Verification Service (YOLO + Advanced OCR + Intelligent Interpreter)',
-                'verification_result': coe_result,
-                'algorithms_results': {
-                    'coe_yolo_detection': {
-                        'name': 'YOLOv8 COE Element Detection',
-                        'confidence': coe_result.get('confidence', 0.0),
-                        'status': coe_result.get('status', 'UNKNOWN'),
-                        'detected_elements': coe_result.get('detected_elements', {}),
-                        'validation_checks': coe_result.get('validation_checks', {})
-                    },
-                    'advanced_ocr': {
-                        'name': 'Advanced OCR + Intelligent Interpreter',
-                        'confidence': coe_result.get('ocr_data', {}).get('ocr_confidence', 0.0) if coe_result.get('ocr_data') else 0.0,
-                        'extracted_info': coe_result.get('extracted_info', {}),
-                        'fields_extracted': sum(1 for v in coe_result.get('extracted_info', {}).values() if v is not None)
-                    }
-                }
-            }
-            
-            # Update document status based on COE verification
-            if coe_result.get('is_valid'):
-                document.status = 'verified'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
-            else:
-                document.status = 'needs_review'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
-            
-            document.save()
-            
-            return Response({
-                'success': True,
-                'message': f'COE verification completed: {coe_result.get("status")}',
-                'ai_analysis': ai_results
-            })
-        
-        # Check if document is ID (Student ID or Government ID)
-        elif document.document_type in ['student_id', 'government_id', 'school_id']:
-            from myapp.id_verification_service import get_id_verification_service
-            
-            id_service = get_id_verification_service()
-            
-            id_result = id_service.verify_id_card(
-                image_path=document.document_file.path,
-                document_type=document.document_type,
-                user=request.user
-            )
-            
-            # Format response for ID verification
-            ai_results = {
-                'document_id': document_id,
-                'document_type': document.document_type,
-                'processing_timestamp': timezone.now().isoformat(),
-                'service_used': 'ID Verification Service (YOLO + Advanced OCR + Identity Matching)',
-                'verification_result': id_result,
-                'algorithms_results': {
-                    'id_yolo_detection': {
-                        'name': 'YOLOv8 ID Element Detection',
-                        'confidence': id_result.get('yolo_confidence', 0.0),
-                        'detected_elements': id_result.get('detected_elements', {})
-                    },
-                    'advanced_ocr': {
-                        'name': 'Advanced OCR',
-                        'confidence': id_result.get('ocr_confidence', 0.0),
-                        'extracted_text': id_result.get('extracted_text', '')
-                    },
-                    'identity_matching': {
-                        'name': 'Identity Verification (Fuzzy Matching)',
-                        'confidence': id_result.get('identity_match_score', 0.0),
-                        'name_match': id_result.get('name_match', False),
-                        'id_match': id_result.get('id_match', False)
-                    }
-                }
-            }
-            
-            # Update document status based on ID verification
-            if id_result.get('is_valid'):
-                document.status = 'verified'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
-            else:
-                document.status = 'needs_review'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
-            
-            document.save()
-            
-            return Response({
-                'success': True,
-                'message': f'ID verification completed: {id_result.get("status", "VERIFIED" if id_result.get("is_valid") else "NEEDS REVIEW")}',
-                'ai_analysis': ai_results
-            })
-        
-        # ============================================================================
-        # FALLBACK: Use legacy document validator for other document types
-        # ============================================================================
-        
         # Import AI services
         from ai_verification.enhanced_document_validator import EnhancedDocumentValidator
         
@@ -1568,9 +1362,7 @@ def ai_document_analysis(request):
         # Run comprehensive AI analysis
         ai_results = {
             'document_id': document_id,
-            'document_type': document.document_type,
             'processing_timestamp': timezone.now().isoformat(),
-            'service_used': 'Legacy Enhanced Document Validator',
             'algorithms_results': {}
         }
         
@@ -1699,93 +1491,17 @@ def ai_document_analysis(request):
                 'confidence': 0.0
             }
         
-        # 7. ID Verification 
-        if document.document_type in ['school_id', 'government_id', 'birth_certificate']:
-            try:
-                from myapp.id_verification_service import IDVerificationService
-                id_service = IDVerificationService()
-                id_result = id_service.verify_id_card(
-                    document.document_file.path,
-                    document.document_type,
-                    user=request.user  # Pass user for identity verification
-                )
-                ai_results['algorithms_results']['id_verification'] = {
-                    'name': 'ID Verification (YOLO + Textract + Identity Match)',
-                    'confidence': id_result.get('confidence', 0.0),
-                    'status': id_result.get('status', 'INVALID'),
-                    'is_valid': id_result.get('is_valid', False),
-                    'identity_verified': id_result.get('identity_verification', {}).get('match', False) if 'identity_verification' in id_result else None,
-                    'extracted_fields': id_result.get('extracted_fields', {}),
-                    'checks_passed': id_result.get('checks_passed', 0),
-                    'total_checks': len(id_result.get('validation_checks', {})),
-                    'yolo_detected': id_result.get('yolo_detection', {}).get('id_detected', False),
-                    'ocr_confidence': id_result.get('ocr_extraction', {}).get('confidence', 0),
-                    'recommendations': id_result.get('recommendations', [])
-                }
-                
-                # If identity doesn't match, mark as fraud
-                if 'identity_verification' in id_result:
-                    identity_match = id_result['identity_verification'].get('match', False)
-                    if not identity_match:
-                        ai_results['algorithms_results']['id_verification']['fraud_detected'] = True
-                        ai_results['algorithms_results']['id_verification']['fraud_reason'] = id_result['identity_verification'].get('message', 'Identity mismatch')
-                        
-            except Exception as e:
-                ai_results['algorithms_results']['id_verification'] = {
-                    'name': 'ID Verification (YOLO + Textract + Identity Match)',
-                    'error': str(e),
-                    'confidence': 0.0
-                }
-        
-        # 8. COE Verification (Certificate of Enrollment Detection)
-        if document.document_type in ['certificate_of_enrollment', 'enrollment_certificate']:
-            try:
-                from myapp.coe_verification_service import get_coe_verification_service
-                coe_service = get_coe_verification_service()
-                coe_result = coe_service.verify_coe_document(
-                    document.document_file.path,
-                    confidence_threshold=0.5
-                )
-                ai_results['algorithms_results']['coe_verification'] = {
-                    'name': 'COE Verification (YOLO Element Detection)',
-                    'confidence': coe_result.get('confidence', 0.0),
-                    'status': coe_result.get('status', 'INVALID'),
-                    'is_valid': coe_result.get('is_valid', False),
-                    'detected_elements': coe_result.get('detected_elements', {}),
-                    'detections_count': len(coe_result.get('detections', [])),
-                    'validation_checks': coe_result.get('validation_checks', {}),
-                    'checks_passed': sum(1 for v in coe_result.get('validation_checks', {}).values() if v),
-                    'total_checks': len(coe_result.get('validation_checks', {})),
-                    'recommendations': coe_result.get('recommendations', [])
-                }
-                
-                # Log key detections
-                detected_elements = coe_result.get('detected_elements', {})
-                logger.info(f"📋 COE Elements Detected:")
-                for element, data in detected_elements.items():
-                    if data.get('present'):
-                        logger.info(f"   ✅ {element}: {data.get('confidence', 0):.2%}")
-                
-            except Exception as e:
-                ai_results['algorithms_results']['coe_verification'] = {
-                    'name': 'COE Verification (YOLO Element Detection)',
-                    'error': str(e),
-                    'confidence': 0.0
-                }
-        
-        # 9. AI Verification Manager - Orchestrates with Weighted Scoring
+        # 7. AI Verification Manager - Orchestrates with Weighted Scoring
         try:
             overall_confidence = 0.0
             total_weight = 0.0
             algorithm_weights = {
-                'document_validator': 0.12,
-                'cross_document_matcher': 0.08,
-                'grade_verifier': 0.10,
-                'face_verifier': 0.08,
-                'fraud_detector': 0.12,
-                'ai_generated_detector': 0.12,
-                'id_verification': 0.23,      # High weight for ID verification with identity matching
-                'coe_verification': 0.15      # Significant weight for COE element detection
+                'document_validator': 0.20,
+                'cross_document_matcher': 0.15,
+                'grade_verifier': 0.15,
+                'face_verifier': 0.15,
+                'fraud_detector': 0.15,
+                'ai_generated_detector': 0.20  # High weight for AI detection
             }
             
             for alg_name, weight in algorithm_weights.items():
@@ -2012,215 +1728,6 @@ def ai_batch_process(request):
     except Exception as e:
         return Response({
             'error': f'Batch processing failed: {str(e)}',
-            'success': False
-        }, status=500)
-
-
-# ==================== ADMIN DOCUMENT MANAGEMENT ====================
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def admin_document_dashboard(request):
-    """
-    📊 Admin Document Management Dashboard
-    Comprehensive view of all document submissions with filtering and statistics
-    """
-    if not request.user.is_admin():
-        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
-    
-    try:
-        from django.db.models import Q, Count, Avg
-        
-        # Get filter parameters
-        status_filter = request.GET.get('status', None)
-        document_type = request.GET.get('document_type', None)
-        student_id = request.GET.get('student_id', None)
-        date_from = request.GET.get('date_from', None)
-        date_to = request.GET.get('date_to', None)
-        ai_analyzed = request.GET.get('ai_analyzed', None)
-        
-        # Base queryset
-        queryset = DocumentSubmission.objects.all()
-        
-        # Apply filters
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        if document_type:
-            queryset = queryset.filter(document_type=document_type)
-        if student_id:
-            queryset = queryset.filter(student__student_id__icontains=student_id)
-        if date_from:
-            queryset = queryset.filter(submitted_at__gte=date_from)
-        if date_to:
-            queryset = queryset.filter(submitted_at__lte=date_to)
-        if ai_analyzed is not None:
-            queryset = queryset.filter(ai_analysis_completed=ai_analyzed == 'true')
-        
-        # Statistics
-        total_documents = queryset.count()
-        status_breakdown = queryset.values('status').annotate(count=Count('id'))
-        document_type_breakdown = queryset.values('document_type').annotate(count=Count('id'))
-        
-        # AI Analysis Statistics
-        ai_stats = {
-            'total_analyzed': queryset.filter(ai_analysis_completed=True).count(),
-            'auto_approved': queryset.filter(ai_auto_approved=True).count(),
-            'avg_confidence': queryset.filter(ai_analysis_completed=True).aggregate(
-                avg=Avg('ai_confidence_score')
-            )['avg'] or 0.0,
-            'high_confidence': queryset.filter(ai_confidence_score__gte=0.80).count(),
-            'medium_confidence': queryset.filter(
-                ai_confidence_score__gte=0.50, 
-                ai_confidence_score__lt=0.80
-            ).count(),
-            'low_confidence': queryset.filter(
-                ai_confidence_score__lt=0.50,
-                ai_confidence_score__gt=0
-            ).count()
-        }
-        
-        # COE Verification Statistics
-        coe_documents = queryset.filter(
-            document_type__in=['certificate_of_enrollment', 'enrollment_certificate'],
-            ai_analysis_completed=True
-        )
-        coe_stats = {
-            'total': coe_documents.count(),
-            'valid': 0,
-            'invalid': 0,
-            'avg_confidence': 0.0
-        }
-        
-        for doc in coe_documents:
-            if doc.ai_key_information and 'algorithms_results' in doc.ai_key_information:
-                coe_result = doc.ai_key_information['algorithms_results'].get('coe_verification', {})
-                if coe_result.get('is_valid'):
-                    coe_stats['valid'] += 1
-                else:
-                    coe_stats['invalid'] += 1
-        
-        if coe_documents.count() > 0:
-            coe_stats['avg_confidence'] = coe_documents.aggregate(
-                avg=Avg('ai_confidence_score')
-            )['avg'] or 0.0
-        
-        # ID Verification Statistics
-        id_documents = queryset.filter(
-            Q(document_type__in=['school_id', 'birth_certificate']) |
-            Q(document_type__icontains='id'),
-            ai_analysis_completed=True
-        )
-        id_stats = {
-            'total': id_documents.count(),
-            'identity_verified': 0,
-            'identity_failed': 0,
-            'avg_confidence': 0.0
-        }
-        
-        for doc in id_documents:
-            if doc.ai_key_information and 'algorithms_results' in doc.ai_key_information:
-                id_result = doc.ai_key_information['algorithms_results'].get('id_verification', {})
-                if id_result.get('identity_verified'):
-                    id_stats['identity_verified'] += 1
-                elif id_result.get('identity_verified') == False:
-                    id_stats['identity_failed'] += 1
-        
-        if id_documents.count() > 0:
-            id_stats['avg_confidence'] = id_documents.aggregate(
-                avg=Avg('ai_confidence_score')
-            )['avg'] or 0.0
-        
-        # Recent documents (last 20)
-        recent_documents = queryset.order_by('-submitted_at')[:20]
-        recent_docs_data = []
-        
-        for doc in recent_documents:
-            # Extract key AI results
-            ai_summary = {}
-            if doc.ai_key_information and 'algorithms_results' in doc.ai_key_information:
-                algorithms = doc.ai_key_information['algorithms_results']
-                
-                # COE specific info
-                if 'coe_verification' in algorithms:
-                    coe = algorithms['coe_verification']
-                    ai_summary['coe'] = {
-                        'status': coe.get('status'),
-                        'confidence': coe.get('confidence'),
-                        'elements_detected': coe.get('detected_elements', {}),
-                        'checks_passed': coe.get('checks_passed', 0)
-                    }
-                
-                # ID verification specific info
-                if 'id_verification' in algorithms:
-                    id_ver = algorithms['id_verification']
-                    ai_summary['id_verification'] = {
-                        'status': id_ver.get('status'),
-                        'confidence': id_ver.get('confidence'),
-                        'identity_verified': id_ver.get('identity_verified'),
-                        'checks_passed': id_ver.get('checks_passed', 0)
-                    }
-            
-            recent_docs_data.append({
-                'id': doc.id,
-                'student_name': doc.student.get_full_name(),
-                'student_id': doc.student.student_id,
-                'document_type': doc.document_type,
-                'document_type_display': doc.get_document_type_display(),
-                'status': doc.status,
-                'status_display': doc.get_status_display(),
-                'submitted_at': doc.submitted_at,
-                'ai_confidence': doc.ai_confidence_score,
-                'ai_auto_approved': doc.ai_auto_approved,
-                'ai_summary': ai_summary,
-                'reviewed_by': doc.reviewed_by.get_full_name() if doc.reviewed_by else None,
-                'reviewed_at': doc.reviewed_at
-            })
-        
-        # Documents requiring attention (low confidence or pending manual review)
-        attention_needed = queryset.filter(
-            Q(status='pending') |
-            Q(status='revision_needed') |
-            (Q(ai_confidence_score__lt=0.50) & Q(ai_confidence_score__gt=0))
-        ).order_by('submitted_at')[:10]
-        
-        attention_docs = []
-        for doc in attention_needed:
-            attention_docs.append({
-                'id': doc.id,
-                'student_name': doc.student.get_full_name(),
-                'student_id': doc.student.student_id,
-                'document_type_display': doc.get_document_type_display(),
-                'status': doc.status,
-                'ai_confidence': doc.ai_confidence_score,
-                'submitted_at': doc.submitted_at,
-                'reason': 'Low AI Confidence' if doc.ai_confidence_score < 0.50 else 'Pending Review'
-            })
-        
-        return Response({
-            'success': True,
-            'summary': {
-                'total_documents': total_documents,
-                'status_breakdown': list(status_breakdown),
-                'document_types': list(document_type_breakdown)
-            },
-            'ai_statistics': ai_stats,
-            'coe_statistics': coe_stats,
-            'id_verification_statistics': id_stats,
-            'recent_documents': recent_docs_data,
-            'attention_needed': attention_docs,
-            'filters_applied': {
-                'status': status_filter,
-                'document_type': document_type,
-                'student_id': student_id,
-                'date_from': date_from,
-                'date_to': date_to,
-                'ai_analyzed': ai_analyzed
-            }
-        })
-        
-    except Exception as e:
-        return Response({
-            'error': f'Failed to fetch dashboard data: {str(e)}',
             'success': False
         }, status=500)
 
