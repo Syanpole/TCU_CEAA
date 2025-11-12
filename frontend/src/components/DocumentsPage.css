@@ -929,8 +929,91 @@
   }
 }
 
+@media (max-width: 768px) {
+  .dp-modal-overlay {
+    padding: 0.5rem;
+    padding-top: 70px;
+    align-items: flex-start;
+  }
+
+  .dp-modal-container {
+    max-height: calc(100vh - 80px);
+    max-width: calc(100% - 1rem);
+    width: 100%;
+  }
+
+  .dp-modal-header {
+    padding: 1.25rem 1rem;
+  }
+
+  .dp-modal-content {
+    padding: 1.25rem 1rem;
+  }
+
+  .dp-modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .dp-modal-footer button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 480px) {
   .dp-documents-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Document Modal - Full Screen on Mobile */
+  .dp-modal-overlay {
+    padding: 0;
+    padding-top: 60px;
+  }
+
+  .dp-modal-container {
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  .dp-modal-header {
+    padding: 1rem 0.875rem;
+  }
+
+  .dp-modal-title {
+    font-size: 1.125rem;
+  }
+
+  .dp-modal-close {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .dp-modal-content {
+    padding: 1rem 0.875rem;
+  }
+
+  .dp-modal-footer {
+    padding: 0.875rem;
+  }
+
+  /* Document upload form within modal */
+  .dp-upload-form input,
+  .dp-upload-form select,
+  .dp-upload-form textarea {
+    font-size: 16px; /* Prevents iOS zoom */
+    padding: 12px;
+  }
+
+  .dp-upload-form button {
+    padding: 12px 20px;
+    font-size: 16px;
   }
 }
