@@ -1456,31 +1456,139 @@
 }
 
 /* Responsive for Delete Modal */
+@media (max-width: 768px) {
+  /* Upload Modal - Tablet */
+  .upload-modal-overlay {
+    padding: 0.5rem;
+    padding-top: 70px;
+    align-items: flex-start;
+  }
+
+  .upload-modal {
+    max-width: calc(100% - 1rem);
+    max-height: calc(100vh - 80px);
+  }
+
+  /* AI Analysis Modal - Tablet */
+  .doc-modal-overlay {
+    padding: 0.5rem;
+    padding-top: 70px;
+    align-items: flex-start;
+  }
+
+  .doc-modal-modern {
+    max-width: calc(100% - 1rem);
+    max-height: calc(100vh - 80px);
+  }
+}
+
 @media (max-width: 480px) {
+  /* Upload Modal - Full Screen on Mobile */
+  .upload-modal-overlay {
+    padding: 0;
+    padding-top: 60px;
+  }
+
+  .upload-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  .modal-header {
+    padding: 1rem 0.875rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .close-modal-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .modal-body {
+    padding: 1rem 0.875rem;
+  }
+
+  .modal-footer {
+    padding: 0.875rem;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .modal-footer button {
+    width: 100%;
+  }
+
+  /* AI Analysis Modal - Full Screen on Mobile */
+  .doc-modal-overlay {
+    padding: 0;
+    padding-top: 60px;
+  }
+
+  .doc-modal-modern {
+    max-width: 100%;
+    width: 100%;
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  .doc-modal-close-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  /* Delete Confirmation Modal */
   .delete-modal {
-    padding: 1.5rem;
-    max-width: 90%;
+    padding: 1.5rem 1rem;
+    max-width: calc(100% - 2rem);
+    margin: 0 1rem;
   }
 
   .delete-modal-icon {
-    width: 70px;
-    height: 70px;
+    width: 60px;
+    height: 60px;
   }
 
   .warning-icon {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .delete-modal-title {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
+  }
+
+  .delete-modal-message {
+    font-size: 0.9rem;
   }
 
   .delete-modal-actions {
     flex-direction: column;
+    gap: 0.625rem;
   }
 
   .btn-cancel-delete,
   .btn-confirm-delete {
     width: 100%;
+    padding: 0.875rem;
+  }
+
+  /* Form inputs - prevent zoom on iOS */
+  input[type="text"],
+  input[type="file"],
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
