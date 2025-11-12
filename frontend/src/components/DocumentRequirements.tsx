@@ -483,6 +483,7 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                       </span>
                     </div>
                     <div className="info-item">
+                      <span className="info-icon">ℹ️</span>
                       <span className="info-text">
                         Status: <span style={{ color: getStatusColor(doc.status), fontWeight: 600 }}>
                           {doc.status_display}
