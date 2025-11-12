@@ -1318,45 +1318,94 @@ body.modal-open {
     font-size: 20px;
   }
 
-  /* Modal Responsive */
+  /* Grade Details Modal - Compact for Mobile */
+  .grade-modal-overlay {
+    padding: 0;
+    padding-top: 60px;
+    align-items: flex-start;
+  }
+
   .grade-modal {
-    max-width: 95%;
-    border-radius: 16px;
+    max-width: 100%;
+    width: 100%;
+    max-height: calc(100vh - 60px);
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    margin: 0;
   }
 
   .grade-modal-header {
-    padding: 2.5rem 1.5rem 1rem;
+    padding: 2rem 1.25rem 0.875rem;
   }
 
   .modal-header-icon {
-    font-size: 48px;
+    font-size: 40px;
   }
 
   .grade-modal-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+  }
+
+  .modal-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .modal-gwa-section {
+    padding: 1.25rem;
   }
 
   .modal-gwa-number {
-    font-size: 3rem;
+    font-size: 2.5rem;
+  }
+
+  .modal-gwa-label {
+    font-size: 0.875rem;
   }
 
   .modal-eligibility-section {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
 
-  .modal-eligibility-card {
+  .modal-section-title {
+    font-size: 1rem;
+  }
+
+  .modal-eligibility-cards {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
     gap: 1rem;
   }
 
+  .modal-eligibility-card {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.875rem;
+    padding: 1rem;
+  }
+
   .eligibility-card-icon {
-    font-size: 2rem;
+    font-size: 1.75rem;
+  }
+
+  .eligibility-card-content h4 {
+    font-size: 1rem;
+  }
+
+  .eligibility-requirement {
+    font-size: 0.75rem;
+  }
+
+  .modal-info-section {
+    padding: 1.25rem;
+  }
+
+  .modal-actions {
+    padding: 1rem 1.25rem;
   }
 
   .btn-modal-close {
-    padding: 0.875rem 2rem;
+    padding: 0.875rem 1.5rem;
     width: 100%;
   }
 
@@ -1374,31 +1423,41 @@ body.modal-open {
     text-align: center;
   }
 
-  /* Form Modal Responsive */
+  /* Grade Form Modal - Full Screen on Mobile */
   .grade-form-modal-overlay {
-    padding: 0.5rem;
+    padding: 0;
+    padding-top: 60px;
+    align-items: flex-start;
   }
 
   .grade-form-modal-container {
-    max-height: 95vh;
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
   }
 
   .grade-form-modal-container .grade-submission-form {
-    padding: 20px;
-    border-radius: 12px;
+    padding: 16px;
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
   }
 
   .grade-form-close-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 28px;
-    top: 0.75rem;
-    right: 0.75rem;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    top: 0.625rem;
+    right: 0.625rem;
   }
 
   .modal-hint {
-    top: 1rem;
-    font-size: 0.75rem;
-    padding: 0.5rem 1rem;
+    top: 0.75rem;
+    font-size: 0.7rem;
+    padding: 0.4rem 0.875rem;
   }
 }

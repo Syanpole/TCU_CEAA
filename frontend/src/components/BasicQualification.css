@@ -391,18 +391,21 @@
 @media (max-width: 768px) {
   .basic-qualification-overlay {
     padding: 0.5rem;
+    padding-top: 70px; /* Account for mobile header */
   }
 
   .basic-qualification-container {
-    max-height: 95vh;
+    max-height: calc(100vh - 80px);
+    max-width: calc(100% - 1rem);
+    width: 100%;
   }
 
   .qualification-header {
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
   }
 
   .header-title {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
   }
 
   .home-button {
@@ -411,63 +414,75 @@
   }
 
   .qualification-content {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
 
   .question-text {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .btn-back,
   .btn-clear,
   .btn-next {
-    padding: 0.625rem 1.25rem;
+    padding: 0.625rem 1rem;
     font-size: 0.875rem;
   }
 
   .review-header {
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
   }
 
   .review-content {
-    padding: 1.25rem 1.5rem 1.5rem;
+    padding: 1rem 1.25rem;
   }
 
   .review-row {
-    grid-template-columns: 1.5fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .review-cell {
-    padding: 0.875rem 1rem;
+    padding: 0.75rem 0.875rem;
     font-size: 0.875rem;
+    border-right: none;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .review-cell:last-child {
+    border-bottom: none;
   }
 }
 
 @media (max-width: 480px) {
   .basic-qualification-overlay {
     padding: 0;
+    padding-top: 60px;
   }
 
   .basic-qualification-container {
-    max-height: 100vh;
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    width: 100%;
     border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
   }
 
   .header-title {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .home-button {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
 
   .qualification-header {
-    padding: 1rem;
+    padding: 0.875rem 1rem;
   }
 
   .qualification-content {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   .step-info {
@@ -477,7 +492,7 @@
   }
 
   .question-text {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
   .action-buttons {
@@ -495,16 +510,26 @@
     order: 1;
     width: 100%;
     flex-direction: row;
+    gap: 0.5rem;
   }
 
   .btn-clear,
   .btn-next {
     flex: 1;
     justify-content: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .review-header {
+    padding: 0.875rem 1rem;
   }
 
   .review-header h2 {
-    font-size: 1.125rem;
+    font-size: 1rem;
+  }
+
+  .review-content {
+    padding: 0.875rem 1rem;
   }
 
   .review-row {
@@ -514,7 +539,8 @@
   .review-cell {
     border-right: none;
     border-bottom: 1px solid #dee2e6;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
   }
 
   .review-cell:last-child {
@@ -524,10 +550,23 @@
   .review-answer {
     text-align: left;
     padding-top: 0.5rem;
-    padding-bottom: 1rem;
+    padding-bottom: 0.875rem;
   }
 
   .review-header-row .review-cell:last-child {
     display: none;
+  }
+
+  /* Make radio buttons and checkboxes larger for easier tapping */
+  .radio-option,
+  .checkbox-option {
+    padding: 0.875rem;
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
   }
 }

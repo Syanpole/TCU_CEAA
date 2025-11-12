@@ -1096,3 +1096,160 @@
     font-size: 1rem;
   }
 }
+
+/* Mobile-Friendly Modal Styles */
+@media (max-width: 768px) {
+  /* Basic Qualification Modal */
+  .basic-qualification-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 60px; /* Account for mobile header */
+  }
+
+  .basic-qualification-container {
+    max-height: calc(100vh - 70px);
+    max-width: 100%;
+    width: 100%;
+    border-radius: 12px;
+    margin: 0 auto;
+  }
+
+  /* Full Application Form Modal */
+  .faf-overlay,
+  .full-application-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+
+  .full-application-container {
+    max-height: calc(100vh - 70px);
+    max-width: 100%;
+    width: 100%;
+    border-radius: 12px;
+    margin: 0 auto;
+  }
+
+  /* Document Requirements Modal */
+  .document-requirements-modal {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+
+  .document-requirements-container {
+    max-height: calc(100vh - 70px);
+    max-width: 100%;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  /* Grade Submission Form Modal */
+  .grade-form-modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+
+  .grade-form-modal-container {
+    max-height: calc(100vh - 70px);
+    max-width: 100%;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  /* Document Modal */
+  .document-modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+
+  .document-modal-container {
+    max-height: calc(100vh - 70px);
+    max-width: 100%;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  /* Notification Modal */
+  .notification-modal {
+    max-width: calc(100% - 2rem);
+    margin: 0 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screens - full screen modals */
+  .basic-qualification-overlay,
+  .faf-overlay,
+  .full-application-overlay,
+  .document-requirements-modal,
+  .grade-form-modal-overlay,
+  .document-modal-overlay {
+    padding: 0;
+    padding-top: 60px;
+  }
+
+  .basic-qualification-container,
+  .full-application-container,
+  .document-requirements-container,
+  .grade-form-modal-container,
+  .document-modal-container {
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  /* Notification Modal - keep as card */
+  .notification-modal {
+    max-width: calc(100% - 1rem);
+    margin: 0 0.5rem;
+  }
+
+  /* Application section modals */
+  .application-section {
+    padding: 0.5rem;
+  }
+
+  .qualification-prompt,
+  .qualification-completed {
+    min-height: 50vh;
+    padding: 0.5rem;
+  }
+
+  .prompt-card,
+  .completion-card,
+  .lock-message {
+    padding: 1.5rem 1rem;
+    max-width: 100%;
+  }
+
+  .prompt-card h2,
+  .completion-card h2,
+  .lock-message h2 {
+    font-size: 1.25rem;
+  }
+
+  .prompt-card p,
+  .completion-card p,
+  .lock-message p {
+    font-size: 0.9rem;
+  }
+
+  .start-qualification-btn,
+  .retake-qualification-btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    width: 100%;
+  }
+
+  .lock-message button {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+  }
+}
