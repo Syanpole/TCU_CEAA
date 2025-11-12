@@ -66,6 +66,20 @@ interface AllowanceApplication {
   applied_at: string;
 }
 
+interface FullApplicationData {
+  id: number;
+  school_year: string;
+  semester: string;
+  status: string;
+  is_submitted: boolean;
+  is_locked: boolean;
+  submitted_at: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string;
+  [key: string]: any; // Allow other fields
+}
+
 interface DashboardStats {
   total_documents: number;
   approved_documents: number;
@@ -202,13 +216,11 @@ const StudentDashboard: React.FC = () => {
           apiClient.get('/tasks/'),
           apiClient.get('/documents/'),
           apiClient.get('/grades/'),
-          apiClient.get('/applications/'),
-          apiClient.get('/dashboard/student/'),
-          apiClient.get('/basic-qualification/check_status/'),
-          apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no applications exist
-        ]);
-
-        setAssignments((assignmentsResponse.data as Assignment[]) || []);
+        apiClient.get('/applications/'),
+        apiClient.get('/dashboard/student/'),
+        apiClient.get('/basic-qualification/check_status/'),
+        apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no applications exist
+      ]);        setAssignments((assignmentsResponse.data as Assignment[]) || []);
         setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
         setGrades((gradesResponse.data as GradeSubmission[]) || []);
         setApplications((applicationsResponse.data as AllowanceApplication[]) || []);
@@ -220,28 +232,26 @@ const StudentDashboard: React.FC = () => {
 
         // Check basic qualification status
         const qualificationData = qualificationResponse.data as QualificationCheckResponse;
-        setHasCompletedQualification(qualificationData.completed || false);
-        setIsQualified(qualificationData.qualified || false);
+      setHasCompletedQualification(qualificationData.completed || false);
+      setIsQualified(qualificationData.qualified || false);
 
-        // Check if user has already submitted a full application
-        const fullApplications = Array.isArray(fullApplicationResponse.data) 
-          ? (fullApplicationResponse.data as FullApplicationRecord[]) 
-          : [];
-        if (fullApplications.length > 0) {
-          // User has submitted application(s)
-          setHasCompletedApplication(true);
-          const latestApp = fullApplications[0]; // Most recent application
-          setApplicationData({
-            school_year: latestApp.school_year || '',
-            semester: latestApp.semester_display || latestApp.semester || ''
-          });
-          console.log('✅ Found existing full application:', latestApp);
-        } else {
-          setHasCompletedApplication(false);
-          console.log('ℹ️ No existing full application found');
-        }
-
-      } catch (err: any) {
+      // Check if user has already submitted a full application
+      const fullApplications = Array.isArray(fullApplicationResponse.data)
+        ? (fullApplicationResponse.data as FullApplicationRecord[])
+        : [];
+      if (fullApplications.length > 0) {
+        // User has submitted application(s)
+        setHasCompletedApplication(true);
+        const latestApp = fullApplications[0]; // Most recent application
+        setApplicationData({
+          school_year: latestApp.school_year || '',
+          semester: latestApp.semester_display || latestApp.semester || ''
+        });
+        console.log('✅ Found existing full application:', latestApp);
+      } else {
+        setHasCompletedApplication(false);
+        console.log('ℹ️ No existing full application found');
+      }      } catch (err: any) {
         console.error('Error fetching student data:', err);
         if (err.response) {
           console.error('Response status:', err.response.status);
