@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -27,10 +27,15 @@ WORKDIR /app
 
 # Install Python dependencies including ML libraries
 COPY requirements.txt .
-COPY requirements-autonomous-ai.txt .
+# Install base requirements first
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r requirements-autonomous-ai.txt \
     && pip install --no-cache-dir celery[redis] psycopg2-binary
+
+# Install CPU-only PyTorch and ML dependencies (no CUDA = 80% smaller!)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch>=2.0.0 torchvision>=0.15.0 \
+    && pip install --no-cache-dir opencv-python-headless>=4.8.0 easyocr>=1.7.0 \
+    imagehash>=4.3.1 pdf2image>=1.16.3 scikit-image>=0.21.0 \
+    fuzzywuzzy>=0.18.0 pyzbar>=0.1.9 qrcode>=7.4.2
 
 # Copy project files
 COPY . .

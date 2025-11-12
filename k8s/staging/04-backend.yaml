@@ -51,11 +51,11 @@ spec:
             name: tcu-ceaa-secrets
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
+            memory: "512Mi"  # Backend image is 2.59GB, needs headroom
             cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /health/

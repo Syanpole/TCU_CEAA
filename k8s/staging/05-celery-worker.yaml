@@ -23,11 +23,11 @@ spec:
             name: tcu-ceaa-secrets
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
+            memory: "1.5Gi"  # Celery image is 4.46GB with ML models, needs more RAM
             cpu: "1000m"
+          limits:
+            memory: "3Gi"   # Allow headroom for ML processing
+            cpu: "2000m"
         livenessProbe:
           exec:
             command:

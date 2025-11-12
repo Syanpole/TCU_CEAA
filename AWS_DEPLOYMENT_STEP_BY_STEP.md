@@ -10,8 +10,8 @@ This guide walks you through every step needed to deploy TCU CEAA to AWS staging
 
 Before starting, ensure you have:
 
-- [ ] AWS Account created and verified
-- [ ] Billing enabled (credit card added)
+- [/] AWS Account created and verified
+- [/] Billing enabled (credit card added)
 - [ ] AWS CLI installed: `aws --version`
 - [ ] kubectl installed: `kubectl version --client`
 - [ ] Docker Desktop installed and running
