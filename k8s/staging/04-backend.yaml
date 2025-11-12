@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: tcu-ceaa-staging
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: tcu-ceaa-staging
+spec:
+  replicas: 2  # Reduced for staging
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      initContainers:
+      # Run migrations before starting the app
+      - name: migrate
+        image: YOUR_REGISTRY/tcu-ceaa-backend:staging
+        command: ["python", "manage.py", "migrate"]
+        envFrom:
+        - configMapRef:
+            name: tcu-ceaa-config
+        - secretRef:
+            name: tcu-ceaa-secrets
+      containers:
+      - name: backend
+        image: YOUR_REGISTRY/tcu-ceaa-backend:staging
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: tcu-ceaa-config
+        - secretRef:
+            name: tcu-ceaa-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 45
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
