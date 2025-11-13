@@ -148,6 +148,65 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
     reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
     document_type_display = serializers.CharField(source='get_document_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    document_file = serializers.SerializerMethodField()
+    
+    def get_document_file(self, obj):
+        """
+        Get document file URL with proper handling for both local and cloud storage.
+        For cloud storage (S3), generate signed URL for secure access.
+        """
+        if not obj.document_file:
+            return None
+        
+        request = self.context.get('request')
+        
+        try:
+            # If using cloud storage (S3), generate signed URL
+            if hasattr(obj.document_file, 'url'):
+                file_url = obj.document_file.url
+                
+                # If it's an S3 URL and doesn't have query parameters (not signed)
+                if 's3.amazonaws.com' in file_url or 's3.' in file_url:
+                    # Generate signed URL for private access (expires in 1 hour)
+                    from django.conf import settings
+                    if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME'):
+                        try:
+                            # Import boto3 for signed URL generation
+                            import boto3
+                            from botocore.exceptions import ClientError
+                            
+                            s3_client = boto3.client(
+                                's3',
+                                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                                region_name=settings.AWS_S3_REGION_NAME
+                            )
+                            
+                            # Extract file key from URL or use the name
+                            file_key = obj.document_file.name
+                            
+                            # Generate signed URL (valid for 1 hour)
+                            signed_url = s3_client.generate_presigned_url(
+                                'get_object',
+                                Params={
+                                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                                    'Key': file_key
+                                },
+                                ExpiresIn=3600  # 1 hour
+                            )
+                            return signed_url
+                        except (ClientError, Exception) as e:
+                            # Fall back to regular URL if signed URL generation fails
+                            pass
+                
+                # For local storage or already signed URLs, build absolute URL
+                if request:
+                    return request.build_absolute_uri(file_url)
+                return file_url
+        except Exception:
+            pass
+        
+        return None
     
     class Meta:
         model = DocumentSubmission

@@ -134,6 +134,55 @@ class AIDocumentAnalyzer:
         """
         Comprehensive AI analysis of uploaded document
         """
+        # Get user's full application data for comparison
+        user_application_data = self._get_user_application_data(document_submission.student)
+        
+        # Check if document is a Birth Certificate - route to specialized service
+        if document_submission.document_type in ['birth_certificate', 'birth_cert', 'psa_birth_certificate', 
+                                                   'nso_birth_certificate']:
+            try:
+                from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+                
+                birth_cert_service = get_birth_certificate_verification_service()
+                status = birth_cert_service.get_verification_status()
+                
+                if status.get('fully_operational', False):
+                    # Use specialized birth certificate verification with advanced OCR
+                    birth_cert_result = birth_cert_service.verify_birth_certificate_document(
+                        document_submission.document_file.path,
+                        user_application_data=user_application_data
+                    )
+                    
+                    # Convert birth certificate service result to standard analysis format
+                    return self._convert_birth_cert_result_to_analysis(birth_cert_result, document_submission)
+                else:
+                    logger.warning(f"Birth certificate service not fully operational: {status}")
+            except Exception as e:
+                logger.warning(f"Birth certificate service failed, falling back to standard analysis: {str(e)}")
+        
+        # Check if document is a Voter's Certificate/ID - route to specialized service
+        if document_submission.document_type in ['voters_id', 'voter_id', 'voters_certificate', 
+                                                   'voter_certification', 'comelec_stub']:
+            try:
+                from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+                
+                voter_service = get_voter_certificate_verification_service()
+                status = voter_service.get_verification_status()
+                
+                if status.get('fully_operational', False):
+                    # Use specialized voter certificate verification with advanced OCR
+                    voter_result = voter_service.verify_voter_certificate_document(
+                        document_submission.document_file.path,
+                        user_application_data=user_application_data
+                    )
+                    
+                    # Convert voter service result to standard analysis format
+                    return self._convert_voter_result_to_analysis(voter_result, document_submission)
+                else:
+                    logger.warning(f"Voter certificate service not fully operational: {status}")
+            except Exception as e:
+                logger.warning(f"Voter certificate service failed, falling back to standard analysis: {str(e)}")
+        
         analysis_result = {
             'confidence_score': 0.0,
             'document_type_match': False,
@@ -542,6 +591,170 @@ class AIDocumentAnalyzer:
         
         return recommendations
 
+    def _get_user_application_data(self, user) -> Optional[Dict[str, Any]]:
+        """
+        Get user's full application data for document comparison.
+        
+        Args:
+            user: CustomUser object
+        
+        Returns:
+            Dictionary with user's application data or None if not available
+        """
+        try:
+            from myapp.models import FullApplication
+            
+            # Get the user's most recent full application
+            full_app = FullApplication.objects.filter(user=user).order_by('-id').first()
+            
+            if not full_app:
+                logger.info(f"No full application found for user {user.id}")
+                return None
+            
+            # Extract relevant fields for document verification
+            application_data = {
+                'first_name': full_app.first_name,
+                'middle_name': full_app.middle_name,
+                'last_name': full_app.last_name,
+                'date_of_birth': full_app.date_of_birth,
+                'sex': full_app.sex,
+                'place_of_birth': full_app.place_of_birth,
+                'mother_name': full_app.mother_name,
+                'father_name': full_app.father_name,
+                'barangay': full_app.barangay,
+                'house_no': full_app.house_no,
+                'street': full_app.street,
+                'district': full_app.district,
+                'zip_code': full_app.zip_code,
+            }
+            
+            logger.info(f"✅ Retrieved application data for user {user.id}: {full_app.first_name} {full_app.last_name}")
+            return application_data
+            
+        except Exception as e:
+            logger.error(f"Error retrieving user application data: {str(e)}")
+            return None
+
+    def _convert_birth_cert_result_to_analysis(self, birth_cert_result: Dict[str, Any],
+                                               document_submission) -> Dict[str, Any]:
+        """Convert birth certificate verification result to standard analysis format"""
+        # Extract data from birth certificate service result
+        status = birth_cert_result.get('status', 'INVALID')
+        confidence = birth_cert_result.get('confidence', 0.0)  # Already in 0-1 scale
+        extracted_fields = birth_cert_result.get('extracted_fields', {})
+        ocr_text = birth_cert_result.get('ocr_text', '')
+        recommendations = birth_cert_result.get('recommendations', [])
+        document_type_match = birth_cert_result.get('document_type_match', False)
+        field_matches = birth_cert_result.get('field_matches', {})
+        
+        # Build analysis result
+        analysis_result = {
+            'confidence_score': confidence,
+            'document_type_match': document_type_match,
+            'extracted_text': ocr_text,
+            'key_information': extracted_fields,
+            'quality_assessment': {
+                'quality_score': confidence,
+                'issues': [] if status == 'VALID' else ['Document verification concerns detected'],
+                'field_matches': field_matches
+            },
+            'recommendations': recommendations,
+            'auto_approve': status == 'VALID' and confidence >= 0.85,
+            'analysis_notes': [
+                f"✅ Birth Certificate Verification Service - Advanced OCR Analysis",
+                f"📊 Status: {status}",
+                f"📊 Confidence: {confidence*100:.1f}%",
+                f"📋 Document Type Match: {'Yes' if document_type_match else 'No'}",
+            ]
+        }
+        
+        # Add field comparison information to analysis notes
+        if field_matches:
+            analysis_result['analysis_notes'].append(f"\n🔍 Field Comparison with Application:")
+            for field_name, match_info in field_matches.items():
+                match_icon = "✅" if match_info.get('match') else "❌"
+                score = match_info.get('score', 0.0) * 100
+                analysis_result['analysis_notes'].append(
+                    f"   {match_icon} {field_name.replace('_', ' ').title()}: {score:.0f}% match"
+                )
+        
+        # Add extracted field information to analysis notes
+        if extracted_fields:
+            analysis_result['analysis_notes'].append(f"\n📋 Extracted Information:")
+            for field_name, field_value in extracted_fields.items():
+                if field_value:
+                    analysis_result['analysis_notes'].append(
+                        f"   • {field_name.replace('_', ' ').title()}: {field_value}"
+                    )
+        
+        return analysis_result
+    
+    def _convert_voter_result_to_analysis(self, voter_result: Dict[str, Any], 
+                                          document_submission) -> Dict[str, Any]:
+        """Convert voter certificate verification result to standard analysis format"""
+        # Extract data from voter service result
+        status = voter_result.get('status', 'INVALID')
+        confidence = voter_result.get('confidence', 0.0)  # Already in 0-1 scale
+        detected_elements = voter_result.get('detected_elements', {})
+        field_matches = voter_result.get('field_matches', {})
+        
+        # Get extracted info from ocr_data
+        ocr_data = voter_result.get('ocr_data', {})
+        extracted_fields = ocr_data.get('interpreted_fields', {}) if ocr_data else {}
+        ocr_text = ocr_data.get('raw_text', '') if ocr_data else ''
+        
+        recommendations = voter_result.get('recommendations', [])
+        
+        # Build analysis result
+        analysis_result = {
+            'confidence_score': confidence,
+            'document_type_match': status in ['VALID', 'QUESTIONABLE'],
+            'extracted_text': ocr_text,
+            'key_information': extracted_fields,
+            'quality_assessment': {
+                'quality_score': confidence,
+                'issues': [] if status == 'VALID' else ['Document verification concerns detected'],
+                'detected_elements': detected_elements,
+                'field_matches': field_matches
+            },
+            'recommendations': recommendations,
+            'auto_approve': status == 'VALID' and confidence >= 0.85,
+            'analysis_notes': [
+                f"✅ Voter Certificate Verification Service - Advanced OCR Analysis",
+                f"📊 Status: {status}",
+                f"📊 Confidence: {confidence*100:.1f}%",
+                f"🔍 YOLO Elements Detected: {len([e for e in detected_elements.values() if e.get('present', False)])} of 3",
+            ]
+        }
+        
+        # Add element detection details
+        for element_name, element_data in detected_elements.items():
+            if element_data.get('present'):
+                analysis_result['analysis_notes'].append(
+                    f"   ✅ {element_name.replace('_', ' ').title()}: {element_data.get('confidence', 0)*100:.1f}%"
+                )
+        
+        # Add field comparison information to analysis notes
+        if field_matches:
+            analysis_result['analysis_notes'].append(f"\n🔍 Field Comparison with Application:")
+            for field_name, match_info in field_matches.items():
+                match_icon = "✅" if match_info.get('match') else "❌"
+                score = match_info.get('score', 0.0) * 100
+                analysis_result['analysis_notes'].append(
+                    f"   {match_icon} {field_name.replace('_', ' ').title()}: {score:.0f}% match"
+                )
+        
+        # Add extracted field information
+        if extracted_fields:
+            analysis_result['analysis_notes'].append(f"\n📋 Extracted Information:")
+            for field_name, field_value in extracted_fields.items():
+                if field_value:
+                    analysis_result['analysis_notes'].append(
+                        f"   • {field_name.replace('_', ' ').title()}: {field_value}"
+                    )
+        
+        return analysis_result
+    
     def _should_auto_approve(self, analysis_result: Dict[str, Any]) -> bool:
         """Determine if document should be auto-approved - Enhanced for autonomous processing"""
         confidence = analysis_result.get('confidence_score', 0)

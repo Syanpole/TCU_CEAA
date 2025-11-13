@@ -689,3 +689,435 @@
     justify-content: center;
   }
 }
+
+/* Enhanced Modal for AI Details */
+.modal-content-large {
+  max-width: 900px !important;
+}
+
+/* Document Info Section */
+.document-info-section {
+  margin-bottom: 1.5rem;
+}
+
+.document-info-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* AI Analysis Section */
+.ai-analysis-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ai-analysis-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-analysis-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 1.5rem 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-summary-card {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: var(--surface-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.ai-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.ai-stat label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ai-stat span {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.confidence-score {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  display: inline-block;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  text-align: center;
+  width: 100%;
+}
+
+.confidence-score.high {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.confidence-score.medium {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.confidence-score.low {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+.match-yes {
+  color: var(--accent-green);
+}
+
+.match-no {
+  color: var(--accent-red);
+}
+
+/* AI Notes Section */
+.ai-notes-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--surface-bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent-blue);
+}
+
+.ai-notes-content {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+}
+
+/* Recommendations Section */
+.ai-recommendations-section {
+  margin: 1.5rem 0;
+}
+
+.recommendations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recommendations-list li {
+  padding: 0.75rem 1rem;
+  background: var(--surface-bg);
+  border-left: 3px solid var(--accent-orange);
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Algorithms Section */
+.algorithms-section {
+  margin: 1.5rem 0;
+}
+
+.algorithms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.algorithm-card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.algorithm-card h5 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  margin: 0 0 0.75rem 0;
+  text-transform: capitalize;
+}
+
+.algorithm-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.algorithm-details pre {
+  margin: 0;
+  padding: 0.5rem;
+  background: var(--card-bg);
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+}
+
+/* Field Matches Section */
+.field-matches-section {
+  margin: 1.5rem 0;
+}
+
+.field-matches-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.field-match-card {
+  background: var(--surface-bg);
+  border: 2px solid;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.field-match-card.match-success {
+  border-color: var(--accent-green);
+  background: #f0fdf4;
+}
+
+.field-match-card.match-fail {
+  border-color: var(--accent-red);
+  background: #fef2f2;
+}
+
+.field-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}
+
+.field-match-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.match-score {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.field-values {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.field-value-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-value-item label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field-value-item span {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  background: var(--card-bg);
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Extracted Text Section */
+.extracted-text-section {
+  margin: 1.5rem 0;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.extracted-text-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.5rem;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.extracted-text-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.extracted-text-section summary::before {
+  content: '▶';
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.extracted-text-section[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.extracted-text-content {
+  margin: 1rem 0 0 0;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+}
+
+/* Review Info Section */
+.review-info-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.review-info-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+/* No AI Analysis Message */
+.no-ai-analysis {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  background: var(--surface-bg);
+  border-radius: 8px;
+  border: 1px dashed var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.no-ai-analysis p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* AI Details Loading */
+.ai-details-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.ai-details-loading p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Responsive AI Analysis */
+@media (max-width: 768px) {
+  .modal-content-large {
+    max-width: 100% !important;
+  }
+  
+  .ai-summary-card {
+    grid-template-columns: 1fr;
+  }
+  
+  .algorithms-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .field-matches-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Success Message */
+.success-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #10b981;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Status Badge Colors */
+.status-badge-approved {
+  background-color: #10b981 !important;
+}
+
+.status-badge-pending {
+  background-color: #f59e0b !important;
+}
+
+.status-badge-rejected {
+  background-color: #dc2626 !important;
+}
+
+.status-badge-revision-needed {
+  background-color: #f59e0b !important;
+}
+
+.status-badge-ai-processing {
+  background-color: #3b82f6 !important;
+}
