@@ -12,6 +12,38 @@ interface Document {
   status_display: string;
   submitted_at: string;
   document_file?: string;
+  ai_confidence_score?: number;
+  ai_auto_approved?: boolean;
+  ai_analysis_notes?: string;
+}
+
+interface AIDetails {
+  document_id: number;
+  student: {
+    name: string;
+    student_id: string;
+    email: string;
+  };
+  document_type: string;
+  document_type_display: string;
+  status: string;
+  submitted_at: string;
+  ai_analysis: {
+    completed: boolean;
+    confidence_score: number;
+    document_type_match: boolean;
+    auto_approved: boolean;
+    analysis_notes: string;
+    algorithms_results: any;
+    overall_analysis: any;
+    extracted_text: string;
+    recommendations: any[];
+  };
+  review_info: {
+    reviewed_at: string | null;
+    reviewed_by: string | null;
+    admin_notes: string;
+  };
 }
 
 interface DocumentsManagementProps {
@@ -28,6 +60,8 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [aiDetails, setAiDetails] = useState<AIDetails | null>(null);
+  const [loadingAiDetails, setLoadingAiDetails] = useState(false);
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -95,15 +129,30 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
   };
 
   // Handle view document
-  const handleViewDocument = (document: Document) => {
+  const handleViewDocument = async (document: Document) => {
     setSelectedDocument(document);
     setShowDocumentModal(true);
+    
+    // Fetch AI details
+    if (document.ai_confidence_score && document.ai_confidence_score > 0) {
+      setLoadingAiDetails(true);
+      try {
+        const response = await apiClient.get<AIDetails>(`/documents/${document.id}/ai_details/`);
+        setAiDetails(response.data);
+      } catch (error) {
+        console.error('Error fetching AI details:', error);
+        setAiDetails(null);
+      } finally {
+        setLoadingAiDetails(false);
+      }
+    }
   };
 
   // Close document modal
   const closeDocumentModal = () => {
     setShowDocumentModal(false);
     setSelectedDocument(null);
+    setAiDetails(null);
   };
 
   const filteredDocuments = documents.filter(doc => {
@@ -113,15 +162,6 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
     const matchesStatus = statusFilter === '' || doc.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return '#10b981';
-      case 'rejected': return '#ef4444';
-      case 'pending': return '#f59e0b';
-      default: return '#6b7280';
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -168,18 +208,7 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
       <div className="documents-management-content">
         {/* Success Message */}
         {successMessage && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: '#10b981',
-            color: 'white',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            zIndex: 1000,
-            animation: 'slideIn 0.3s ease-out'
-          }}>
+          <div className="success-message">
             ✅ {successMessage}
           </div>
         )}
@@ -222,6 +251,7 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="filter-select"
+              title="Filter by status"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -267,8 +297,7 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
                   </div>
                   <div className="document-status">
                     <span 
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusColor(doc.status) }}
+                      className={`status-badge status-badge-${doc.status}`}
                     >
                       {doc.status_display}
                     </span>
@@ -344,10 +373,10 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
         {/* Document View Modal */}
         {showDocumentModal && selectedDocument && (
           <div className="modal-overlay" onClick={closeDocumentModal}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content modal-content-large" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Document Details</h2>
-                <button className="modal-close" onClick={closeDocumentModal}>
+                <button className="modal-close" onClick={closeDocumentModal} title="Close">
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -355,41 +384,158 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
               </div>
               
               <div className="modal-body">
-                <div className="document-info-grid">
-                  <div className="info-row">
-                    <label>Document Type:</label>
-                    <span>{selectedDocument.document_type_display}</span>
-                  </div>
-                  <div className="info-row">
-                    <label>Student Name:</label>
-                    <span>{selectedDocument.student_name}</span>
-                  </div>
-                  <div className="info-row">
-                    <label>Student ID:</label>
-                    <span>{selectedDocument.student_id}</span>
-                  </div>
-                  <div className="info-row">
-                    <label>Status:</label>
-                    <span 
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusColor(selectedDocument.status) }}
-                    >
-                      {selectedDocument.status_display}
-                    </span>
-                  </div>
-                  <div className="info-row">
-                    <label>Submitted:</label>
-                    <span>{formatDate(selectedDocument.submitted_at)}</span>
-                  </div>
-                  <div className="info-row">
-                    <label>Document ID:</label>
-                    <span>#{selectedDocument.id}</span>
+                {/* Basic Document Information */}
+                <div className="document-info-section">
+                  <h3>📄 Basic Information</h3>
+                  <div className="document-info-grid">
+                    <div className="info-row">
+                      <label>Document Type:</label>
+                      <span>{selectedDocument.document_type_display}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Student Name:</label>
+                      <span>{selectedDocument.student_name}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Student ID:</label>
+                      <span>{selectedDocument.student_id}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Status:</label>
+                      <span 
+                        className={`status-badge status-badge-${selectedDocument.status}`}
+                      >
+                        {selectedDocument.status_display}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <label>Submitted:</label>
+                      <span>{formatDate(selectedDocument.submitted_at)}</span>
+                    </div>
+                    <div className="info-row">
+                      <label>Document ID:</label>
+                      <span>#{selectedDocument.id}</span>
+                    </div>
                   </div>
                 </div>
 
+                {/* AI Analysis Details */}
+                {loadingAiDetails && (
+                  <div className="ai-details-loading">
+                    <p>Loading AI analysis details...</p>
+                  </div>
+                )}
+
+                {!loadingAiDetails && aiDetails && aiDetails.ai_analysis.completed && (
+                  <div className="ai-analysis-section">
+                    <h3>🤖 AI Analysis Results</h3>
+                    
+                    {/* Overall AI Summary */}
+                    <div className="ai-summary-card">
+                      <div className="ai-stat">
+                        <label>Confidence Score:</label>
+                        <span className={`confidence-score ${aiDetails.ai_analysis.confidence_score >= 0.85 ? 'high' : aiDetails.ai_analysis.confidence_score >= 0.70 ? 'medium' : 'low'}`}>
+                          {(aiDetails.ai_analysis.confidence_score * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="ai-stat">
+                        <label>Auto-Approved:</label>
+                        <span className={aiDetails.ai_analysis.auto_approved ? 'match-yes' : 'match-no'}>
+                          {aiDetails.ai_analysis.auto_approved ? '✅ Yes' : '❌ No'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Analysis Notes */}
+                    {aiDetails.ai_analysis.analysis_notes && (
+                      <div className="ai-notes-section">
+                        <h4>📝 Analysis Notes</h4>
+                        <div className="ai-notes-content" dangerouslySetInnerHTML={{ __html: aiDetails.ai_analysis.analysis_notes.replace(/\n/g, '<br/>') }} />
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {aiDetails.ai_analysis.recommendations && aiDetails.ai_analysis.recommendations.length > 0 && (
+                      <div className="ai-recommendations-section">
+                        <h4>💡 AI Recommendations</h4>
+                        <ul className="recommendations-list">
+                          {aiDetails.ai_analysis.recommendations.map((rec: any, index: number) => (
+                            <li key={index}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Algorithm Results */}
+                    {aiDetails.ai_analysis.algorithms_results && Object.keys(aiDetails.ai_analysis.algorithms_results).length > 0 && (
+                      <div className="algorithms-section">
+                        <h4>🔬 Algorithm Results</h4>
+                        <div className="algorithms-grid">
+                          {Object.entries(aiDetails.ai_analysis.algorithms_results).map(([key, value]: [string, any]) => (
+                            <div key={key} className="algorithm-card">
+                              <h5>{key.replace(/_/g, ' ').toUpperCase()}</h5>
+                              <div className="algorithm-details">
+                                {typeof value === 'object' ? (
+                                  <pre>{JSON.stringify(value, null, 2)}</pre>
+                                ) : (
+                                  <span>{String(value)}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quality Assessment - Field Matches */}
+                    {aiDetails.ai_analysis.overall_analysis?.quality_assessment?.field_matches && 
+                     Object.keys(aiDetails.ai_analysis.overall_analysis.quality_assessment.field_matches).length > 0 && (
+                      <div className="field-matches-section">
+                        <h4>✓ Field Comparison with Application</h4>
+                        <div className="field-matches-grid">
+                          {Object.entries(aiDetails.ai_analysis.overall_analysis.quality_assessment.field_matches).map(([field, data]: [string, any]) => (
+                            <div key={field} className={`field-match-card ${data.match ? 'match-success' : 'match-fail'}`}>
+                              <div className="field-name">{field.replace(/_/g, ' ').toUpperCase()}</div>
+                              <div className="field-match-status">
+                                {data.match ? '✅ Match' : '❌ No Match'} 
+                                <span className="match-score">({(data.score * 100).toFixed(1)}%)</span>
+                              </div>
+                              <div className="field-values">
+                                <div className="field-value-item">
+                                  <label>Extracted:</label>
+                                  <span>{data.extracted}</span>
+                                </div>
+                                <div className="field-value-item">
+                                  <label>Application:</label>
+                                  <span>{data.application}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Extracted Text Preview */}
+                    {aiDetails.ai_analysis.extracted_text && (
+                      <details className="extracted-text-section">
+                        <summary>📄 View Extracted Text (OCR)</summary>
+                        <pre className="extracted-text-content">{aiDetails.ai_analysis.extracted_text}</pre>
+                      </details>
+                    )}
+                  </div>
+                )}
+
+                {!loadingAiDetails && selectedDocument.ai_confidence_score === 0 && (
+                  <div className="no-ai-analysis">
+                    <p>ℹ️ No AI analysis available for this document.</p>
+                  </div>
+                )}
+
+                {/* Document File */}
                 {selectedDocument.document_file && (
                   <div className="document-preview">
-                    <label>Document File:</label>
+                    <h3>📎 Document File</h3>
                     <div className="file-preview">
                       <a 
                         href={selectedDocument.document_file}
@@ -402,6 +548,33 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
                         </svg>
                         View Document File
                       </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Review Information */}
+                {aiDetails?.review_info && (aiDetails.review_info.reviewed_at || aiDetails.review_info.admin_notes) && (
+                  <div className="review-info-section">
+                    <h3>👤 Review Information</h3>
+                    <div className="document-info-grid">
+                      {aiDetails.review_info.reviewed_by && (
+                        <div className="info-row">
+                          <label>Reviewed By:</label>
+                          <span>{aiDetails.review_info.reviewed_by}</span>
+                        </div>
+                      )}
+                      {aiDetails.review_info.reviewed_at && (
+                        <div className="info-row">
+                          <label>Reviewed At:</label>
+                          <span>{formatDate(aiDetails.review_info.reviewed_at)}</span>
+                        </div>
+                      )}
+                      {aiDetails.review_info.admin_notes && (
+                        <div className="info-row full-width">
+                          <label>Admin Notes:</label>
+                          <span>{aiDetails.review_info.admin_notes}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -1555,6 +1555,58 @@ def ai_document_analysis(request):
                 'ai_analysis': ai_results
             })
         
+        # Check if document is Voter's Certificate
+        elif document.document_type in ['voters_certificate', 'voter_certificate', 'voters_id', 'voter_id']:
+            from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+            
+            voter_service = get_voter_certificate_verification_service()
+            
+            voter_result = voter_service.verify_voter_certificate_document(
+                image_path=document.document_file.path,
+                confidence_threshold=0.5,
+                include_ocr=True
+            )
+            
+            # Format response for Voter Certificate verification
+            ai_results = {
+                'document_id': document_id,
+                'document_type': document.document_type,
+                'processing_timestamp': timezone.now().isoformat(),
+                'service_used': 'Voter Certificate Verification Service (YOLO + Advanced OCR + Field Extraction)',
+                'verification_result': voter_result,
+                'algorithms_results': {
+                    'voter_yolo_detection': {
+                        'name': 'YOLOv8 Voter Certificate Element Detection',
+                        'confidence': voter_result.get('confidence', 0.0),
+                        'status': voter_result.get('status', 'UNKNOWN'),
+                        'detected_elements': voter_result.get('detected_elements', {}),
+                        'validation_checks': voter_result.get('validation_checks', {})
+                    },
+                    'advanced_ocr': {
+                        'name': 'Advanced OCR + Field Extraction',
+                        'confidence': voter_result.get('ocr_data', {}).get('ocr_confidence', 0.0) if voter_result.get('ocr_data') else 0.0,
+                        'extracted_info': voter_result.get('extracted_info', {}),
+                        'fields_extracted': sum(1 for v in voter_result.get('extracted_info', {}).values() if v is not None)
+                    }
+                }
+            }
+            
+            # Update document status based on Voter Certificate verification
+            if voter_result.get('is_valid'):
+                document.status = 'verified'
+                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+            else:
+                document.status = 'needs_review'
+                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+            
+            document.save()
+            
+            return Response({
+                'success': True,
+                'message': f'Voter Certificate verification completed: {voter_result.get("status")}',
+                'ai_analysis': ai_results
+            })
+        
         # ============================================================================
         # FALLBACK: Use legacy document validator for other document types
         # ============================================================================
