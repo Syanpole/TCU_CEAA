@@ -596,6 +596,32 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
         document.reviewed_by = request.user
         document.save()
         
+        # If COE is approved, extract subjects
+        if new_status == 'approved' and document.document_type == 'certificate_of_enrollment':
+            try:
+                from .coe_verification_service import get_coe_verification_service
+                coe_service = get_coe_verification_service()
+                
+                # Get the file path
+                file_path = document.document_file.path if hasattr(document.document_file, 'path') else None
+                
+                if file_path:
+                    logger.info(f"Extracting subjects from approved COE for student {document.student.student_id}")
+                    
+                    # Extract subjects
+                    subject_result = coe_service.extract_subject_list(file_path)
+                    
+                    if subject_result['success'] and subject_result['subjects']:
+                        document.extracted_subjects = subject_result['subjects']
+                        document.subject_count = subject_result['subject_count']
+                        document.save()
+                        
+                        logger.info(f"✅ Extracted {subject_result['subject_count']} subjects from COE")
+                    else:
+                        logger.warning(f"⚠️ Could not extract subjects from COE: {subject_result.get('errors')}")
+            except Exception as e:
+                logger.error(f"❌ Error extracting subjects from COE: {str(e)}")
+        
         # Create audit log
         AuditLog.objects.create(
             user=request.user,
@@ -606,7 +632,8 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                 'student_id': document.student.student_id,
                 'document_type': document.document_type,
                 'new_status': new_status,
-                'admin_notes': admin_notes
+                'admin_notes': admin_notes,
+                'subjects_extracted': document.subject_count if document.document_type == 'certificate_of_enrollment' else None
             },
             ip_address=request.META.get('REMOTE_ADDR', ''),
             user_agent=request.META.get('HTTP_USER_AGENT', '')
@@ -764,6 +791,285 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(grade_submission)
         return Response(serializer.data)
+
+
+# New Grade Submission API Endpoints (Per-Subject Workflow)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_coe_subjects(request):
+    """
+    Get the list of subjects extracted from the student's approved COE.
+    
+    Returns:
+        - subjects: List of subjects from COE
+        - subject_count: Number of subjects
+        - coe_document_id: ID of the COE document
+    """
+    try:
+        # Find the student's approved COE document
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document:
+            return Response({
+                'error': 'No approved Certificate of Enrollment found. Please submit and get your COE approved first.',
+                'subjects': [],
+                'subject_count': 0
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if subjects have been extracted
+        if not coe_document.extracted_subjects or coe_document.subject_count == 0:
+            return Response({
+                'error': 'No subjects found in your COE. Please contact admin for manual verification.',
+                'subjects': [],
+                'subject_count': 0,
+                'coe_document_id': coe_document.id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'subjects': coe_document.extracted_subjects,
+            'subject_count': coe_document.subject_count,
+            'coe_document_id': coe_document.id,
+            'coe_submitted_at': coe_document.submitted_at
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching COE subjects: {str(e)}")
+        return Response({
+            'error': f'Error fetching subjects: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_subject_grade(request):
+    """
+    Submit a grade for a single subject.
+    
+    Expected data:
+        - subject_code: Subject code (e.g., GE101)
+        - subject_name: Subject name
+        - academic_year: Academic year (YYYY-YYYY)
+        - semester: Semester (1st, 2nd, summer)
+        - units: Number of units
+        - grade_received: Grade for this subject
+        - grade_sheet: Image file of the grade
+    """
+    try:
+        from .serializers import GradeSubmissionCreateSerializer
+        
+        # Validate required fields
+        required_fields = ['subject_code', 'subject_name', 'academic_year', 'semester', 'grade_sheet']
+        for field in required_fields:
+            if field not in request.data:
+                return Response({
+                    'error': f'Missing required field: {field}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create grade submission
+        data = request.data.copy()
+        
+        # Create the grade submission
+        grade_submission = GradeSubmission.objects.create(
+            student=request.user,
+            subject_code=data.get('subject_code'),
+            subject_name=data.get('subject_name'),
+            academic_year=data.get('academic_year'),
+            semester=data.get('semester'),
+            units=data.get('units'),
+            grade_received=data.get('grade_received'),
+            grade_sheet=data.get('grade_sheet'),
+            status='pending'
+        )
+        
+        serializer = GradeSubmissionSerializer(grade_submission)
+        
+        audit_logger.log(
+            user=request.user,
+            action_type='GRADE_SUBMITTED',
+            action_description=f'Grade submitted for {data.get("subject_code")} - {data.get("subject_name")}',
+            severity='info',
+            target_model='GradeSubmission',
+            target_object_id=grade_submission.id,
+            metadata={
+                'subject_code': data.get('subject_code'),
+                'subject_name': data.get('subject_name'),
+                'semester': data.get('semester')
+            },
+            request=request
+        )
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        logger.error(f"Error submitting subject grade: {str(e)}")
+        return Response({
+            'error': f'Error submitting grade: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_grade_submissions(request):
+    """
+    Validate all grade submissions against the COE subject list.
+    
+    Expected data:
+        - academic_year: Academic year to validate
+        - semester: Semester to validate
+    
+    Returns validation results with detailed feedback.
+    """
+    try:
+        from .grade_validation_service import get_grade_validation_service
+        
+        academic_year = request.data.get('academic_year')
+        semester = request.data.get('semester')
+        
+        if not academic_year or not semester:
+            return Response({
+                'error': 'Missing academic_year or semester'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get COE subjects
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document or not coe_document.extracted_subjects:
+            return Response({
+                'error': 'No approved COE with extracted subjects found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get grade submissions for this period
+        grade_submissions = GradeSubmission.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            subject_code__isnull=False  # Only new per-subject submissions
+        ).values('id', 'subject_code', 'subject_name', 'units', 'grade_received', 'status')
+        
+        # Validate
+        validation_service = get_grade_validation_service()
+        validation_result = validation_service.validate_grade_submissions(
+            coe_subjects=coe_document.extracted_subjects,
+            grade_submissions=list(grade_submissions)
+        )
+        
+        # Add validation summary
+        validation_result['summary'] = validation_service.get_validation_summary(validation_result)
+        
+        audit_logger.log(
+            user=request.user,
+            action_type='GRADES_VALIDATED',
+            action_description=f'Grade validation for {academic_year} {semester}: {"PASSED" if validation_result["is_valid"] else "FAILED"}',
+            severity='info' if validation_result['is_valid'] else 'warning',
+            metadata={
+                'academic_year': academic_year,
+                'semester': semester,
+                'is_valid': validation_result['is_valid'],
+                'error_count': len(validation_result['errors'])
+            },
+            request=request
+        )
+        
+        return Response(validation_result)
+    
+    except Exception as e:
+        logger.error(f"Error validating grades: {str(e)}")
+        return Response({
+            'error': f'Validation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_grade_submission_status(request):
+    """
+    Get the current status of grade submissions for a student.
+    
+    Query params:
+        - academic_year: Academic year
+        - semester: Semester
+    
+    Returns:
+        - total_subjects: Number of subjects from COE
+        - submitted_count: Number of grades submitted
+        - approved_count: Number of grades approved
+        - rejected_count: Number of grades rejected
+        - pending_count: Number of grades pending review
+        - is_complete: Whether all subjects have been submitted
+        - can_proceed_to_liveness: Whether student can proceed to liveness detection
+        - submissions: List of grade submissions with details
+    """
+    try:
+        academic_year = request.query_params.get('academic_year')
+        semester = request.query_params.get('semester')
+        
+        if not academic_year or not semester:
+            return Response({
+                'error': 'Missing academic_year or semester parameter'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get COE subjects
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document or not coe_document.extracted_subjects:
+            return Response({
+                'error': 'No approved COE found',
+                'total_subjects': 0,
+                'submitted_count': 0
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get grade submissions
+        submissions = GradeSubmission.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            subject_code__isnull=False
+        )
+        
+        total_subjects = coe_document.subject_count
+        submitted_count = submissions.count()
+        approved_count = submissions.filter(status='approved').count()
+        rejected_count = submissions.filter(status='rejected').count()
+        pending_count = submissions.filter(status='pending').count()
+        
+        # Check if can proceed to liveness (all submitted and all approved)
+        is_complete = submitted_count == total_subjects
+        all_approved = approved_count == total_subjects
+        can_proceed_to_liveness = is_complete and all_approved
+        
+        serializer = GradeSubmissionSerializer(submissions, many=True)
+        
+        return Response({
+            'total_subjects': total_subjects,
+            'submitted_count': submitted_count,
+            'approved_count': approved_count,
+            'rejected_count': rejected_count,
+            'pending_count': pending_count,
+            'is_complete': is_complete,
+            'all_approved': all_approved,
+            'can_proceed_to_liveness': can_proceed_to_liveness,
+            'submissions': serializer.data,
+            'coe_subjects': coe_document.extracted_subjects
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting grade submission status: {str(e)}")
+        return Response({
+            'error': f'Error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class AllowanceApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]

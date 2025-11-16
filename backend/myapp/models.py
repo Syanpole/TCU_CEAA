@@ -294,6 +294,10 @@ class DocumentSubmission(models.Model):
     face_match_confidence = models.CharField(max_length=20, blank=True, null=True, help_text="Confidence level: very_low, low, medium, high, very_high")
     selfie_captured = models.BooleanField(default=False, help_text="Whether a live selfie was captured for verification")
     
+    # COE Subject Extraction Fields (for Certificate of Enrollment documents)
+    extracted_subjects = models.JSONField(default=list, blank=True, help_text="List of subjects extracted from COE: [{subject_code, subject_name}, ...]")
+    subject_count = models.IntegerField(default=0, help_text="Total number of subjects extracted from COE")
+    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 
@@ -323,18 +327,25 @@ class GradeSubmission(models.Model):
     academic_year = models.CharField(max_length=9, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
     semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES)
     
-    # Grade details
-    total_units = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(30)])
+    # Per-Subject Information (NEW - One submission per subject)
+    subject_code = models.CharField(max_length=20, blank=True, null=True, help_text="Subject code (e.g., GE101, MATH101)")
+    subject_name = models.CharField(max_length=200, blank=True, null=True, help_text="Subject name (e.g., Technopreneurship)")
+    units = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(10)], help_text="Number of units for this subject")
+    grade_received = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Grade for this subject")
+    
+    # Legacy fields (kept for backward compatibility with old submissions)
+    total_units = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(30)], blank=True, null=True)
     # GWA in point scale: 1.00-5.00 (1.00 is highest, 5.00 is failing)
     # Note: Backend validation will accept both percentage (65-100) and point scale (1.00-5.00)
     general_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
-                                                 validators=[MinValueValidator(1.0), MaxValueValidator(100.0)])
+                                                 validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
+                                                 blank=True, null=True)
     # DEPRECATED: SWA field kept for backward compatibility but not used in frontend
     semestral_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
                                                    validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
                                                    null=True, blank=True, default=None)
     
-    # Grade sheet upload
+    # Grade sheet upload (one grade image per subject)
     grade_sheet = models.FileField(upload_to='grades/%Y/%m/', validators=grade_sheet_validators)
     
     # Validation flags

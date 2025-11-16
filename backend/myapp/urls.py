@@ -8,7 +8,9 @@ from .views import (
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
     send_verification_code, verify_email_code, resend_verification_code,
     request_password_reset, verify_reset_code, reset_password,
-    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard
+    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard,
+    # New grade submission endpoints
+    get_coe_subjects, submit_subject_grade, validate_grade_submissions, get_grade_submission_status
 )
 
 # Face verification views
@@ -67,6 +69,12 @@ urlpatterns = [
     path('api/face-verification/extract-face/', extract_id_face, name='extract-id-face'),
     path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
     path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
+    
+    # 📚 New Grade Submission Workflow Endpoints (Per-Subject)
+    path('api/grades/coe-subjects/', get_coe_subjects, name='get-coe-subjects'),
+    path('api/grades/submit-subject/', submit_subject_grade, name='submit-subject-grade'),
+    path('api/grades/validate/', validate_grade_submissions, name='validate-grade-submissions'),
+    path('api/grades/status/', get_grade_submission_status, name='get-grade-submission-status'),
     
     # 🚨 Fraud Management Endpoints
     path('api/fraud-reports/', get_fraud_reports, name='fraud-reports-list'),

@@ -152,6 +152,182 @@ class COEVerificationService:
             'fully_operational': self.yolo_model is not None and self.ocr_interpreter is not None
         }
     
+    def extract_subject_list(self, image_path: str) -> Dict[str, Any]:
+        """
+        Extract list of subjects from COE document.
+        
+        Args:
+            image_path: Path to the COE document image
+        
+        Returns:
+            Dictionary containing:
+                - success: Boolean indicating if extraction completed
+                - subjects: List of dictionaries with 'subject_code' and 'subject_name'
+                - subject_count: Total number of subjects found
+                - confidence: Overall extraction confidence (0.0-1.0)
+                - errors: List of errors if any
+        """
+        result = {
+            'success': False,
+            'subjects': [],
+            'subject_count': 0,
+            'confidence': 0.0,
+            'errors': []
+        }
+        
+        try:
+            if not OCR_AVAILABLE or not self.ocr_interpreter:
+                result['errors'].append("OCR service not available")
+                return result
+            
+            if not os.path.exists(image_path):
+                result['errors'].append(f"Image not found: {image_path}")
+                return result
+            
+            # Read and preprocess image
+            logger.info("🔍 Extracting subject list from COE...")
+            image = cv2.imread(image_path)
+            
+            if image is None:
+                result['errors'].append("Failed to read image")
+                return result
+            
+            # Use advanced OCR extraction
+            ocr_data = self._advanced_ocr_extraction(image)
+            
+            if not ocr_data['success']:
+                result['errors'].extend(ocr_data.get('errors', []))
+                return result
+            
+            # Extract subjects using pattern matching
+            subjects = self._extract_subjects_from_text(ocr_data['text'])
+            
+            result['success'] = len(subjects) > 0
+            result['subjects'] = subjects
+            result['subject_count'] = len(subjects)
+            result['confidence'] = ocr_data['confidence']
+            
+            if len(subjects) == 0:
+                result['errors'].append("No subjects found in COE document")
+                logger.warning("⚠️ No subjects extracted from COE")
+            else:
+                logger.info(f"✅ Extracted {len(subjects)} subjects from COE")
+            
+        except Exception as e:
+            logger.error(f"❌ Subject extraction error: {str(e)}")
+            result['errors'].append(f"Subject extraction error: {str(e)}")
+        
+        return result
+    
+    def _extract_subjects_from_text(self, text: str) -> List[Dict[str, str]]:
+        """
+        Extract subject codes and names from OCR text.
+        
+        Args:
+            text: Raw OCR text from COE document
+        
+        Returns:
+            List of dictionaries with 'subject_code' and 'subject_name'
+        """
+        import re
+        subjects = []
+        
+        try:
+            # Split text into lines
+            lines = [line.strip() for line in text.split('\n') if line.strip()]
+            
+            # TCU Format: 4-digit code + Subject code on one line, name typically on next line
+            # Example:  
+            #   1127 IT 102
+            #   Social Media And Presentation
+            
+            # First pass: Find all course codes with their line numbers
+            course_code_lines = []
+            for i, line in enumerate(lines):
+                match = re.search(r'^\d{4}\s+([A-Z]{2,6})\s+(\d{1,3}[A-Z]?)(?:\s|$)', line)
+                if match:
+                    code_letters = match.group(1).strip()
+                    code_numbers = match.group(2).strip()
+                    subject_code = f"{code_letters} {code_numbers}"
+                    course_code_lines.append((i, subject_code))
+                    logger.debug(f"Found course code at line {i}: {subject_code}")
+            
+            # Second pass: Find subject names for each course code
+            for i, subject_code in course_code_lines:
+                subject_name = None
+                
+                # Strategy 1: Check next line for subject name (most common case)
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1]
+                    
+                    # Valid subject name: starts with capital, has letters, not metadata
+                    if (re.match(r'^[A-Z][a-zA-Z\s/\-\(\)&,]+', next_line) and 
+                        not re.match(r'^(BSCS|UNITS|CODE|SUBJECT|ENROLLED|VALIDATED|BY:|DATE:|Total)', next_line) and
+                        not re.search(r'^\d+\.\d+\s', next_line) and  # Not starting with units like "3.0"
+                        not re.search(r'^\d+-\d+\s+(am|pm)', next_line) and  # Not a schedule
+                        len(next_line.strip()) >= 3):
+                        
+                        subject_name = next_line.strip()
+                        logger.debug(f"Found name for {subject_code} on next line: {subject_name}")
+                
+                # Strategy 2: Look backward for orphaned subject names (for ELEC 4A case)
+                if not subject_name and i >= 2:
+                    for lookback in range(2, min(6, i + 1)):
+                        prev_line = lines[i - lookback]
+                        
+                        # Check if this looks like a subject name
+                        if (re.match(r'^[A-Z][a-zA-Z\s/\-\(\)&,]{10,}', prev_line) and  # At least 10 chars
+                            not re.match(r'^(BSCS|UNITS|CODE|SUBJECT|ENROLLED|VALIDATED|BY:|DATE:|Total|Taguig|Republic|CERTIFICATE|Student|Course|Department|Enrollment)', prev_line) and
+                            not re.search(r'\d{4}\s+[A-Z]{2,6}\s+\d', prev_line) and  # Doesn't contain course code
+                            not re.search(r'^\d+\.\d+\s', prev_line) and  # Not units
+                            not re.search(r'\d+-\d+\s+(am|pm)', prev_line)):  # Not schedule
+                            
+                            # Check if this name hasn't been used
+                            name_candidate = prev_line.strip()
+                            already_used = any(s['subject_name'] == name_candidate for s in subjects)
+                            
+                            if not already_used:
+                                subject_name = name_candidate
+                                logger.debug(f"Found name for {subject_code} by lookback ({lookback} lines): {subject_name}")
+                                break
+                
+                # Clean and add subject if name was found
+                if subject_name:
+                    # Remove trailing units/credits
+                    subject_name = re.sub(r'\s+\d+\.\d+\s+units?\s*$', '', subject_name, flags=re.IGNORECASE)
+                    subject_name = re.sub(r'\s+\d+\s+units?\s*$', '', subject_name, flags=re.IGNORECASE)
+                    
+                    if len(subject_name) >= 3:
+                        subjects.append({
+                            'subject_code': subject_code,
+                            'subject_name': subject_name
+                        })
+                        logger.info(f"✓ Extracted: {subject_code} - {subject_name}")
+                else:
+                    logger.warning(f"⚠️ No name found for {subject_code}")
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_subjects = []
+            for subject in subjects:
+                # Normalize for comparison
+                key = (subject['subject_code'].upper().replace(' ', ''), 
+                       subject['subject_name'].lower())
+                if key not in seen:
+                    seen.add(key)
+                    unique_subjects.append(subject)
+            
+            logger.info(f"📚 Extracted {len(unique_subjects)} unique subjects from COE")
+            for i, subject in enumerate(unique_subjects, 1):
+                logger.info(f"   {i}. {subject['subject_code']} - {subject['subject_name']}")
+            
+        except Exception as e:
+            logger.error(f"❌ Subject parsing error: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        return unique_subjects
+    
     def extract_coe_text(self, image_path: str) -> Dict[str, Any]:
         """
         Extract and interpret text from COE document using OCR.
@@ -171,6 +347,8 @@ class COEVerificationService:
                 - year_level: Extracted year level
                 - semester: Extracted semester info
                 - enrollment_date: Extracted enrollment date
+                - subjects: List of subjects (added)
+                - subject_count: Number of subjects (added)
                 - errors: List of errors if any
         """
         result = {
@@ -184,6 +362,8 @@ class COEVerificationService:
             'year_level': None,
             'semester': None,
             'enrollment_date': None,
+            'subjects': [],
+            'subject_count': 0,
             'errors': []
         }
         
@@ -214,6 +394,12 @@ class COEVerificationService:
             result['raw_text'] = ocr_data['text']
             result['ocr_confidence'] = ocr_data['confidence']
             
+            # Extract subjects from the text
+            logger.info("📚 Extracting subjects from COE text...")
+            subjects = self._extract_subjects_from_text(ocr_data['text'])
+            result['subjects'] = subjects
+            result['subject_count'] = len(subjects)
+            
             # Apply intelligent interpretation
             logger.info("🧠 Applying intelligent text interpretation...")
             interpreted = self.ocr_interpreter.interpret_document_text(ocr_data['text'])
@@ -239,7 +425,7 @@ class COEVerificationService:
                 result['year_level'], result['semester'], result['enrollment_date']
             ] if field is not None)
             
-            logger.info(f"✅ OCR extraction completed. Extracted {fields_extracted}/6 fields")
+            logger.info(f"✅ OCR extraction completed. Extracted {fields_extracted}/6 fields + {len(subjects)} subjects")
             
         except Exception as e:
             logger.error(f"❌ OCR extraction error: {str(e)}")
@@ -474,10 +660,12 @@ class COEVerificationService:
                         'program': ocr_result.get('program'),
                         'year_level': ocr_result.get('year_level'),
                         'semester': ocr_result.get('semester'),
-                        'enrollment_date': ocr_result.get('enrollment_date')
+                        'enrollment_date': ocr_result.get('enrollment_date'),
+                        'subjects': ocr_result.get('subjects', []),
+                        'subject_count': ocr_result.get('subject_count', 0)
                     }
                     
-                    logger.info(f"✅ OCR extraction successful (confidence: {ocr_confidence:.2%})")
+                    logger.info(f"✅ OCR extraction successful (confidence: {ocr_confidence:.2%}), found {ocr_result.get('subject_count', 0)} subjects")
                 else:
                     logger.warning("⚠️ OCR extraction failed or incomplete")
             

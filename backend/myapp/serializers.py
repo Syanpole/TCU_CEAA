@@ -214,10 +214,13 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
                  'status', 'status_display', 'admin_notes', 'submitted_at', 'reviewed_at', 
                  'student_name', 'student_id', 'reviewed_by_name', 'ai_analysis_completed',
                  'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
-                 'ai_auto_approved', 'ai_analysis_notes']
+                 'ai_auto_approved', 'ai_analysis_notes',
+                 # New COE subject extraction fields
+                 'extracted_subjects', 'subject_count']
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
                           'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
-                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes']
+                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes',
+                          'extracted_subjects', 'subject_count']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
@@ -1099,9 +1102,12 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = GradeSubmission
-        fields = ['id', 'academic_year', 'semester', 'semester_display', 'total_units', 
-                 'general_weighted_average', 'semestral_weighted_average', 'grade_sheet',
-                 'has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects',
+        fields = ['id', 'academic_year', 'semester', 'semester_display', 
+                 # New per-subject fields
+                 'subject_code', 'subject_name', 'units', 'grade_received',
+                 # Legacy fields (backward compatibility)
+                 'total_units', 'general_weighted_average', 'semestral_weighted_average', 
+                 'grade_sheet', 'has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects',
                  'ai_evaluation_completed', 'ai_evaluation_notes', 'ai_confidence_score',
                  'ai_extracted_grades', 'ai_grade_validation', 'ai_recommendations',
                  'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive', 
