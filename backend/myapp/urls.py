@@ -11,6 +11,19 @@ from .views import (
     ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard
 )
 
+# Face verification views
+from .face_verification_views import (
+    verify_face_with_id, extract_id_face, verify_liveness_only,
+    verify_grade_submission_identity
+)
+
+# Fraud management views
+from .fraud_management_views import (
+    get_fraud_reports, get_fraud_report_detail, update_fraud_report,
+    resolve_fraud_report, contact_real_owner, get_fraud_notifications,
+    mark_notification_read
+)
+
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet)
 router.register(r'users', UserViewSet)
@@ -48,5 +61,20 @@ urlpatterns = [
     path('api/ai/batch-process/', ai_batch_process, name='ai-batch-process'),
     # 📊 Admin Document Management
     path('api/admin/documents/dashboard/', admin_document_dashboard, name='admin-document-dashboard'),
+    
+    # 🔒 Face Verification Endpoints
+    path('api/face-verification/verify/', verify_face_with_id, name='verify-face-with-id'),
+    path('api/face-verification/extract-face/', extract_id_face, name='extract-id-face'),
+    path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
+    path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
+    
+    # 🚨 Fraud Management Endpoints
+    path('api/fraud-reports/', get_fraud_reports, name='fraud-reports-list'),
+    path('api/fraud-reports/<int:report_id>/', get_fraud_report_detail, name='fraud-report-detail'),
+    path('api/fraud-reports/<int:report_id>/update/', update_fraud_report, name='fraud-report-update'),
+    path('api/fraud-reports/<int:report_id>/resolve/', resolve_fraud_report, name='fraud-report-resolve'),
+    path('api/fraud-reports/<int:report_id>/contact-real-owner/', contact_real_owner, name='fraud-contact-owner'),
+    path('api/fraud-notifications/', get_fraud_notifications, name='fraud-notifications'),
+    path('api/fraud-notifications/<int:notification_id>/mark-read/', mark_notification_read, name='fraud-notification-read'),
 ]
 

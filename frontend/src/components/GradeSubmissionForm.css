@@ -1351,3 +1351,127 @@
   color: #475569;
   line-height: 1.6;
 }
+
+/* Liveness Verification Styles */
+.liveness-verification-container {
+  padding: 1.5rem;
+}
+
+.liveness-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.dark-theme .liveness-header {
+  border-bottom-color: #334155;
+}
+
+.liveness-header h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.dark-theme .liveness-header h2 {
+  color: #f1f5f9;
+}
+
+.liveness-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dark-theme .liveness-subtitle {
+  color: #94a3b8;
+}
+
+.liveness-instructions {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #93c5fd;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dark-theme .liveness-instructions {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  border-color: #3b82f6;
+}
+
+.liveness-instructions h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.dark-theme .liveness-instructions h3 {
+  color: #93c5fd;
+}
+
+.liveness-instructions ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+
+.liveness-instructions li {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #1e40af;
+  font-weight: 500;
+  position: relative;
+  padding-left: 0.25rem;
+}
+
+.dark-theme .liveness-instructions li {
+  color: #bfdbfe;
+}
+
+.liveness-instructions li:last-child {
+  margin-bottom: 0;
+}
+
+.liveness-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  font-size: 0.813rem;
+  font-weight: 600;
+  color: #1e40af;
+  text-align: center;
+}
+
+.dark-theme .liveness-note {
+  background: rgba(0, 0, 0, 0.2);
+  color: #93c5fd;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .liveness-verification-container {
+    padding: 1rem;
+  }
+
+  .liveness-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .liveness-instructions {
+    padding: 1rem;
+  }
+
+  .liveness-instructions h3 {
+    font-size: 0.938rem;
+  }
+}

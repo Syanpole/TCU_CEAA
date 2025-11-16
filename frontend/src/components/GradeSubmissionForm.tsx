@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import documentService, { GradeSubmissionEligibility } from '../services/documentService';
 import NotificationModal from './NotificationModal';
+import LiveCameraCapture from './LiveCameraCapture';
 import './GradeSubmissionForm.css';
 
 interface GradeSubmissionFormProps {
@@ -41,6 +42,9 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [notificationMessage, setNotificationMessage] = useState('');
   const [eligibility, setEligibility] = useState<GradeSubmissionEligibility | null>(null);
   const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [showLivenessVerification, setShowLivenessVerification] = useState(false);
+  const [pendingGradeSubmissionId, setPendingGradeSubmissionId] = useState<number | null>(null);
+  const [livenessImage, setLivenessImage] = useState<string | null>(null);
 
   const semesters = [
     { value: '1st', label: '1st Semester' },
@@ -95,6 +99,84 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       ...prev,
       grade_sheet: file
     }));
+  };
+
+  const handleLivenessCapture = async (imageBlob: Blob, imageUrl: string, livenessData?: any) => {
+    try {
+      setLivenessImage(imageUrl);
+      setLoading(true);
+
+      // Use the provided blob directly
+      const file = new File([imageBlob], 'face_verification.jpg', { type: 'image/jpeg' });
+
+      // Submit face verification
+      const faceFormData = new FormData();
+      faceFormData.append('photo', file);
+      faceFormData.append('liveness_data', JSON.stringify(livenessData));
+      if (pendingGradeSubmissionId) {
+        faceFormData.append('grade_submission_id', pendingGradeSubmissionId.toString());
+      }
+
+      await apiClient.post('/face-verification/grade-submission/', faceFormData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Success! Reset form and show final success message
+      setFormData({
+        semester: '',
+        academic_year: '',
+        total_units: '',
+        general_weighted_average: '',
+        has_failing_grades: false,
+        has_incomplete_grades: false,
+        has_dropped_subjects: false,
+        grade_sheet: null
+      });
+      setShowLivenessVerification(false);
+      setPendingGradeSubmissionId(null);
+      
+      setNotificationType('success');
+      setNotificationMessage('🎉 SUCCESS! Your grades have been submitted and your identity has been VERIFIED! The AI system has:\n\n✅ Analyzed your grade sheet\n✅ Validated liveness detection\n✅ Verified your facial identity\n✅ Approved your submission\n\nYour application is now complete and ready for final admin approval!');
+      setShowNotification(true);
+
+      setTimeout(() => {
+        if (onSubmissionSuccess) {
+          onSubmissionSuccess();
+        }
+      }, 5000);
+    } catch (error: any) {
+      console.error('Face verification error:', error);
+      setShowLivenessVerification(false);
+      
+      let errorMessage = 'Face verification failed. ';
+      if (error.response?.data) {
+        if (error.response.data.detail) {
+          errorMessage += error.response.data.detail;
+        } else if (error.response.data.error) {
+          errorMessage += error.response.data.error;
+        } else {
+          errorMessage += 'Please ensure your face is clearly visible and try again.';
+        }
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      setNotificationType('error');
+      setNotificationMessage(errorMessage);
+      setShowNotification(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLivenessCancel = () => {
+    setShowLivenessVerification(false);
+    setPendingGradeSubmissionId(null);
+    setNotificationType('warning');
+    setNotificationMessage('Identity verification cancelled. Your grades were submitted but require identity verification to complete.');
+    setShowNotification(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,35 +259,22 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         grade_sheet_size: formData.grade_sheet?.size
       });
 
-      await apiClient.post('/grades/', submitFormData, {
+      const response = await apiClient.post('/grades/', submitFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      // Reset form
-      setFormData({
-        semester: '',
-        academic_year: '',
-        total_units: '',
-        general_weighted_average: '',
-        has_failing_grades: false,
-        has_incomplete_grades: false,
-        has_dropped_subjects: false,
-        grade_sheet: null
-      });
-
-      // Show success notification
-      setNotificationType('success');
-      setNotificationMessage('🎉 Excellent! Your grades have been submitted and AUTOMATICALLY APPROVED by our advanced AI system! The AI has comprehensively analyzed your grade sheet, validated all information, calculated your allowance eligibility, and completed the entire evaluation process autonomously. No waiting for manual review - your submission is immediately processed and approved! The only remaining step is the final allowance application approval by admin, which typically takes 3-5 business days. You can now proceed with confidence knowing your academic records are fully verified and approved by our intelligent system!');
-      setShowNotification(true);
-
-      // Close form after notification
-      setTimeout(() => {
-        if (onSubmissionSuccess) {
-          onSubmissionSuccess();
-        }
-      }, 5000); // Longer delay for important message
+      // Store the grade submission ID for face verification
+      const gradeSubmissionId = (response.data as any).id;
+      console.log('✅ Grade submitted successfully! ID:', gradeSubmissionId);
+      
+      // Don't show notification during liveness flow to avoid UI conflicts
+      // Show liveness verification immediately
+      console.log('🎬 Triggering liveness verification screen...');
+      setLoading(false); // Stop loading state
+      setPendingGradeSubmissionId(gradeSubmissionId);
+      setShowLivenessVerification(true);
 
     } catch (error: any) {
       console.error('Error submitting grades:', error);
@@ -266,6 +335,39 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       setLoading(false);
     }
   };
+
+  // Show liveness verification screen if triggered
+  if (showLivenessVerification) {
+    return (
+      <div className="grade-submission-form-compact">
+        <div className="liveness-verification-container">
+          <div className="liveness-header">
+            <h2>🔒 Final Identity Verification</h2>
+            <p className="liveness-subtitle">
+              Your grades have been processed! Complete this quick identity verification to proceed.
+            </p>
+          </div>
+          
+          <div className="liveness-instructions">
+            <h3>📋 What to Expect:</h3>
+            <ul>
+              <li>🎨 <strong>Color Flash:</strong> Look at the screen as colors flash</li>
+              <li>👁️ <strong>Blink Detection:</strong> Blink naturally</li>
+              <li>📱 <strong>Movement Check:</strong> Move your face slightly</li>
+            </ul>
+            <p className="liveness-note">⚡ This takes only 10-15 seconds!</p>
+          </div>
+
+          <LiveCameraCapture
+            documentType="Face Verification"
+            onCapture={handleLivenessCapture}
+            onCancel={handleLivenessCancel}
+            requireLiveness={true}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grade-submission-form-compact">

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import NotificationModal from './NotificationModal';
+import LiveCameraCapture from './LiveCameraCapture';
+import { detectDevice } from '../utils/deviceDetection';
 import './DocumentSubmissionForm.css';
 
 interface DocumentSubmissionFormProps {
@@ -28,6 +30,18 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
   const [showNotification, setShowNotification] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [instantApproval, setInstantApproval] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState(detectDevice());
+
+  // Update device info on mount and window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setDeviceInfo(detectDevice());
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const documentTypes = [
     // Separated document types
@@ -86,6 +100,46 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       ...prev,
       file
     }));
+  };
+
+  const handleCameraCapture = (imageBlob: Blob, imageUrl: string, livenessData?: any) => {
+    // Convert blob to File object
+    const fileName = `camera_capture_${formData.document_type || 'document'}_${Date.now()}.jpg`;
+    const file = new File([imageBlob], fileName, { type: 'image/jpeg' });
+    
+    // Store liveness data if provided
+    if (livenessData) {
+      // Attach liveness data to the file object for backend verification
+      (file as any).livenessData = livenessData;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      file
+    }));
+    
+    setShowCamera(false);
+    setError('');
+  };
+
+  const openCamera = () => {
+    if (!formData.document_type) {
+      setError('Please select a document type first before capturing');
+      return;
+    }
+    
+    if (!deviceInfo.hasCameraSupport) {
+      setError('Your device does not support camera access');
+      return;
+    }
+    
+    setShowCamera(true);
+  };
+
+  // Check if document type requires liveness detection (IDs with faces)
+  const requiresLiveness = () => {
+    const livenessRequiredTypes = ['school_id', 'birth_certificate', 'voters_certificate'];
+    return livenessRequiredTypes.includes(formData.document_type);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -282,19 +336,54 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
 
         <div className="form-group">
           <label htmlFor="file">Upload File *</label>
-          <input
-            type="file"
-            id="file"
-            name="file"
-            onChange={handleFileChange}
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-            required
-            className="form-file"
-          />
+          
+          {/* Camera button for live capture */}
+          <div className="upload-options">
+            <button
+              type="button"
+              onClick={openCamera}
+              className="camera-btn"
+              disabled={!formData.document_type || loading}
+            >
+              📷 {deviceInfo.isMobile ? 'Capture Document' : 'Use Camera'}
+            </button>
+            
+            {/* Show file input only on desktop */}
+            {!deviceInfo.isMobile && (
+              <>
+                <div className="upload-divider">
+                  <span>or</span>
+                </div>
+                <input
+                  type="file"
+                  id="file"
+                  name="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  className="form-file"
+                />
+              </>
+            )}
+          </div>
+          
           <div className="file-info">
             <small>
-              Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
+              {deviceInfo.isMobile 
+                ? '📱 Mobile: Camera capture ONLY (no file uploads) - Liveness verification required for ID documents'
+                : '💻 Desktop: Use camera or upload file - Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)'
+              }
             </small>
+            {requiresLiveness() && (
+              <div className="liveness-notice">
+                <strong>🔒 Liveness Verification Required:</strong>
+                <p>This document requires face verification. You will need to:</p>
+                <ul>
+                  <li>✓ Pass color flash detection</li>
+                  <li>✓ Blink naturally during capture</li>
+                  <li>✓ Show slight face movement</li>
+                </ul>
+              </div>
+            )}
             {formData.file && (
               <div className="selected-file">
                 📎 {formData.file.name} ({Math.round(formData.file.size / 1024)} KB)
@@ -358,6 +447,16 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
         autoClose={true}
         duration={8000}
       />
+
+      {/* Live Camera Capture Modal */}
+      {showCamera && (
+        <LiveCameraCapture
+          documentType={documentTypeLabels[formData.document_type] || formData.document_type}
+          onCapture={handleCameraCapture}
+          onCancel={() => setShowCamera(false)}
+          requireLiveness={requiresLiveness()}
+        />
+      )}
     </div>
   );
 };

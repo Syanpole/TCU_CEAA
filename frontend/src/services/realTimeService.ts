@@ -46,22 +46,23 @@ class RealTimeService {
       const token = localStorage.getItem('token');
       if (!token) return;
 
+      const API_BASE = window.location.protocol + '//' + window.location.hostname + ':8000/api';
       let url = '';
       switch (dataType) {
         case 'student-dashboard':
-          url = 'http://localhost:8000/api/dashboard/student/';
+          url = `${API_BASE}/dashboard/student/`;
           break;
         case 'admin-dashboard':
-          url = 'http://localhost:8000/api/dashboard/admin/';
+          url = `${API_BASE}/dashboard/admin/`;
           break;
         case 'documents':
-          url = 'http://localhost:8000/api/documents/';
+          url = `${API_BASE}/documents/`;
           break;
         case 'grades':
-          url = 'http://localhost:8000/api/grades/';
+          url = `${API_BASE}/grades/`;
           break;
         case 'applications':
-          url = 'http://localhost:8000/api/applications/';
+          url = `${API_BASE}/applications/`;
           break;
         default:
           return;

@@ -1,0 +1,20 @@
+# Face Verification and Liveness Detection Dependencies
+
+# YOLO for face detection
+ultralytics>=8.0.0
+
+# InsightFace for face recognition
+insightface>=0.7.3
+onnxruntime>=1.15.0
+
+# Computer Vision
+opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
+
+# Image Processing
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# OCR (for Tesseract fallback)
+pytesseract>=0.3.10
+pdf2image>=1.16.3

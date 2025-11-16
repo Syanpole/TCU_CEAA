@@ -283,6 +283,17 @@ class DocumentSubmission(models.Model):
     ai_analysis_notes = models.TextField(blank=True, null=True)
     address_match_score = models.FloatField(default=0.0, help_text="Address matching confidence score (0.0-1.0)")
     
+    # Face Verification and Liveness Detection Fields
+    liveness_verification_completed = models.BooleanField(default=False, help_text="Whether liveness verification was performed")
+    liveness_verification_passed = models.BooleanField(default=False, help_text="Whether liveness checks passed")
+    liveness_data = models.JSONField(default=dict, blank=True, help_text="Liveness challenge results (color flash, blink, movement)")
+    face_detected_in_document = models.BooleanField(default=False, help_text="Whether a face was detected in the document")
+    face_embedding = models.JSONField(default=dict, blank=True, help_text="Face embedding vector for comparison")
+    face_verification_completed = models.BooleanField(default=False, help_text="Whether face verification with selfie was done")
+    face_match_score = models.FloatField(default=0.0, help_text="Face similarity score (0.0-1.0)")
+    face_match_confidence = models.CharField(max_length=20, blank=True, null=True, help_text="Confidence level: very_low, low, medium, high, very_high")
+    selfie_captured = models.BooleanField(default=False, help_text="Whether a live selfie was captured for verification")
+    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 
@@ -340,6 +351,13 @@ class GradeSubmission(models.Model):
     ai_recommendations = models.JSONField(default=list, blank=True, help_text="AI recommendations")
     qualifies_for_basic_allowance = models.BooleanField(default=False)
     qualifies_for_merit_incentive = models.BooleanField(default=False)
+    
+    # AI Grades Detection fields (for OCR-based grade extraction)
+    ai_grades_detected = models.BooleanField(default=False, help_text="Whether AI detected grades from document")
+    ai_gwa_calculated = models.FloatField(null=True, blank=True, help_text="AI-calculated GWA from OCR")
+    ai_merit_level = models.CharField(max_length=50, blank=True, null=True, help_text="AI-determined merit level")
+    ai_grades_confidence = models.FloatField(default=0.0, help_text="Confidence in OCR grade detection (0.0-1.0)")
+    ai_grades_recommendations = models.JSONField(default=list, blank=True, help_text="Merit-based recommendations")
     
     # Admin review
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -1145,5 +1163,9 @@ class FullApplication(models.Model):
     
     def __str__(self):
         return f"Application for {self.user.username} - {self.school_year} {self.semester}"
+
+
+# Import fraud detection models at the end to avoid circular import
+from .fraud_detection_models import FraudReport, FraudNotification, UserAccountAction
 
 
