@@ -7,6 +7,7 @@ interface LiveCameraCaptureProps {
   onCancel: () => void;
   documentType: string;
   requireLiveness?: boolean;
+  submittedIdImage?: string; // URL of submitted ID for facial comparison
 }
 
 interface LivenessChallenge {
@@ -20,7 +21,8 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
   onCapture,
   onCancel,
   documentType,
-  requireLiveness = false
+  requireLiveness = false,
+  submittedIdImage
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -32,6 +34,8 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
   const [flashColor, setFlashColor] = useState<string | null>(null);
   const [livenessProgress, setLivenessProgress] = useState(0);
   const [livenessData, setLivenessData] = useState<any>({});
+  const [isFacialRecognitionProcessing, setIsFacialRecognitionProcessing] = useState(false);
+  const [showConfirmButton, setShowConfirmButton] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -182,6 +186,10 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
       if (allPassed) {
         setLivenessCheck('passed');
         setCurrentChallenge(null);
+        // Show confirm button after liveness passes
+        if (requireLiveness) {
+          setShowConfirmButton(true);
+        }
       } else {
         setLivenessCheck('failed');
         setError('Liveness verification failed. Please try again.');
@@ -318,8 +326,18 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
     initializeCamera();
   };
 
-  const confirmPhoto = () => {
+  const confirmPhoto = async () => {
     if (!capturedImage || !canvasRef.current) return;
+    
+    // If liveness required, show processing state for facial recognition
+    if (requireLiveness) {
+      setIsFacialRecognitionProcessing(true);
+      
+      // Simulate facial recognition processing (in production, call backend API)
+      await sleep(2000);
+      
+      setIsFacialRecognitionProcessing(false);
+    }
     
     // Convert data URL to Blob
     canvasRef.current.toBlob((blob) => {
@@ -411,25 +429,52 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
                 <p>📏 Capture the entire document</p>
               </div>
               
-              <button
-                className="capture-btn"
-                onClick={capturePhoto}
-                disabled={livenessCheck !== 'passed' || countdown !== null}
-              >
-                {countdown !== null ? (
-                  <span>📸 {countdown}</span>
-                ) : livenessCheck === 'passed' ? (
-                  <span>📸 Capture</span>
-                ) : (
-                  <span>⏳ Please wait...</span>
-                )}
-              </button>
+              {/* Show shutter button only for document capture, not during liveness detection */}
+              {!requireLiveness && (
+                <button
+                  className="capture-btn"
+                  onClick={capturePhoto}
+                  disabled={livenessCheck !== 'passed' || countdown !== null}
+                >
+                  {countdown !== null ? (
+                    <span>📸 {countdown}</span>
+                  ) : livenessCheck === 'passed' ? (
+                    <span>📸 Capture</span>
+                  ) : (
+                    <span>⏳ Please wait...</span>
+                  )}
+                </button>
+              )}
+              
+              {/* Show confirm button after liveness verification passes */}
+              {requireLiveness && showConfirmButton && livenessCheck === 'passed' && (
+                <button
+                  className="confirm-liveness-btn"
+                  onClick={capturePhoto}
+                  disabled={countdown !== null || isFacialRecognitionProcessing}
+                >
+                  {isFacialRecognitionProcessing ? (
+                    <span>⏳ Processing...</span>
+                  ) : countdown !== null ? (
+                    <span>📸 {countdown}</span>
+                  ) : (
+                    <span>✓ Confirm Face</span>
+                  )}
+                </button>
+              )}
             </div>
           </>
         )}
 
         {capturedImage && (
           <div className="preview-container">
+            {isFacialRecognitionProcessing && (
+              <div className="facial-recognition-overlay">
+                <div className="facial-recognition-spinner"></div>
+                <p>🔍 Processing facial recognition...</p>
+                <p className="facial-recognition-subtext">Comparing with submitted ID</p>
+              </div>
+            )}
             <img src={capturedImage} alt="Captured document" className="preview-image" />
             
             <div className="preview-controls">

@@ -7,10 +7,20 @@ and determine merit eligibility for scholarship applications.
 import re
 import json
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from decimal import Decimal
+from pathlib import Path
+
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+try:
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO_AVAILABLE = False
+    logger.warning("Ultralytics YOLO not available. Install with: pip install ultralytics")
 
 
 class GradesDetectionService:
@@ -23,10 +33,39 @@ class GradesDetectionService:
         'MERIT': 2.50,
         'REGULAR': 3.00
     }
+
+    # YOLO detection configuration for official COE elements
+    MODEL_FILENAME = 'yolov8_certificate_of_enrollment_detector.pt'
+    CLASS_NAMES = {
+        0: 'CITY OF TAGUIG LOGO',
+        1: 'ENROLLED',
+        3: 'Taguig City University Logo'
+    }
+    ELEMENT_MAP = {
+        0: 'city_logo',
+        1: 'enrolled_status',
+        3: 'university_logo'
+    }
+    REQUIRED_ELEMENT_NAMES = ['city_logo', 'enrolled_status', 'university_logo']
+    DETECTION_THRESHOLD = 0.35
     
     def __init__(self):
         """Initialize the grades detection service."""
         self.ocr_service = None  # Will be initialized when needed
+        self.yolo_model = None
+        self.model_path = Path(settings.BASE_DIR) / 'ai_model_data' / 'trained_models' / self.MODEL_FILENAME
+        if YOLO_AVAILABLE and self.model_path.exists():
+            try:
+                self.yolo_model = YOLO(str(self.model_path))
+                logger.info(f"✅ Grades YOLO detection model loaded from: {self.model_path}")
+            except Exception as e:
+                logger.error(f"❌ Failed to load grades YOLO model: {str(e)}")
+                self.yolo_model = None
+        else:
+            if not YOLO_AVAILABLE:
+                logger.warning("⚠️ YOLO not available for grade detection. Install ultralytics package.")
+            if not self.model_path.exists():
+                logger.warning(f"⚠️ Grade YOLO model not found at: {self.model_path}")
     
     def analyze_grade_sheet(self, file_path: str) -> Dict:
         """
@@ -44,6 +83,7 @@ class GradesDetectionService:
                 - recommendations: List of recommendations
                 - raw_text: Extracted text from document
         """
+        detection_summary = self._detect_grade_sheet_elements(file_path)
         try:
             # Extract text from grade sheet
             raw_text, confidence = self._extract_text_from_grade_sheet(file_path)
@@ -59,7 +99,8 @@ class GradesDetectionService:
                     'gwa_calculated': None,
                     'merit_level': None,
                     'confidence': 0,
-                    'recommendations': ['Please ensure the document is clear and contains visible grades']
+                    'recommendations': ['Please ensure the document is clear and contains visible grades'],
+                    'grade_sheet_elements': detection_summary
                 }
             
             # Calculate GWA
@@ -69,7 +110,7 @@ class GradesDetectionService:
             merit_level = self._determine_merit_level(gwa)
             
             # Generate recommendations
-            recommendations = self._generate_recommendations(gwa, merit_level, grades)
+            recommendations = self._generate_recommendations(gwa, merit_level, grades, detection_summary)
             
             return {
                 'success': True,
@@ -79,7 +120,8 @@ class GradesDetectionService:
                 'confidence': confidence,
                 'recommendations': recommendations,
                 'raw_text': raw_text[:500],  # Truncate for storage
-                'total_subjects': len(grades)
+                'total_subjects': len(grades),
+                'grade_sheet_elements': detection_summary
             }
             
         except Exception as e:
@@ -91,12 +133,13 @@ class GradesDetectionService:
                 'gwa_calculated': None,
                 'merit_level': None,
                 'confidence': 0,
-                'recommendations': ['Error processing document. Please try again.']
+                'recommendations': ['Error processing document. Please try again.'],
+                'grade_sheet_elements': detection_summary
             }
     
     def _extract_text_from_grade_sheet(self, file_path: str) -> Tuple[str, float]:
         """
-        Extract text from grade sheet using OCR.
+        Extract text from grade sheet using advanced OCR (primary, Tesseract fallback).
         
         Args:
             file_path: Path to the grade sheet
@@ -105,7 +148,6 @@ class GradesDetectionService:
             Tuple of (extracted_text, confidence_score)
         """
         try:
-            # Try AWS Textract first (more accurate)
             try:
                 import boto3
                 
@@ -143,7 +185,11 @@ class GradesDetectionService:
                     
                     # Convert PDF to image if needed
                     if file_path.lower().endswith('.pdf'):
-                        from pdf2image import convert_from_path
+                        try:
+                            from pdf2image import convert_from_path
+                        except ImportError as pdf_error:
+                            logger.error(f"pdf2image missing for PDF fallback: {pdf_error}")
+                            raise Exception("PDF conversion requires pdf2image")
                         images = convert_from_path(file_path, first_page=1, last_page=1)
                         image = images[0]
                     else:
@@ -174,6 +220,84 @@ class GradesDetectionService:
             logger.error(f"Error extracting text from grade sheet: {str(e)}")
             raise
     
+    def _detect_grade_sheet_elements(self, file_path: str) -> Dict[str, Any]:
+        """Return summary of required grade sheet elements detected via YOLO."""
+        element_labels = {
+            element_name: self.CLASS_NAMES[class_id]
+            for class_id, element_name in self.ELEMENT_MAP.items()
+            if class_id in self.CLASS_NAMES
+        }
+
+        elements = {
+            element_name: {
+                'label': element_labels.get(element_name, element_name.replace('_', ' ').title()),
+                'detected': False,
+                'confidence': 0.0
+            }
+            for element_name in self.REQUIRED_ELEMENT_NAMES
+        }
+
+        summary: Dict[str, Any] = {
+            'model_available': bool(self.yolo_model),
+            'elements': elements,
+            'missing_elements': [],
+            'detections': [],
+            'error': None,
+            'model_verified': False
+        }
+
+        if not self.yolo_model:
+            summary['error'] = 'YOLO model unavailable for grade sheet element detection.'
+            summary['missing_elements'] = self.REQUIRED_ELEMENT_NAMES.copy()
+            return summary
+
+        try:
+            results = self.yolo_model(
+                file_path,
+                conf=self.DETECTION_THRESHOLD,
+                verbose=False
+            )
+
+            for result in results:
+                for class_tensor, conf_tensor in zip(result.boxes.cls, result.boxes.conf):
+                    class_id = int(class_tensor.item())
+                    confidence = float(conf_tensor.item())
+                    element_name = self.ELEMENT_MAP.get(class_id)
+                    label = self.CLASS_NAMES.get(class_id, 'Unknown Element')
+
+                    if not element_name:
+                        continue
+
+                    element_data = elements.get(element_name)
+                    if not element_data:
+                        continue
+
+                    if confidence >= self.DETECTION_THRESHOLD:
+                        if confidence > element_data['confidence']:
+                            element_data['detected'] = True
+                            element_data['confidence'] = round(confidence, 3)
+                        summary['detections'].append({
+                            'element': element_name,
+                            'label': label,
+                            'confidence': round(confidence, 3)
+                        })
+
+            summary['missing_elements'] = [
+                name for name, data in elements.items() if not data['detected']
+            ]
+        except Exception as detection_error:
+            logger.error(f"Grade sheet detection failed: {detection_error}")
+            summary['error'] = str(detection_error)
+            summary['missing_elements'] = self.REQUIRED_ELEMENT_NAMES.copy()
+
+        summary['model_verified'] = (
+            summary['model_available']
+            and not summary['missing_elements']
+            and summary['error'] is None
+        )
+
+        return summary
+
     def _extract_grades(self, text: str) -> List[Dict]:
         """
         Extract individual grades from text using pattern matching.
@@ -333,7 +457,8 @@ class GradesDetectionService:
         self, 
         gwa: Decimal, 
         merit_level: str, 
-        grades: List[Dict]
+        grades: List[Dict],
+        detection_summary: Optional[Dict[str, Any]] = None
     ) -> List[str]:
         """
         Generate personalized recommendations based on academic performance.
@@ -378,5 +503,24 @@ class GradesDetectionService:
             recommendations.append('🎯 You are close to MERIT level! Improve by 0.20 points.')
         elif merit_level == 'MERIT' and gwa_float <= 2.70:
             recommendations.append('🎯 You are close to HONORS level! Improve by 0.20 points.')
+
+        if detection_summary:
+            if not detection_summary.get('model_available'):
+                recommendations.append(
+                    'ℹ️ Grade sheet compliance verification is disabled because the YOLO model is unavailable.'
+                )
+
+            missing_elements = detection_summary.get('missing_elements') or []
+            if missing_elements:
+                missing_labels = [
+                    detection_summary['elements'][name]['label']
+                    for name in missing_elements
+                    if name in detection_summary.get('elements', {})
+                ]
+                if missing_labels:
+                    recommendations.append(
+                        '📄 Missing official grade sheet elements: ' + ', '.join(missing_labels) + '. '
+                        'Please upload a document that clearly shows the city logo, enrolled status, and university logo.'
+                    )
         
         return recommendations

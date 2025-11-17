@@ -75,7 +75,7 @@ export const gradeService = {
    */
   getCOESubjects: async (): Promise<COESubjectsResponse> => {
     try {
-      const response = await apiClient.get<COESubjectsResponse>('/grades/coe-subjects/');
+      const response = await apiClient.get<COESubjectsResponse>('/grade-workflow/coe-subjects/');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching COE subjects:', error);
@@ -102,7 +102,7 @@ export const gradeService = {
       formData.append('grade_sheet', gradeData.grade_sheet);
 
       const response = await apiClient.post<GradeSubmissionRecord>(
-        '/grades/submit-subject/',
+        '/grade-workflow/submit-subject/',
         formData,
         {
           headers: {
@@ -127,7 +127,7 @@ export const gradeService = {
    */
   validateGradeSubmissions: async (academicYear: string, semester: string): Promise<ValidationResult> => {
     try {
-      const response = await apiClient.post<ValidationResult>('/grades/validate/', {
+      const response = await apiClient.post<ValidationResult>('/grade-workflow/validate/', {
         academic_year: academicYear,
         semester: semester,
       });
@@ -151,7 +151,7 @@ export const gradeService = {
       if (academicYear) params.academic_year = academicYear;
       if (semester) params.semester = semester;
 
-      const response = await apiClient.get<GradeSubmissionStatus>('/grades/status/', { params });
+      const response = await apiClient.get<GradeSubmissionStatus>('/grade-workflow/status/', { params });
       return response.data;
     } catch (error: any) {
       console.error('Error fetching grade submission status:', error);

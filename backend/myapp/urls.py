@@ -10,7 +10,7 @@ from .views import (
     request_password_reset, verify_reset_code, reset_password,
     ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard,
     # New grade submission endpoints
-    get_coe_subjects, submit_subject_grade, validate_grade_submissions, get_grade_submission_status
+    check_grade_submission_eligibility, get_coe_subjects, submit_subject_grade, validate_grade_submissions, get_grade_submission_status
 )
 
 # Face verification views
@@ -71,10 +71,11 @@ urlpatterns = [
     path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
     
     # 📚 New Grade Submission Workflow Endpoints (Per-Subject)
-    path('api/grades/coe-subjects/', get_coe_subjects, name='get-coe-subjects'),
-    path('api/grades/submit-subject/', submit_subject_grade, name='submit-subject-grade'),
-    path('api/grades/validate/', validate_grade_submissions, name='validate-grade-submissions'),
-    path('api/grades/status/', get_grade_submission_status, name='get-grade-submission-status'),
+    path('api/grade-workflow/check-eligibility/', check_grade_submission_eligibility, name='check-grade-submission-eligibility'),
+    path('api/grade-workflow/coe-subjects/', get_coe_subjects, name='get-coe-subjects'),
+    path('api/grade-workflow/submit-subject/', submit_subject_grade, name='submit-subject-grade'),
+    path('api/grade-workflow/validate/', validate_grade_submissions, name='validate-grade-submissions'),
+    path('api/grade-workflow/status/', get_grade_submission_status, name='get-grade-submission-status'),
     
     # 🚨 Fraud Management Endpoints
     path('api/fraud-reports/', get_fraud_reports, name='fraud-reports-list'),

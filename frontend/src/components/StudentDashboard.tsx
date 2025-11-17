@@ -48,6 +48,10 @@ interface GradeSubmission {
   academic_year: string;
   semester: string;
   semester_display: string;
+  subject_code: string;
+  subject_name: string;
+  units: number;
+  grade_received: number;
   general_weighted_average: number | string;
   semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;

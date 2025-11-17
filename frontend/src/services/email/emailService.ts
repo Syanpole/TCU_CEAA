@@ -19,7 +19,7 @@ export const sendApplicationConfirmationEmail = async (
   studentEmail: string,
   applicationId: string = 'Pending Assignment',
   applicationType: string = 'Educational Assistance',
-  amount: string = '5,000.00'
+  amount: string = '10,000.00'
 ): Promise<{ success: boolean; message: string }> => {
   try {
     if (!studentName || !studentEmail) {

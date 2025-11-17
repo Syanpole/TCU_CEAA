@@ -796,6 +796,85 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
 # New Grade Submission API Endpoints (Per-Subject Workflow)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def check_grade_submission_eligibility(request):
+    """
+    Check if the current user is eligible to submit grades.
+    
+    Returns:
+        - can_submit: Boolean indicating if user can submit grades
+        - required_documents: List of required document types
+        - approved_documents: List of approved document types
+        - missing_documents: List of missing document types
+        - pending_documents: List of pending document types
+        - messages: List of user-friendly messages
+    """
+    try:
+        # Check for approved COE
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).first()
+        
+        # Check for approved ID documents
+        id_documents = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type__in=['student_id', 'government_id', 'school_id', 'birth_certificate'],
+            status='approved'
+        )
+        
+        # Get all user documents for comprehensive check
+        all_docs = DocumentSubmission.objects.filter(student=request.user)
+        approved_docs = all_docs.filter(status='approved')
+        pending_docs = all_docs.filter(status__in=['pending', 'needs_review', 'ai_processing'])
+        
+        required_doc_types = ['certificate_of_enrollment', 'id_copy']
+        approved_doc_types = list(approved_docs.values_list('document_type', flat=True))
+        pending_doc_types = list(pending_docs.values_list('document_type', flat=True))
+        
+        has_approved_coe = coe_document is not None
+        has_approved_id = id_documents.exists()
+        
+        messages = []
+        can_submit = has_approved_coe and has_approved_id
+        
+        if not has_approved_coe:
+            if all_docs.filter(document_type='certificate_of_enrollment').exists():
+                messages.append('Your Certificate of Enrollment is still being reviewed.')
+            else:
+                messages.append('Please submit your Certificate of Enrollment.')
+        elif coe_document.subject_count == 0:
+            messages.append('Your COE has been approved but no subjects were extracted. Please contact admin.')
+            can_submit = False
+        
+        if not has_approved_id:
+            if all_docs.filter(document_type__in=['student_id', 'government_id', 'school_id', 'birth_certificate']).exists():
+                messages.append('Your ID document is still being reviewed.')
+            else:
+                messages.append('Please submit a valid ID (School ID, Birth Certificate, or Government ID).')
+        
+        if can_submit:
+            messages.append('✅ You are eligible to submit grades!')
+        
+        return Response({
+            'can_submit': can_submit,
+            'required_documents': required_doc_types,
+            'approved_documents': approved_doc_types,
+            'pending_documents': pending_doc_types,
+            'missing_documents': [doc for doc in required_doc_types if doc not in approved_doc_types],
+            'messages': messages,
+            'coe_subjects_count': coe_document.subject_count if coe_document else 0
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking grade submission eligibility: {str(e)}")
+        return Response({
+            'error': f'Error checking eligibility: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_coe_subjects(request):
     """
     Get the list of subjects extracted from the student's approved COE.
@@ -882,8 +961,16 @@ def submit_subject_grade(request):
             units=data.get('units'),
             grade_received=data.get('grade_received'),
             grade_sheet=data.get('grade_sheet'),
-            status='pending'
+            status='processing'  # Set to processing while AI verifies
         )
+        
+        # Trigger AI verification asynchronously
+        from .tasks import verify_grade_sheet_task
+        try:
+            verify_grade_sheet_task(grade_submission.id)
+        except Exception as e:
+            logger.error(f"Error triggering AI verification: {str(e)}")
+            # Continue even if AI verification fails
         
         serializer = GradeSubmissionSerializer(grade_submission)
         
@@ -963,6 +1050,12 @@ def validate_grade_submissions(request):
         
         # Add validation summary
         validation_result['summary'] = validation_service.get_validation_summary(validation_result)
+        
+        # Calculate GPA and merit eligibility if validation passed
+        if validation_result['is_valid']:
+            from .tasks import calculate_gpa_and_merit
+            gpa_result = calculate_gpa_and_merit(request.user.id, academic_year, semester)
+            validation_result['gpa_calculation'] = gpa_result
         
         audit_logger.log(
             user=request.user,
@@ -1044,14 +1137,28 @@ def get_grade_submission_status(request):
         rejected_count = submissions.filter(status='rejected').count()
         pending_count = submissions.filter(status='pending').count()
         
-        # Check if can proceed to liveness (all submitted and all approved)
+        # Check if can proceed to liveness (all submitted)
         is_complete = submitted_count == total_subjects
         all_approved = approved_count == total_subjects
-        can_proceed_to_liveness = is_complete and all_approved
+        # Allow proceeding to liveness once all subjects are submitted (don't wait for admin approval)
+        can_proceed_to_liveness = is_complete
+        
+        # Calculate GPA if all approved
+        gpa_data = None
+        if all_approved:
+            from .tasks import calculate_gpa_and_merit
+            gpa_result = calculate_gpa_and_merit(request.user.id, academic_year, semester)
+            if gpa_result.get('success'):
+                gpa_data = {
+                    'gpa': gpa_result['gpa'],
+                    'merit_level': gpa_result['merit_level'],
+                    'qualifies_for_merit': gpa_result['qualifies_for_merit'],
+                    'total_units': gpa_result['total_units']
+                }
         
         serializer = GradeSubmissionSerializer(submissions, many=True)
         
-        return Response({
+        response_data = {
             'total_subjects': total_subjects,
             'submitted_count': submitted_count,
             'approved_count': approved_count,
@@ -1062,7 +1169,13 @@ def get_grade_submission_status(request):
             'can_proceed_to_liveness': can_proceed_to_liveness,
             'submissions': serializer.data,
             'coe_subjects': coe_document.extracted_subjects
-        })
+        }
+        
+        if gpa_data:
+            response_data['gpa_calculated'] = True
+            response_data.update(gpa_data)
+        
+        return Response(response_data)
     
     except Exception as e:
         logger.error(f"Error getting grade submission status: {str(e)}")

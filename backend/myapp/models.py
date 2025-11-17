@@ -324,7 +324,7 @@ class GradeSubmission(models.Model):
     ]
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
-    academic_year = models.CharField(max_length=9, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
+    academic_year = models.CharField(max_length=20, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
     semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES)
     
     # Per-Subject Information (NEW - One submission per subject)
@@ -381,7 +381,7 @@ class GradeSubmission(models.Model):
     
     class Meta:
         ordering = ['-submitted_at']
-        unique_together = ['student', 'academic_year', 'semester']
+        unique_together = ['student', 'academic_year', 'semester', 'subject_code']
     
     def _convert_to_percentage(self, gwa_value):
         """

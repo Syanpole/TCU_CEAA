@@ -154,48 +154,397 @@ class DocumentSubmissionAdmin(admin.ModelAdmin):
 
 @admin.register(GradeSubmission)
 class GradeSubmissionAdmin(admin.ModelAdmin):
-    list_display = ['student', 'academic_year', 'semester', 'general_weighted_average', 
-                   'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive', 'status', 'submitted_at']
-    list_filter = ['semester', 'status', 'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive', 'submitted_at']
-    search_fields = ['student__username', 'student__student_id', 'academic_year']
-    readonly_fields = ['submitted_at', 'reviewed_at', 'ai_evaluation_completed', 'ai_evaluation_notes']
+    # Group and display grades by student and semester
+    list_display = ['student_info', 'subject_display', 'grade_display', 'ai_status', 
+                   'verification_badge', 'status_badge', 'submitted_at']
+    list_filter = ['academic_year', 'semester', 'status', 'ai_merit_level', 'qualifies_for_merit_incentive', 'submitted_at']
+    search_fields = ['student__username', 'student__student_id', 'student__first_name', 'student__last_name', 
+                    'subject_code', 'subject_name', 'academic_year']
+    readonly_fields = ['submitted_at', 'reviewed_at', 'ai_evaluation_completed', 'ai_evaluation_notes', 
+                      'ai_extracted_grades', 'ai_confidence_score', 'grade_sheet_preview', 'student_all_grades']
+    ordering = ['-academic_year', 'semester', 'student__student_id', 'subject_code']
+    list_per_page = 50
     
     fieldsets = (
-        ('Student Information', {
-            'fields': ('student', 'academic_year', 'semester')
+        ('📚 Student & Subject Information', {
+            'fields': ('student', 'academic_year', 'semester', 'subject_code', 'subject_name')
         }),
-        ('Grade Details', {
-            'fields': ('total_units', 'general_weighted_average', 'semestral_weighted_average', 'grade_sheet')
+        ('📊 Grade Details (Per-Subject)', {
+            'fields': ('units', 'grade_received', 'grade_sheet', 'grade_sheet_preview')
         }),
-        ('Grade Validation', {
-            'fields': ('has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects')
+        ('🎓 Student All Grades Summary', {
+            'fields': ('student_all_grades',),
+            'description': 'View all grades submitted by this student for this semester'
         }),
-        ('AI Evaluation', {
-            'fields': ('ai_evaluation_completed', 'ai_evaluation_notes', 'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive'),
+        ('🤖 AI Verification Results', {
+            'fields': ('ai_evaluation_completed', 'ai_confidence_score', 'ai_evaluation_notes', 
+                      'ai_extracted_grades', 'ai_gwa_calculated', 'ai_merit_level'),
             'classes': ('collapse',)
         }),
-        ('Admin Review', {
+        ('🏆 Merit & Qualification', {
+            'fields': ('qualifies_for_merit_incentive', 'qualifies_for_basic_allowance'),
+        }),
+        ('✅ Admin Review', {
             'fields': ('status', 'admin_notes', 'reviewed_by', 'reviewed_at')
         }),
-        ('Timestamps', {
+        ('🕐 Timestamps', {
             'fields': ('submitted_at',),
             'classes': ('collapse',)
         })
     )
     
+    def student_info(self, obj):
+        """Display student info with semester grouping"""
+        from django.utils.html import format_html
+        count = GradeSubmission.objects.filter(
+            student=obj.student,
+            academic_year=obj.academic_year,
+            semester=obj.semester
+        ).count()
+        
+        # Get semester display name
+        semester_display = {
+            '1st': '1st Semester',
+            '2nd': '2nd Semester',
+            'summer': 'Summer',
+            'midyear': 'Midyear'
+        }.get(obj.semester, obj.semester)
+        
+        return format_html(
+            '<strong>{}</strong><br>'
+            '<small>ID: {}</small><br>'
+            '<span style="color: #007bff; font-weight: 600;">{} - {}</span><br>'
+            '<span style="color: #666; font-size: 11px;">{} subject{}</span>',
+            obj.student.get_full_name() or obj.student.username,
+            obj.student.student_id,
+            obj.academic_year,
+            semester_display,
+            count,
+            's' if count != 1 else ''
+        )
+    student_info.short_description = 'Student & Semester'
+    
+    def subject_display(self, obj):
+        """Display subject code and name"""
+        from django.utils.html import format_html
+        return format_html(
+            '<strong>{}</strong><br><small>{}</small><br><span style="color: #888;">{} units</span>',
+            obj.subject_code or 'N/A',
+            obj.subject_name or 'N/A',
+            obj.units or 0
+        )
+    subject_display.short_description = 'Subject'
+    
+    def grade_display(self, obj):
+        """Display grade with visual indicator"""
+        from django.utils.html import format_html
+        if obj.grade_received:
+            grade = float(obj.grade_received)
+            # Color code: <= 1.5 (green), <= 2.5 (blue), <= 3.0 (orange), > 3.0 (red)
+            if grade <= 1.5:
+                color = '#28a745'  # green
+            elif grade <= 2.5:
+                color = '#007bff'  # blue
+            elif grade <= 3.0:
+                color = '#fd7e14'  # orange
+            else:
+                color = '#dc3545'  # red
+            
+            return format_html(
+                '<div style="font-size: 24px; font-weight: bold; color: {};">{:.2f}</div>',
+                color, grade
+            )
+        return format_html('<span style="color: #999;">Not set</span>')
+    grade_display.short_description = 'Grade'
+    
+    def ai_status(self, obj):
+        """Display AI verification status"""
+        from django.utils.html import format_html
+        if obj.ai_evaluation_completed:
+            confidence = obj.ai_confidence_score * 100 if obj.ai_confidence_score else 0
+            if confidence >= 85:
+                badge_color = 'success'
+                icon = '✓'
+            elif confidence >= 70:
+                badge_color = 'warning'
+                icon = '⚠'
+            else:
+                badge_color = 'danger'
+                icon = '✗'
+            
+            return format_html(
+                '<span class="badge badge-{}">{} AI {:.0f}%</span>',
+                badge_color, icon, confidence
+            )
+        return format_html('<span class="badge badge-secondary">⏳ Pending</span>')
+    ai_status.short_description = 'AI Status'
+    
+    def verification_badge(self, obj):
+        """Show verification badges"""
+        from django.utils.html import format_html
+        badges = []
+        
+        if obj.ai_extracted_grades:
+            data = obj.ai_extracted_grades
+            
+            # Document type badge (informational)
+            doc_type = data.get('document_type', 'GRADE_SHEET')
+            if doc_type == 'CLASS_CARD':
+                badges.append('<span style="background: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">📋 CLASS CARD</span>')
+            
+            # Authenticity with count
+            detected_count = data.get('detected_count', 0)
+            if data.get('is_authentic'):
+                badges.append(f'<span style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">🔒 AUTHENTIC ({detected_count}/3)</span>')
+            elif detected_count > 0:
+                badges.append(f'<span style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px;">⚠️ PARTIAL ({detected_count}/3)</span>')
+            else:
+                badges.append('<span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">✗ NO LOGOS</span>')
+            
+            if data.get('subject_in_coe'):
+                badges.append('<span style="background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">📋 IN COE</span>')
+            
+            if data.get('grade_matches'):
+                badges.append('<span style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">✓ MATCH</span>')
+            elif data.get('extracted_grade'):
+                badges.append('<span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">✗ MISMATCH</span>')
+            else:
+                badges.append('<span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">? NO GRADE</span>')
+        
+        return format_html('<br>'.join(badges)) if badges else format_html('<span style="color: #999;">-</span>')
+    verification_badge.short_description = 'Verification'
+    
+    def status_badge(self, obj):
+        """Display status with color"""
+        from django.utils.html import format_html
+        status_colors = {
+            'approved': ('#28a745', '✓ Approved'),
+            'pending': ('#ffc107', '⏳ Pending'),
+            'rejected': ('#dc3545', '✗ Rejected'),
+            'processing': ('#17a2b8', '🔄 Processing')
+        }
+        color, label = status_colors.get(obj.status, ('#6c757d', obj.status))
+        return format_html(
+            '<span style="background: {}; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">{}</span>',
+            color, label
+        )
+    status_badge.short_description = 'Status'
+    
+    def grade_sheet_preview(self, obj):
+        """Show grade sheet image preview"""
+        from django.utils.html import format_html
+        if obj.grade_sheet:
+            return format_html(
+                '<a href="{}" target="_blank"><img src="{}" style="max-width: 300px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;"></a>',
+                obj.grade_sheet.url, obj.grade_sheet.url
+            )
+        return format_html('<span style="color: #999;">No image</span>')
+    grade_sheet_preview.short_description = 'Grade Sheet Preview'
+    
+    def student_all_grades(self, obj):
+        """Display all grades for this student in this semester with GWA calculation"""
+        from django.utils.html import format_html
+        
+        all_grades = GradeSubmission.objects.filter(
+            student=obj.student,
+            academic_year=obj.academic_year,
+            semester=obj.semester,
+            subject_code__isnull=False
+        ).order_by('subject_code')
+        
+        if not all_grades.exists():
+            return format_html('<p>No grades found</p>')
+        
+        # Get semester display name
+        semester_display = {
+            '1st': '1st Semester',
+            '2nd': '2nd Semester',
+            'summer': 'Summer',
+            'midyear': 'Midyear'
+        }.get(obj.semester, obj.semester)
+        
+        rows = []
+        # Add header with semester info
+        rows.append('<div style="background: #007bff; color: white; padding: 12px; border-radius: 8px 8px 0 0; margin-bottom: 0;">')
+        rows.append(f'<h3 style="margin: 0; font-size: 16px;">📚 {obj.academic_year} - {semester_display}</h3>')
+        rows.append(f'<p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{obj.student.get_full_name()} (ID: {obj.student.student_id})</p>')
+        rows.append('</div>')
+        
+        rows.append('<table style="width: 100%; border-collapse: collapse; margin-top: 0;">')
+        rows.append('<tr style="background: #f8f9fa; font-weight: bold;">')
+        rows.append('<th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Subject Code</th>')
+        rows.append('<th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Subject Name</th>')
+        rows.append('<th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">Units</th>')
+        rows.append('<th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">Grade</th>')
+        rows.append('<th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">Status</th>')
+        rows.append('</tr>')
+        
+        total_units = 0
+        total_grade_points = 0
+        
+        for grade in all_grades:
+            status_color = {
+                'approved': '#28a745',
+                'pending': '#ffc107',
+                'rejected': '#dc3545',
+                'processing': '#17a2b8'
+            }.get(grade.status, '#6c757d')
+            
+            rows.append('<tr>')
+            rows.append(f'<td style="padding: 8px; border: 1px solid #dee2e6;">{grade.subject_code}</td>')
+            rows.append(f'<td style="padding: 8px; border: 1px solid #dee2e6;">{grade.subject_name}</td>')
+            rows.append(f'<td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">{grade.units}</td>')
+            rows.append(f'<td style="padding: 8px; border: 1px solid #dee2e6; text-align: center; font-weight: bold;">{grade.grade_received}</td>')
+            rows.append(f'<td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;"><span style="color: {status_color};">{grade.status}</span></td>')
+            rows.append('</tr>')
+            
+            if grade.status == 'approved' and grade.units and grade.grade_received:
+                total_units += grade.units
+                total_grade_points += float(grade.grade_received) * grade.units
+        
+        rows.append('</table>')
+        
+        # Show GPA and semester summary
+        approved_count = all_grades.filter(status='approved').count()
+        total_count = all_grades.count()
+        completion_percentage = (approved_count / total_count * 100) if total_count > 0 else 0
+        
+        if total_units > 0:
+            gpa = total_grade_points / total_units
+            merit_level = ''
+            if gpa <= 1.50:
+                merit_level = '🥇 HIGH HONORS'
+                merit_color = '#d4af37'
+                merit_bg = '#fff8e1'
+            elif gpa <= 2.00:
+                merit_level = '🥈 HONORS'
+                merit_color = '#007bff'
+                merit_bg = '#e3f2fd'
+            elif gpa <= 2.50:
+                merit_level = '🥉 MERIT'
+                merit_color = '#28a745'
+                merit_bg = '#e8f5e9'
+            elif gpa <= 3.00:
+                merit_level = '📋 REGULAR'
+                merit_color = '#6c757d'
+                merit_bg = '#f5f5f5'
+            else:
+                merit_level = '⚠️ BELOW PASSING'
+                merit_color = '#dc3545'
+                merit_bg = '#ffebee'
+            
+            rows.append(f'<div style="margin-top: 20px; padding: 20px; background: {merit_bg}; border-radius: 8px; border-left: 4px solid {merit_color};">')
+            rows.append(f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">')
+            rows.append(f'<div style="flex: 1;">')
+            rows.append(f'<div style="font-size: 13px; color: #666; margin-bottom: 5px;">GENERAL WEIGHTED AVERAGE</div>')
+            rows.append(f'<div style="font-size: 36px; font-weight: bold; color: {merit_color}; line-height: 1;">{gpa:.2f}</div>')
+            rows.append(f'</div>')
+            rows.append(f'<div style="flex: 1; text-align: right;">')
+            rows.append(f'<div style="font-size: 24px; font-weight: bold; color: {merit_color};">{merit_level}</div>')
+            rows.append(f'<div style="font-size: 13px; color: #666; margin-top: 5px;">{total_units} total units</div>')
+            rows.append(f'</div>')
+            rows.append(f'</div>')
+            rows.append(f'<div style="background: white; padding: 10px; border-radius: 4px;">')
+            rows.append(f'<div style="display: flex; justify-content: space-between; font-size: 13px;">')
+            rows.append(f'<span><strong>Completion:</strong> {approved_count}/{total_count} subjects approved ({completion_percentage:.0f}%)</span>')
+            rows.append(f'<span><strong>Merit Eligible:</strong> {"✅ YES" if gpa <= 2.50 and approved_count == total_count else "⏳ Pending" if approved_count < total_count else "❌ NO"}</span>')
+            rows.append(f'</div>')
+            rows.append(f'</div>')
+            rows.append('</div>')
+        else:
+            rows.append(f'<div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">')
+            rows.append(f'<div style="color: #856404;">⚠️ <strong>No approved grades yet.</strong> Approve subjects to calculate GWA.</div>')
+            rows.append(f'<div style="margin-top: 10px; font-size: 13px;">Progress: {approved_count}/{total_count} subjects approved</div>')
+            rows.append('</div>')
+        
+        return format_html(''.join(rows))
+    student_all_grades.short_description = 'All Grades This Semester'
+    
     def get_readonly_fields(self, request, obj=None):
         if obj:  # editing an existing object
-            return self.readonly_fields + ['student', 'academic_year', 'semester']
+            return self.readonly_fields + ['student', 'academic_year', 'semester', 'subject_code', 'subject_name']
         return self.readonly_fields
     
-    actions = ['recalculate_eligibility']
+    actions = ['approve_all_by_student', 'approve_selected', 'reject_selected', 'recalculate_gpa']
     
-    def recalculate_eligibility(self, request, queryset):
-        for grade_submission in queryset:
-            grade_submission.calculate_allowance_eligibility()
-            grade_submission.save()
-        self.message_user(request, f'Successfully recalculated eligibility for {queryset.count()} submissions.')
-    recalculate_eligibility.short_description = 'Recalculate AI eligibility'
+    def approve_all_by_student(self, request, queryset):
+        """Approve ALL grades for the students in the selection"""
+        from myapp.tasks import calculate_gpa_and_merit
+        from decimal import Decimal
+        from myapp.models import GradeSubmission
+        
+        # Get unique student/academic_year/semester combinations
+        students_periods = set()
+        for grade in queryset:
+            students_periods.add((grade.student_id, grade.academic_year, grade.semester))
+        
+        total_approved = 0
+        messages = []
+        
+        for student_id, academic_year, semester in students_periods:
+            # Get ALL grades for this student/period (not just selected ones)
+            student_grades = GradeSubmission.objects.filter(
+                student_id=student_id,
+                academic_year=academic_year,
+                semester=semester
+            )
+            
+            # Approve all grades
+            count = student_grades.update(status='approved', reviewed_by=request.user)
+            total_approved += count
+            
+            # Calculate GPA
+            gpa_result = calculate_gpa_and_merit(student_id, academic_year, semester)
+            
+            if gpa_result:
+                student = student_grades.first().student
+                gpa = gpa_result.get('gpa', 0)
+                merit = gpa_result.get('merit_level', 'N/A')
+                
+                # Determine merit emoji
+                gpa_decimal = Decimal(str(gpa))
+                if gpa_decimal <= Decimal('1.50'):
+                    emoji = '🥇'
+                elif gpa_decimal <= Decimal('2.00'):
+                    emoji = '🥈'
+                elif gpa_decimal <= Decimal('2.50'):
+                    emoji = '🥉'
+                else:
+                    emoji = '📋'
+                
+                msg = f"{emoji} {student.username} ({academic_year} {semester}): {count} grades approved | GWA: {gpa:.2f} - {merit}"
+                messages.append(msg)
+        
+        self.message_user(request, f'✅ Approved {total_approved} grade submission(s) for {len(students_periods)} student(s).')
+        for msg in messages:
+            self.message_user(request, msg)
+    approve_all_by_student.short_description = '✅ Approve ALL grades for selected students'
+    
+    def approve_selected(self, request, queryset):
+        """Approve selected grade submissions"""
+        count = queryset.update(status='approved', reviewed_by=request.user)
+        self.message_user(request, f'✓ Approved {count} grade submission(s).')
+    approve_selected.short_description = '✓ Approve selected grades'
+    
+    def reject_selected(self, request, queryset):
+        """Reject selected grade submissions"""
+        count = queryset.update(status='rejected', reviewed_by=request.user)
+        self.message_user(request, f'✗ Rejected {count} grade submission(s).')
+    reject_selected.short_description = '✗ Reject selected grades'
+    
+    def recalculate_gpa(self, request, queryset):
+        """Recalculate GPA for selected students"""
+        from .tasks import calculate_gpa_and_merit
+        students_processed = set()
+        
+        for grade in queryset:
+            key = (grade.student.id, grade.academic_year, grade.semester)
+            if key not in students_processed:
+                calculate_gpa_and_merit(grade.student.id, grade.academic_year, grade.semester)
+                students_processed.add(key)
+        
+        self.message_user(request, f'📊 Recalculated GPA for {len(students_processed)} student(s).')
+    recalculate_gpa.short_description = '📊 Recalculate GPA and merit'
 
 @admin.register(AllowanceApplication)
 class AllowanceApplicationAdmin(admin.ModelAdmin):

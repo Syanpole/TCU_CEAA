@@ -49,6 +49,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [showLivenessVerification, setShowLivenessVerification] = useState(false);
   const [showDisclaimerScreen, setShowDisclaimerScreen] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [submittedIdImage, setSubmittedIdImage] = useState<string | null>(null);
 
   const semesters = [
     { value: '1st', label: '1st Semester' },
@@ -101,6 +102,10 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         const eligibilityData = await documentService.checkGradeSubmissionEligibility();
         setEligibility(eligibilityData);
 
+        // Fetch submitted ID for facial comparison
+        const idImage = await documentService.getSubmittedIdImage();
+        setSubmittedIdImage(idImage);
+
         if (eligibilityData.canSubmit) {
           // Fetch COE subjects
           const coeData = await gradeService.getCOESubjects();
@@ -140,7 +145,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     };
 
     initializeForm();
-  }, [fetchSubmissionStatus]);
+  }, []); // Run only once on mount
 
   // Handle file selection for a subject
   const handleFileChange = (index: number, file: File | null) => {
@@ -438,6 +443,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
             onCapture={handleLivenessCapture}
             onCancel={handleLivenessCancel}
             requireLiveness={true}
+            submittedIdImage={submittedIdImage || undefined}
           />
         </div>
       </div>
@@ -457,36 +463,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         <div className="compact-loading">
           <div className="loading-spinner-small"></div>
           <span>{documentsLoading ? 'Verifying eligibility...' : 'Loading COE subjects...'}</span>
-        </div>
-      )}
-
-      {/* Eligibility Check */}
-      {!documentsLoading && eligibility && !eligibility.canSubmit && (
-        <div className="compact-status-section">
-          <div className="quick-warning">
-            ⚠️ Document approval required
-          </div>
-          <h4>📋 Document Status</h4>
-          {eligibility.requiredDocuments.map(docType => {
-            const isApproved = eligibility.approvedDocuments.includes(docType);
-            const isPending = eligibility.pendingDocuments.includes(docType);
-            
-            return (
-              <div key={docType} className="compact-doc-item">
-                <span className="doc-icon">{isApproved ? '✅' : isPending ? '⏳' : '❌'}</span>
-                <span className="doc-name">{documentService.getDocumentTypeLabel(docType)}</span>
-              </div>
-            );
-          })}
-          <div className="compact-actions">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="btn-compact btn-cancel"
-            >
-              Go Back
-            </button>
-          </div>
         </div>
       )}
 
@@ -548,7 +524,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
               </div>
               <p className="progress-text">
                 {submittedCount} of {totalSubjects} subjects submitted
-                {gradeStatus && ` (${gradeStatus.approved_count} approved)`}
               </p>
             </div>
           )}

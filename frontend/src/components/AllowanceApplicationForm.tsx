@@ -15,6 +15,22 @@ interface GradeSubmission {
   qualifies_for_merit_incentive: boolean;
   status: string;
   submitted_at: string;
+  // per-subject fields (optional for legacy or per-subject entries)
+  subject_code?: string | null;
+  units?: number | null;
+  grade_received?: number | null;
+  total_units?: number | null;
+}
+
+interface SemesterGroup {
+  key: string;
+  academic_year: string;
+  semester: string;
+  semester_display: string;
+  gwa: number;
+  swa: number;
+  representative_id: number; // one grade_submission id to use when creating application
+  count: number; // number of subject entries in this semester
 }
 
 interface AllowanceApplication {
@@ -81,12 +97,108 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     return existingApplications.some(app => app.grade_submission === gradeId);
   };
 
-  const getAvailableGradeSubmissions = (): GradeSubmission[] => {
-    return gradeSubmissions.filter(grade => !hasExistingApplication(grade.id));
+  // Group per-subject grade submissions into one semester entry
+  const getAvailableSemesterGroups = (): SemesterGroup[] => {
+    // Build set of semester keys that already have an application
+    const appliedKeys = new Set<string>();
+    existingApplications.forEach(app => {
+      const found = gradeSubmissions.find(g => g.id === app.grade_submission);
+      if (found) appliedKeys.add(`${found.academic_year}-${found.semester}`);
+    });
+
+    const filtered = gradeSubmissions.filter(g => !appliedKeys.has(`${g.academic_year}-${g.semester}`));
+    const map = new Map<string, SemesterGroup & { items: GradeSubmission[] }>();
+
+    filtered.forEach(g => {
+      const key = `${g.academic_year}-${g.semester}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          academic_year: g.academic_year,
+          semester: g.semester,
+          semester_display: g.semester_display,
+          gwa: 0,
+          swa: 0,
+          representative_id: g.id,
+          count: 1,
+          items: [g]
+        } as any);
+      } else {
+        const entry = map.get(key)!;
+        entry.items.push(g);
+        entry.count += 1;
+      }
+    });
+
+    // Convert map to array and compute accurate GWA/SWA per semester
+    return Array.from(map.values()).map(v => {
+      // Prefer a summary/legacy entry if available (subject_code missing)
+      const summary = v.items.find(it => !it.subject_code && (it.general_weighted_average || it.total_units));
+      let gwa = 0;
+      let swa = 0;
+      let repId = v.representative_id;
+
+      if (summary && summary.general_weighted_average) {
+        gwa = Number(summary.general_weighted_average);
+        swa = Number(summary.semestral_weighted_average || summary.general_weighted_average || 0);
+        repId = summary.id;
+      } else {
+        // Compute weighted GWA from subject entries if available
+        const totalUnits = v.items.reduce((s, it) => s + (Number(it.units || 0)), 0);
+        const totalGradePoints = v.items.reduce((s, it) => s + (Number(it.grade_received || 0) * Number(it.units || 0)), 0);
+        if (totalUnits > 0) {
+          gwa = totalGradePoints / totalUnits;
+          swa = gwa; // fallback
+        } else {
+          // fallback to average of provided general_weighted_average values
+          const avg = v.items.reduce((s, it) => s + (Number(it.general_weighted_average || 0)), 0) / Math.max(v.items.length, 1);
+          gwa = avg;
+          swa = avg;
+        }
+      }
+
+      return {
+        key: v.key,
+        academic_year: v.academic_year,
+        semester: v.semester,
+        semester_display: v.semester_display,
+        gwa,
+        swa,
+        representative_id: repId,
+        count: v.count
+      };
+    });
   };
 
+  // Return selected semester's representative GradeSubmission (first found)
   const getSelectedGrade = (): GradeSubmission | null => {
     if (!selectedGradeSubmission) return null;
+    // If the selected id is a semester representative, build a synthetic group-level object
+    const groups = getAvailableSemesterGroups();
+    const group = groups.find(g => g.representative_id === selectedGradeSubmission);
+    if (group) {
+      // derive qualifies flags from any member in the semester
+      const members = gradeSubmissions.filter(gs => gs.academic_year === group.academic_year && gs.semester === group.semester);
+      const anyBasic = members.some(m => m.qualifies_for_basic_allowance);
+      const anyMerit = members.some(m => m.qualifies_for_merit_incentive);
+      // If qualified for merit, auto-qualify for basic
+      const qualifiesBasic = anyBasic || anyMerit;
+      const representative = gradeSubmissions.find(g => g.id === group.representative_id) || members[0] || null;
+
+      return {
+        id: group.representative_id,
+        academic_year: group.academic_year,
+        semester: group.semester,
+        semester_display: group.semester_display,
+        general_weighted_average: group.gwa,
+        semestral_weighted_average: group.swa,
+        qualifies_for_basic_allowance: qualifiesBasic,
+        qualifies_for_merit_incentive: anyMerit,
+        status: (representative && representative.status) || 'approved',
+        submitted_at: (representative && representative.submitted_at) || ''
+      } as GradeSubmission;
+    }
+
     return gradeSubmissions.find(grade => grade.id === selectedGradeSubmission) || null;
   };
 
@@ -108,7 +220,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
       types.push({
         value: 'merit',
         label: 'Merit Incentive',
-        amount: '₱5,000'
+        amount: '₱10,000'
       });
     }
     
@@ -261,7 +373,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             Close
           </button>
         </div>
-      ) : getAvailableGradeSubmissions().length === 0 ? (
+      ) : getAvailableSemesterGroups().length === 0 ? (
         <div className="no-grades-state">
           <h4>All Eligible Grades Already Applied</h4>
           <p>You have already submitted allowance applications for all your eligible grade submissions.</p>
@@ -301,28 +413,30 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
               onChange={(e) => {
                 const gradeId = parseInt(e.target.value);
                 setSelectedGradeSubmission(gradeId);
-                
-                // Automatically set application type based on grade eligibility
-                const selectedGrade = gradeSubmissions.find(g => g.id === gradeId);
-                if (selectedGrade) {
-                  if (selectedGrade.qualifies_for_basic_allowance && selectedGrade.qualifies_for_merit_incentive) {
-                    setApplicationType('both');
-                  } else if (selectedGrade.qualifies_for_merit_incentive) {
-                    setApplicationType('merit');
-                  } else if (selectedGrade.qualifies_for_basic_allowance) {
-                    setApplicationType('basic');
-                  }
+
+                // Derive semester group and set application type based on any member qualifying
+                const groups = getAvailableSemesterGroups();
+                const group = groups.find(g => g.representative_id === gradeId);
+                if (group) {
+                  // find all grade entries matching this semester
+                  const members = gradeSubmissions.filter(gs => gs.academic_year === group.academic_year && gs.semester === group.semester);
+                  const anyBasic = members.some(m => m.qualifies_for_basic_allowance);
+                  const anyMerit = members.some(m => m.qualifies_for_merit_incentive);
+
+                  if (anyBasic && anyMerit) setApplicationType('both');
+                  else if (anyMerit) setApplicationType('merit');
+                  else if (anyBasic) setApplicationType('basic');
+                  else setApplicationType('');
                 }
               }}
               required
               className="grade-select"
             >
               <option value="">Choose a grade submission...</option>
-              {getAvailableGradeSubmissions().map((grade) => (
-                <option key={grade.id} value={grade.id}>
-                  {grade.academic_year} - {grade.semester_display} 
-                  (GWA: {Number(grade.general_weighted_average).toFixed(2)}%, 
-                   SWA: {Number(grade.semestral_weighted_average).toFixed(2)}%)
+              {getAvailableSemesterGroups().map((g) => (
+                <option key={g.key} value={g.representative_id}>
+                  {g.academic_year} - {g.semester_display} {g.count > 1 ? `(${g.count} subjects)` : ''}
+                  {' '}• GWA: {Number(g.gwa).toFixed(2)}% • SWA: {Number(g.swa).toFixed(2)}%
                 </option>
               ))}
             </select>

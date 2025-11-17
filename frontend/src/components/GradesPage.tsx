@@ -2,11 +2,39 @@ import React, { useState, useEffect } from 'react';
 import GradeSubmissionForm from './GradeSubmissionForm';
 import './GradesPage.css';
 
+interface SubjectGrade {
+  id: number;
+  subject_code: string;
+  subject_name: string;
+  units: number;
+  grade_received: number;
+  status: string;
+}
+
+interface GroupedSemester {
+  academic_year: string;
+  semester: string;
+  semester_display: string;
+  subjects: SubjectGrade[];
+  general_weighted_average: number;
+  total_units: number;
+  qualifies_for_basic_allowance: boolean;
+  qualifies_for_merit_incentive: boolean;
+  status: string;
+  status_display: string;
+  submitted_at: string;
+  all_approved: boolean;
+}
+
 interface GradeSubmission {
   id: number;
   academic_year: string;
   semester: string;
   semester_display: string;
+  subject_code: string;
+  subject_name: string;
+  units: number;
+  grade_received: number;
   general_weighted_average: number | string;
   semestral_weighted_average: number | string;
   qualifies_for_basic_allowance: boolean;
@@ -32,8 +60,87 @@ const GradesPage: React.FC<GradesPageProps> = ({
   onRefresh 
 }) => {
   const [showGradeForm, setShowGradeForm] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState<GradeSubmission | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<GroupedSemester | null>(null);
   const [showGradeModal, setShowGradeModal] = useState(false);
+  const [groupedGrades, setGroupedGrades] = useState<GroupedSemester[]>([]);
+
+  // Group grades by semester
+  useEffect(() => {
+    const groupBySemester = () => {
+      const grouped = new Map<string, GroupedSemester>();
+      
+      grades.forEach(grade => {
+        const key = `${grade.academic_year}-${grade.semester}`;
+        
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            academic_year: grade.academic_year,
+            semester: grade.semester,
+            semester_display: grade.semester_display,
+            subjects: [],
+            general_weighted_average: 0,
+            total_units: 0,
+            qualifies_for_basic_allowance: false,
+            qualifies_for_merit_incentive: false,
+            status: grade.status,
+            status_display: grade.status_display,
+            submitted_at: grade.submitted_at,
+            all_approved: true
+          });
+        }
+        
+        const group = grouped.get(key)!;
+        
+        // Add subject to group
+        group.subjects.push({
+          id: grade.id,
+          subject_code: grade.subject_code,
+          subject_name: grade.subject_name,
+          units: grade.units,
+          grade_received: grade.grade_received,
+          status: grade.status
+        });
+        
+        // Track if all are approved
+        if (grade.status !== 'approved') {
+          group.all_approved = false;
+        }
+        
+        // Update status to show pending if any subject is pending
+        if (grade.status === 'pending' && group.status === 'approved') {
+          group.status = 'pending';
+          group.status_display = 'Pending Review';
+        }
+      });
+      
+      // Calculate GWA for each semester group
+      const result = Array.from(grouped.values()).map(group => {
+        const totalGradePoints = group.subjects.reduce((sum, subject) => {
+          return sum + (Number(subject.grade_received) * subject.units);
+        }, 0);
+        
+        group.total_units = group.subjects.reduce((sum, subject) => sum + subject.units, 0);
+        group.general_weighted_average = group.total_units > 0 ? totalGradePoints / group.total_units : 0;
+        
+        // Determine merit eligibility
+        const gwa = group.general_weighted_average;
+        group.qualifies_for_merit_incentive = gwa <= 2.50 && group.all_approved;
+        group.qualifies_for_basic_allowance = gwa <= 3.00 && group.all_approved;
+        
+        // Update status display based on all subjects
+        if (group.all_approved) {
+          group.status = 'approved';
+          group.status_display = 'Approved';
+        }
+        
+        return group;
+      });
+      
+      setGroupedGrades(result);
+    };
+    
+    groupBySemester();
+  }, [grades]);
 
   // Handle Escape key to close modals
   useEffect(() => {
@@ -61,17 +168,14 @@ const GradesPage: React.FC<GradesPageProps> = ({
     };
   }, [showGradeForm, showGradeModal]);
 
-  const completedSemesters = grades.length;
-  const approvedGrades = grades.filter(g => g.status === 'approved').length;
-  const completionPercentage = grades.length > 0 ? Math.round((approvedGrades / completedSemesters) * 100) : 0;
+  const completedSemesters = groupedGrades.length;
+  const approvedSemesters = groupedGrades.filter(g => g.all_approved).length;
+  const completionPercentage = groupedGrades.length > 0 ? Math.round((approvedSemesters / completedSemesters) * 100) : 0;
 
-  const averageGPA = grades.length > 0 
-    ? (grades.reduce((sum, grade) => {
-        const gwa = typeof grade.general_weighted_average === 'string' 
-          ? parseFloat(grade.general_weighted_average) 
-          : grade.general_weighted_average;
-        return sum + (isNaN(gwa) ? 0 : gwa);
-      }, 0) / grades.length).toFixed(2)
+  const averageGPA = groupedGrades.length > 0 
+    ? (groupedGrades.reduce((sum, semester) => {
+        return sum + semester.general_weighted_average;
+      }, 0) / groupedGrades.length).toFixed(2)
     : '0.00';
 
   const getStatusColor = (status: string) => {
@@ -113,8 +217,8 @@ const GradesPage: React.FC<GradesPageProps> = ({
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  const handleViewGrade = (grade: GradeSubmission) => {
-    setSelectedGrade(grade);
+  const handleViewGrade = (semester: GroupedSemester) => {
+    setSelectedGrade(semester);
     setShowGradeModal(true);
   };
 
@@ -162,7 +266,7 @@ const GradesPage: React.FC<GradesPageProps> = ({
           <div className="stat-details">
             <span className="stat-label">Submission Progress</span>
             <span className="stat-number">{completionPercentage}%</span>
-            <span className="stat-description">{approvedGrades} of {completedSemesters} semesters</span>
+            <span className="stat-description">{approvedSemesters} of {completedSemesters} semesters</span>
           </div>
         </div>
 
@@ -180,18 +284,18 @@ const GradesPage: React.FC<GradesPageProps> = ({
         <div className="stat-card-modern">
           <div className="stat-icon-wrapper eligibility-icon">
             <span className="stat-emoji">
-              {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) ? '✅' : '⏳'}
+              {groupedGrades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) ? '✅' : '⏳'}
             </span>
           </div>
           <div className="stat-details">
             <span className="stat-label">Allowance Status</span>
             <span className="stat-number">
-              {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) 
+              {groupedGrades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive) 
                 ? 'Eligible' 
                 : 'Pending'}
             </span>
             <span className="stat-description">
-              {grades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive)
+              {groupedGrades.some(g => g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive)
                 ? 'Qualified for benefits'
                 : 'Submit grades to qualify'}
             </span>
@@ -212,25 +316,25 @@ const GradesPage: React.FC<GradesPageProps> = ({
 
       {/* Grades List Section */}
       <div className="grades-section">
-        {grades.length > 0 ? (
+        {groupedGrades.length > 0 ? (
           <>
             <div className="section-header">
               <h2>📚 Submitted Grades</h2>
-              <span className="grade-count">{grades.length} semester{grades.length !== 1 ? 's' : ''}</span>
+              <span className="grade-count">{groupedGrades.length} semester{groupedGrades.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="grades-grid-modern">
-              {grades.map((grade) => (
-                <div key={grade.id} className="grade-card-modern">
+              {groupedGrades.map((semester, index) => (
+                <div key={`${semester.academic_year}-${semester.semester}`} className="grade-card-modern">
                   <div className="card-top">
                     <div className="semester-info">
-                      <h3 className="semester-title">{grade.semester_display}</h3>
-                      <span className="academic-year">{grade.academic_year}</span>
+                      <h3 className="semester-title">{semester.semester_display}</h3>
+                      <span className="academic-year">{semester.academic_year}</span>
                     </div>
                     <span 
-                      className={`status-badge-modern status-${grade.status}`}
-                      style={{ backgroundColor: getStatusColor(grade.status) }}
+                      className={`status-badge-modern status-${semester.status}`}
+                      style={{ backgroundColor: getStatusColor(semester.status) }}
                     >
-                      {getStatusIcon(grade.status)} {grade.status_display}
+                      {getStatusIcon(semester.status)} {semester.status_display}
                     </span>
                   </div>
 
@@ -239,30 +343,31 @@ const GradesPage: React.FC<GradesPageProps> = ({
                   <div className="card-body-grade">
                     <div className="gwa-display">
                       <span className="gwa-label">General Weighted Average</span>
-                      <span className="gwa-value">{grade.general_weighted_average}</span>
+                      <span className="gwa-value">{semester.general_weighted_average.toFixed(2)}</span>
+                      <span className="gwa-subjects">{semester.subjects.length} subjects • {semester.total_units} units</span>
                     </div>
 
                     <div className="eligibility-grid">
-                      <div className={`eligibility-badge ${grade.qualifies_for_basic_allowance ? 'qualified' : 'not-qualified'}`}>
+                      <div className={`eligibility-badge ${semester.qualifies_for_basic_allowance ? 'qualified' : 'not-qualified'}`}>
                         <span className="badge-icon">
-                          {grade.qualifies_for_basic_allowance ? '✅' : '❌'}
+                          {semester.qualifies_for_basic_allowance ? '✅' : '❌'}
                         </span>
                         <div className="badge-text">
                           <span className="badge-title">Basic Allowance</span>
                           <span className="badge-status">
-                            {grade.qualifies_for_basic_allowance ? 'Qualified' : 'Not Qualified'}
+                            {semester.qualifies_for_basic_allowance ? 'Qualified' : 'Not Qualified'}
                           </span>
                         </div>
                       </div>
 
-                      <div className={`eligibility-badge ${grade.qualifies_for_merit_incentive ? 'qualified' : 'not-qualified'}`}>
+                      <div className={`eligibility-badge ${semester.qualifies_for_merit_incentive ? 'qualified' : 'not-qualified'}`}>
                         <span className="badge-icon">
-                          {grade.qualifies_for_merit_incentive ? '✅' : '❌'}
+                          {semester.qualifies_for_merit_incentive ? '✅' : '❌'}
                         </span>
                         <div className="badge-text">
                           <span className="badge-title">Merit Incentive</span>
                           <span className="badge-status">
-                            {grade.qualifies_for_merit_incentive ? 'Qualified' : 'Not Qualified'}
+                            {semester.qualifies_for_merit_incentive ? 'Qualified' : 'Not Qualified'}
                           </span>
                         </div>
                       </div>
@@ -272,12 +377,12 @@ const GradesPage: React.FC<GradesPageProps> = ({
                   <div className="card-footer-grade">
                     <button 
                       className="btn-view-details"
-                      onClick={() => handleViewGrade(grade)}
+                      onClick={() => handleViewGrade(semester)}
                     >
                       View Details
                     </button>
                     <span className="submission-timestamp">
-                      📅 {new Date(grade.submitted_at).toLocaleDateString('en-US', {
+                      📅 {new Date(semester.submitted_at).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric'
@@ -361,16 +466,35 @@ const GradesPage: React.FC<GradesPageProps> = ({
             <div className="modal-gwa-section">
               <div className="modal-gwa-card">
                 <span className="modal-gwa-label">General Weighted Average</span>
-                <span className="modal-gwa-number">{selectedGrade.general_weighted_average}</span>
+                <span className="modal-gwa-number">{selectedGrade.general_weighted_average.toFixed(2)}</span>
                 <div className="modal-gwa-bar">
                   <div 
                     className="modal-gwa-fill"
                     style={{ 
-                      width: `${Math.max(0, Math.min(100, (5 - Number(selectedGrade.general_weighted_average)) * 25))}%`,
-                      backgroundColor: Number(selectedGrade.general_weighted_average) <= 1.75 ? '#10b981' : 
-                                     Number(selectedGrade.general_weighted_average) <= 2.25 ? '#3b82f6' : '#64748b'
+                      width: `${Math.max(0, Math.min(100, (5 - selectedGrade.general_weighted_average) * 25))}%`,
+                      backgroundColor: selectedGrade.general_weighted_average <= 1.75 ? '#10b981' : 
+                                     selectedGrade.general_weighted_average <= 2.25 ? '#3b82f6' : '#64748b'
                     }}
                   ></div>
+                </div>
+              </div>
+              
+              {/* Subjects List */}
+              <div className="modal-subjects-list">
+                <h4>📚 Subjects ({selectedGrade.subjects.length})</h4>
+                <div className="modal-subjects-container">
+                  {selectedGrade.subjects.map((subject) => (
+                    <div key={subject.id} className="modal-subject-item">
+                      <div className="modal-subject-left">
+                        <div className="subject-code">{subject.subject_code}</div>
+                        <div className="subject-name">{subject.subject_name}</div>
+                      </div>
+                      <div className="modal-subject-right">
+                        <div className="subject-grade">{Number(subject.grade_received).toFixed(2)}</div>
+                        <div className="subject-units">{subject.units} {subject.units === 1 ? 'unit' : 'units'}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

@@ -252,15 +252,12 @@ class COEVerificationService:
                     course_code_lines.append((i, subject_code))
                     logger.debug(f"Found course code at line {i}: {subject_code}")
             
-            # Second pass: Find subject names for each course code
             for i, subject_code in course_code_lines:
                 subject_name = None
                 
-                # Strategy 1: Check next line for subject name (most common case)
                 if i + 1 < len(lines):
                     next_line = lines[i + 1]
                     
-                    # Valid subject name: starts with capital, has letters, not metadata
                     if (re.match(r'^[A-Z][a-zA-Z\s/\-\(\)&,]+', next_line) and 
                         not re.match(r'^(BSCS|UNITS|CODE|SUBJECT|ENROLLED|VALIDATED|BY:|DATE:|Total)', next_line) and
                         not re.search(r'^\d+\.\d+\s', next_line) and  # Not starting with units like "3.0"
@@ -270,7 +267,6 @@ class COEVerificationService:
                         subject_name = next_line.strip()
                         logger.debug(f"Found name for {subject_code} on next line: {subject_name}")
                 
-                # Strategy 2: Look backward for orphaned subject names (for ELEC 4A case)
                 if not subject_name and i >= 2:
                     for lookback in range(2, min(6, i + 1)):
                         prev_line = lines[i - lookback]

@@ -109,6 +109,7 @@
   color: #dc2626;
   font-weight: 600;
   font-size: 14px;
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -149,6 +150,7 @@
   font-size: 15px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: rgba(255, 255, 255, 0.98);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   color: #1e293b;
   font-weight: 500;
@@ -495,6 +497,7 @@
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 28px;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   animation: fadeIn 0.4s ease-out;
 }

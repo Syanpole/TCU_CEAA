@@ -1038,6 +1038,101 @@ body.modal-open {
   box-shadow: 0 0 10px currentColor;
 }
 
+/* Modal Subjects List */
+.modal-subjects-list {
+  margin-top: 1.5rem;
+}
+
+.modal-subjects-list h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.dark-theme .modal-subjects-list h4 {
+  color: #f1f5f9;
+}
+
+.modal-subjects-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-subject-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 0.5rem;
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.dark-theme .modal-subject-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.modal-subject-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark-theme .modal-subject-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modal-subject-left .subject-code {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.dark-theme .modal-subject-left .subject-code {
+  color: #f1f5f9;
+}
+
+.modal-subject-left .subject-name {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.dark-theme .modal-subject-left .subject-name {
+  color: #94a3b8;
+}
+
+.modal-subject-right {
+  text-align: right;
+}
+
+.modal-subject-right .subject-grade {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #10b981;
+}
+
+.modal-subject-right .subject-units {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.dark-theme .modal-subject-right .subject-units {
+  color: #94a3b8;
+}
+
+.gwa-subjects {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.dark-theme .gwa-subjects {
+  color: #94a3b8;
+}
+
 /* Modal Eligibility Section */
 .modal-eligibility-section {
   padding: 2rem;
