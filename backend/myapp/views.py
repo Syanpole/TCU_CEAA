@@ -1053,9 +1053,24 @@ def validate_grade_submissions(request):
         
         # Calculate GPA and merit eligibility if validation passed
         if validation_result['is_valid']:
-            from .tasks import calculate_gpa_and_merit
-            gpa_result = calculate_gpa_and_merit(request.user.id, academic_year, semester)
-            validation_result['gpa_calculation'] = gpa_result
+            from .services import gwa_calculation_service
+            gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(
+                request.user, academic_year, semester
+            )
+            if gwa_result:
+                validation_result['gwa_calculation'] = {
+                    'success': True,
+                    'gwa': gwa_result['gwa'],
+                    'merit_level': gwa_result['merit_level'],
+                    'qualifies_for_merit': gwa_result['merit_eligible'],
+                    'total_units': gwa_result['total_units'],
+                    'calculation_triggered': gwa_result['calculation_triggered']
+                }
+            else:
+                validation_result['gwa_calculation'] = {
+                    'success': False,
+                    'message': 'GWA calculation could not be completed'
+                }
         
         audit_logger.log(
             user=request.user,
@@ -1146,14 +1161,14 @@ def get_grade_submission_status(request):
         # Calculate GPA if all approved
         gpa_data = None
         if all_approved:
-            from .tasks import calculate_gpa_and_merit
-            gpa_result = calculate_gpa_and_merit(request.user.id, academic_year, semester)
-            if gpa_result.get('success'):
+            from .services import gwa_calculation_service
+            gwa_result = gwa_calculation_service.calculate_semester_gwa(request.user, academic_year, semester)
+            if gwa_result:
                 gpa_data = {
-                    'gpa': gpa_result['gpa'],
-                    'merit_level': gpa_result['merit_level'],
-                    'qualifies_for_merit': gpa_result['qualifies_for_merit'],
-                    'total_units': gpa_result['total_units']
+                    'gpa': gwa_result['gwa'],
+                    'merit_level': gwa_result['merit_level'],
+                    'qualifies_for_merit': gwa_result['merit_eligible'],
+                    'total_units': gwa_result['total_units']
                 }
         
         serializer = GradeSubmissionSerializer(submissions, many=True)
@@ -1274,6 +1289,232 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
                 response_data['email_error'] = email_error
         
         return Response(response_data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def verify_identity(self, request, pk=None):
+        """
+        Verify student identity for allowance application using liveness detection and face verification.
+        This is the final step after allowance application to confirm the student's identity.
+        
+        Expected POST data:
+        - photo: File (Live selfie with liveness verification)
+        - liveness_data: JSON string (liveness challenge results)
+        
+        Returns:
+        - success: Boolean
+        - liveness_passed: Boolean
+        - face_verified: Boolean
+        - message: String
+        """
+        from .face_comparison_service import FaceComparisonService
+        
+        try:
+            application = self.get_object()
+            
+            # Check if application belongs to the requesting user
+            if application.student != request.user:
+                return Response({
+                    'error': 'You can only verify your own applications'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Check if face verification is already completed
+            if application.face_verification_completed:
+                return Response({
+                    'success': False,
+                    'error': 'Face verification has already been completed for this application'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get uploaded photo
+            photo = request.FILES.get('photo')
+            liveness_data_str = request.POST.get('liveness_data')
+            
+            # Validate inputs
+            if not photo:
+                return Response({
+                    'error': 'Photo is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not liveness_data_str:
+                return Response({
+                    'error': 'Liveness data is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Parse liveness data
+            try:
+                liveness_data = json.loads(liveness_data_str)
+            except json.JSONDecodeError:
+                return Response({
+                    'error': 'Invalid liveness data format'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Initialize face service
+            face_service = FaceComparisonService()
+            
+            # Verify liveness first
+            liveness_passed = face_service._verify_liveness_data(liveness_data)
+            
+            if not liveness_passed:
+                logger.warning(f"Liveness verification failed for user {request.user.id} on application {application.id}")
+                
+                # Update application with failed verification
+                application.face_verification_completed = True
+                application.face_verification_passed = False
+                application.face_verification_attempted_at = timezone.now()
+                application.face_verification_notes = 'Liveness verification failed. Please ensure you complete all challenges (color flash, blink, movement).'
+                application.face_verification_data = {
+                    'liveness_passed': False,
+                    'liveness_data': liveness_data,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.save()
+                
+                return Response({
+                    'success': False,
+                    'liveness_passed': False,
+                    'face_verified': False,
+                    'message': 'Liveness verification failed. Please ensure you complete all challenges (color flash, blink, movement).'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get the user's ID document for face comparison
+            # Look for approved ID documents (school_id, birth_certificate, or voters_certificate)
+            id_document = DocumentSubmission.objects.filter(
+                student=request.user,
+                status='approved',
+                document_type__in=['school_id', 'birth_certificate', 'voters_certificate']
+            ).first()
+            
+            if not id_document or not id_document.file:
+                # Update application with failed verification
+                application.face_verification_completed = True
+                application.face_verification_passed = False
+                application.face_verification_attempted_at = timezone.now()
+                application.face_verification_notes = 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
+                application.face_verification_data = {
+                    'liveness_passed': True,
+                    'id_document_missing': True,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.save()
+                
+                return Response({
+                    'success': False,
+                    'liveness_passed': True,
+                    'face_verified': False,
+                    'message': 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save selfie temporarily
+            selfie_path = default_storage.save(
+                f'temp/allowance_selfie_{request.user.id}_{application.id}.jpg',
+                ContentFile(photo.read())
+            )
+            
+            try:
+                # Get full paths
+                id_full_path = default_storage.path(id_document.file.name)
+                selfie_full_path = default_storage.path(selfie_path)
+                
+                # Perform face verification
+                verification_result = face_service.verify_id_with_selfie(
+                    id_full_path,
+                    selfie_full_path,
+                    liveness_data
+                )
+                
+                # Clean up temporary file
+                default_storage.delete(selfie_path)
+                
+                face_verified = verification_result.get('match', False)
+                similarity_score = verification_result.get('similarity_score', 0.0)
+                confidence = verification_result.get('confidence', 'very_low')
+                
+                # Update application with verification results
+                application.face_verification_completed = True
+                application.face_verification_passed = face_verified
+                application.face_verification_score = similarity_score
+                application.face_verification_confidence = confidence
+                application.face_verification_attempted_at = timezone.now()
+                
+                # Prepare verification data
+                verification_data = {
+                    'liveness_passed': True,
+                    'face_verified': face_verified,
+                    'similarity_score': similarity_score,
+                    'confidence': confidence,
+                    'id_document_type': id_document.document_type,
+                    'id_document_id': id_document.id,
+                    'liveness_data': liveness_data,
+                    'verification_result': verification_result,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.face_verification_data = verification_data
+                
+                # Set verification notes
+                if face_verified:
+                    application.face_verification_notes = f'Identity verification successful! Face matches ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}).'
+                else:
+                    application.face_verification_notes = f'Face verification failed. Face does not sufficiently match ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}). This may indicate identity fraud.'
+                
+                application.save()
+                
+                # Log verification attempt
+                logger.info(
+                    f"Allowance application identity verification for user {request.user.id}, application {application.id}: "
+                    f"Liveness={liveness_passed}, Face Match={face_verified}, "
+                    f"Similarity={similarity_score:.4f}, Confidence={confidence}"
+                )
+                
+                # Create audit log
+                audit_logger.log(
+                    user=request.user,
+                    action_type='application_submitted',
+                    action_description=f'Identity verification completed for allowance application #{application.id}',
+                    severity='info',
+                    target_model='AllowanceApplication',
+                    target_object_id=application.id,
+                    metadata={
+                        'application_id': application.id,
+                        'face_verified': face_verified,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'liveness_passed': liveness_passed
+                    },
+                    request=request
+                )
+                
+                if face_verified:
+                    return Response({
+                        'success': True,
+                        'liveness_passed': True,
+                        'face_verified': True,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'message': 'Identity verification successful! Your face matches your ID document.'
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        'success': False,
+                        'liveness_passed': True,
+                        'face_verified': False,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'message': f'Face verification failed. Your face does not sufficiently match your ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}). This may indicate identity fraud.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+            except Exception as processing_error:
+                # Clean up on error
+                default_storage.delete(selfie_path)
+                raise processing_error
+                
+        except Exception as e:
+            logger.error(f"Allowance application identity verification error: {str(e)}")
+            return Response(
+                {
+                    'error': 'Identity verification failed',
+                    'detail': str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # Dashboard endpoints
 @api_view(['GET'])
@@ -1906,10 +2147,23 @@ def ai_document_analysis(request):
             # Update document status based on COE verification
             if coe_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = coe_result.get('confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = coe_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = coe_result.get('is_valid', False)
+            document.ai_analysis_notes = f"COE Verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {coe_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            
+            # Save extracted subjects to document model
+            extracted_info = coe_result.get('extracted_info', {})
+            if extracted_info.get('subjects'):
+                document.extracted_subjects = extracted_info['subjects']
+                document.subject_count = extracted_info.get('subject_count', len(extracted_info['subjects']))
+                logger.info(f"✅ Saved {document.subject_count} subjects to document model")
+            else:
+                logger.warning("⚠️ No subjects extracted from COE document")
             
             document.save()
             
@@ -1961,10 +2215,15 @@ def ai_document_analysis(request):
             # Update document status based on ID verification
             if id_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
+                document.ai_confidence_score = id_result.get('overall_confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
+                document.ai_confidence_score = id_result.get('overall_confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = id_result.get('is_valid', False)
+            document.ai_analysis_notes = f"ID Verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {id_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            document.ai_extracted_text = id_result.get('extracted_text', '')
             
             document.save()
             
@@ -1974,16 +2233,74 @@ def ai_document_analysis(request):
                 'ai_analysis': ai_results
             })
         
+        # Check if document is Birth Certificate
+        elif document.document_type == 'birth_certificate':
+            from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+            birth_service = get_birth_certificate_verification_service()
+            birth_result = birth_service.verify_birth_certificate_document(
+                image_path=document.document_file.path,
+                confidence_threshold=0.5,
+                include_ocr=True
+            )
+            ai_results = {
+                'document_id': document_id,
+                'document_type': 'birth_certificate',
+                'processing_timestamp': timezone.now().isoformat(),
+                'service_used': 'Birth Certificate Verification Service (Advanced OCR + Field Extraction)',
+                'verification_result': birth_result,
+                'algorithms_results': {
+                    'birth_ocr': {
+                        'name': 'Advanced OCR',
+                        'confidence': birth_result.get('ocr_data', {}).get('ocr_confidence', 0.0) if birth_result.get('ocr_data') else 0.0,
+                        'extracted_info': birth_result.get('extracted_info', {})
+                    }
+                }
+            }
+            if birth_result.get('is_valid'):
+                document.status = 'verified'
+                document.ai_confidence_score = birth_result.get('confidence', 0.0)
+            else:
+                document.status = 'needs_review'
+                document.ai_confidence_score = birth_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = birth_result.get('is_valid', False)
+            document.ai_analysis_notes = f"Birth Certificate verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {birth_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            document.save()
+            return Response({
+                'success': True,
+                'message': f"Birth Certificate verification completed: {birth_result.get('status')}",
+                'ai_analysis': ai_results
+            })
         # Check if document is Voter's Certificate
         elif document.document_type in ['voters_certificate', 'voter_certificate', 'voters_id', 'voter_id']:
             from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
             
             voter_service = get_voter_certificate_verification_service()
             
+            user_application_data = {}
+            try:
+                from myapp.models import FullApplication
+                full_app = FullApplication.objects.filter(user=request.user).order_by('-id').first()
+                if full_app:
+                    user_application_data = {
+                        'first_name': full_app.first_name,
+                        'middle_name': full_app.middle_name,
+                        'last_name': full_app.last_name,
+                        'barangay': full_app.barangay,
+                        'house_no': full_app.house_no,
+                        'street': full_app.street,
+                        'district': full_app.district,
+                        'mother_name': full_app.mother_name,
+                        'father_name': full_app.father_name
+                    }
+            except Exception:
+                user_application_data = {}
             voter_result = voter_service.verify_voter_certificate_document(
                 image_path=document.document_file.path,
                 confidence_threshold=0.5,
-                include_ocr=True
+                include_ocr=True,
+                user_application_data=user_application_data
             )
             
             # Format response for Voter Certificate verification
@@ -2013,10 +2330,14 @@ def ai_document_analysis(request):
             # Update document status based on Voter Certificate verification
             if voter_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = voter_result.get('confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = voter_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = voter_result.get('is_valid', False)
+            document.ai_analysis_notes = f"Voter Certificate verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {voter_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
             
             document.save()
             
@@ -2028,6 +2349,7 @@ def ai_document_analysis(request):
         
         # ============================================================================
         # FALLBACK: Use legacy document validator for other document types
+        # Note: Birth Certificate, Voter Certificate, COE, and ID documents are handled above
         # ============================================================================
         
         # Import AI services
@@ -2170,8 +2492,9 @@ def ai_document_analysis(request):
                 'confidence': 0.0
             }
         
-        # 7. ID Verification 
-        if document.document_type in ['school_id', 'government_id', 'birth_certificate']:
+        # 7. ID Verification (fallback for documents not handled by specialized services)
+        # Note: Birth certificates are handled by specialized Birth Certificate service above
+        if document.document_type in ['school_id', 'government_id'] and document.document_type not in ['birth_certificate', 'voters_certificate', 'voter_certificate', 'voters_id', 'voter_id', 'certificate_of_enrollment']:
             try:
                 from myapp.id_verification_service import IDVerificationService
                 id_service = IDVerificationService()
@@ -2208,7 +2531,8 @@ def ai_document_analysis(request):
                     'confidence': 0.0
                 }
         
-        # 8. COE Verification (Certificate of Enrollment Detection)
+        # 8. COE Verification (fallback - should not reach here as COE is handled above)
+        # This is redundant and should be removed in future refactoring
         if document.document_type in ['certificate_of_enrollment', 'enrollment_certificate']:
             try:
                 from myapp.coe_verification_service import get_coe_verification_service

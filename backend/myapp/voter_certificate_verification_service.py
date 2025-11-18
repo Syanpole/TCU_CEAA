@@ -583,6 +583,18 @@ class VoterCertificateVerificationService:
                         logger.info("🔍 Comparing extracted data with user's application...")
                         field_matches = self._compare_voter_with_application(result['extracted_info'], user_application_data)
                         result['field_matches'] = field_matches
+                        parent_matches = self._compare_voter_with_parents(result['extracted_info'], user_application_data)
+                        result['parent_matches'] = parent_matches
+                        identity_verified = False
+                        identity_type = None
+                        if field_matches.get('voter_name', {}).get('match'):
+                            identity_verified = True
+                            identity_type = 'student'
+                        elif parent_matches.get('parent_name_match'):
+                            identity_verified = True
+                            identity_type = parent_matches.get('matched_parent')
+                        result['identity_verified'] = identity_verified
+                        result['identity_type'] = identity_type
                         
                         # Add match information to recommendations
                         total_fields = len(field_matches)
@@ -608,7 +620,12 @@ class VoterCertificateVerificationService:
             result['confidence'] = confidence
             
             # Determine validity and status
-            is_valid = self._determine_validity(detected_elements, validation_checks, confidence)
+            is_valid = self._determine_validity(
+                detected_elements,
+                validation_checks,
+                confidence,
+                result.get('identity_verified', False)
+            )
             result['is_valid'] = is_valid
             
             if is_valid:
@@ -620,6 +637,8 @@ class VoterCertificateVerificationService:
             else:
                 result['status'] = 'INVALID'
                 result['recommendations'].append("Document does not meet validity requirements")
+                if user_application_data and not result.get('identity_verified', False):
+                    result['recommendations'].append("Name does not match student or parents")
             
             # Generate recommendations
             result['recommendations'].extend(self._generate_recommendations(
@@ -634,6 +653,41 @@ class VoterCertificateVerificationService:
             result['errors'].append(f"Verification error: {str(e)}")
         
         return result
+
+    def _compare_voter_with_parents(
+        self,
+        extracted_info: Dict[str, Any],
+        user_application_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        from difflib import SequenceMatcher
+        def norm(s: str) -> str:
+            return s.upper().strip() if isinstance(s, str) else ''
+        voter_name = norm(extracted_info.get('voter_name', ''))
+        mother_name = norm(user_application_data.get('mother_name', ''))
+        father_name = norm(user_application_data.get('father_name', ''))
+        matched_parent = None
+        parent_match = False
+        score = 0.0
+        if voter_name and mother_name:
+            score_m = SequenceMatcher(None, voter_name, mother_name).ratio()
+            if score_m >= 0.75:
+                parent_match = True
+                matched_parent = 'mother'
+                score = score_m
+        if not parent_match and voter_name and father_name:
+            score_f = SequenceMatcher(None, voter_name, father_name).ratio()
+            if score_f >= 0.75:
+                parent_match = True
+                matched_parent = 'father'
+                score = score_f
+        return {
+            'parent_name_match': parent_match,
+            'matched_parent': matched_parent,
+            'score': score,
+            'extracted': voter_name,
+            'mother_name': mother_name,
+            'father_name': father_name
+        }
     
     def _detect_voter_certificate_elements(
         self, 
@@ -945,7 +999,8 @@ class VoterCertificateVerificationService:
         self,
         detected_elements: Dict[str, Any],
         validation_checks: Dict[str, bool],
-        confidence: float
+        confidence: float,
+        identity_verified: bool = False
     ) -> bool:
         """
         Determine if the voter certificate is valid.
@@ -964,7 +1019,7 @@ class VoterCertificateVerificationService:
         # Must have reasonable confidence
         meets_confidence = confidence >= 0.70
         
-        return all_required_present and meets_confidence
+        return all_required_present and meets_confidence and identity_verified
     
     def _generate_recommendations(
         self,

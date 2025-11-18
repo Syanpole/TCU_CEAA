@@ -1,9 +1,11 @@
 """
 🤖 AUTONOMOUS AI DOCUMENT VERIFICATION SYSTEM
-No external dependencies (Tesseract-free!)
+Advanced OCR-first approach for superior accuracy!
 
 Uses:
-- EasyOCR for text extraction (pure Python)
+- Advanced OCR (AWS Textract) as primary - 95-98% accuracy
+- EasyOCR for text extraction (pure Python) - secondary
+- Tesseract OCR (tertiary fallback)
 - OpenCV for image analysis
 - Deep learning models for verification
 - Pattern matching for fraud detection
@@ -23,8 +25,20 @@ logger = logging.getLogger(__name__)
 
 class AutonomousDocumentVerifier:
     """
-    Fully autonomous document verification using AI/ML
-    No external tools required - all Python-based
+    Fully autonomous document verification using AI/ML with Advanced OCR priority.
+    
+    OCR Hierarchy (Highest to Lowest Accuracy):
+    1. Advanced OCR (AWS Textract) - 95-98% accuracy
+    2. EasyOCR (Deep Learning) - ~85% accuracy  
+    3. Tesseract OCR (Traditional) - ~80% accuracy
+    
+    Features:
+    - Triple OCR verification with confidence scoring
+    - Document type validation with keyword matching
+    - Student name verification for fraud prevention
+    - Image quality analysis and fraud detection
+    - Vision AI integration for enhanced analysis
+    - Machine learning for continuous improvement
     """
     
     def __init__(self):
@@ -85,12 +99,27 @@ class AutonomousDocumentVerifier:
         }
     
     def _initialize_ocr(self):
-        """Initialize EasyOCR with Tesseract fallback"""
-        # Initialize EasyOCR (primary)
+        """Initialize Advanced OCR (primary), EasyOCR (secondary), and Tesseract (tertiary)"""
+        # Initialize Advanced OCR (PRIMARY - HIGHEST ACCURACY)
+        self.advanced_ocr_available = False
+        try:
+            from myapp.advanced_ocr_service import get_advanced_ocr_service
+            self.advanced_ocr = get_advanced_ocr_service()
+            if self.advanced_ocr.is_enabled():
+                self.logger.info("🎯 Advanced OCR Service initialized successfully (95-98% accuracy)")
+                self.advanced_ocr_available = True
+            else:
+                self.logger.warning("Advanced OCR Service disabled - check AWS credentials and settings")
+        except ImportError:
+            self.logger.warning("Advanced OCR service not available. Install required dependencies.")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Advanced OCR Service: {str(e)}")
+        
+        # Initialize EasyOCR (SECONDARY)
         self.easyocr_available = False
         try:
             import easyocr
-            self.logger.info("Initializing EasyOCR (primary OCR)...")
+            self.logger.info("Initializing EasyOCR (secondary OCR)...")
             self.ocr_reader = easyocr.Reader(['en'], gpu=False)
             self.logger.info("✅ EasyOCR initialized successfully")
             self.easyocr_available = True
@@ -99,7 +128,7 @@ class AutonomousDocumentVerifier:
         except Exception as e:
             self.logger.error(f"Failed to initialize EasyOCR: {str(e)}")
         
-        # Initialize Tesseract (fallback)
+        # Initialize Tesseract (TERTIARY FALLBACK)
         self.tesseract_available = False
         try:
             import pytesseract
@@ -125,10 +154,20 @@ class AutonomousDocumentVerifier:
             self.logger.error(f"Failed to initialize Tesseract: {str(e)}")
         
         # Set overall OCR availability
-        self.ocr_available = self.easyocr_available or self.tesseract_available
+        self.ocr_available = self.advanced_ocr_available or self.easyocr_available or self.tesseract_available
         
-        if self.easyocr_available and self.tesseract_available:
-            self.logger.info("🎉 Dual OCR Setup: EasyOCR (primary) + Tesseract (fallback)")
+        # Log OCR setup status
+        if self.advanced_ocr_available:
+            if self.easyocr_available and self.tesseract_available:
+                self.logger.info("🎉 TRI-OCR Setup: Advanced OCR (primary) + EasyOCR (secondary) + Tesseract (tertiary)")
+            elif self.easyocr_available:
+                self.logger.info("📡 Dual OCR Setup: Advanced OCR (primary) + EasyOCR (secondary)")
+            elif self.tesseract_available:
+                self.logger.info("📡 Dual OCR Setup: Advanced OCR (primary) + Tesseract (secondary)")
+            else:
+                self.logger.info("📡 Advanced OCR only (highest accuracy available)")
+        elif self.easyocr_available and self.tesseract_available:
+            self.logger.info("📱 Dual OCR Setup: EasyOCR (primary) + Tesseract (secondary)")
         elif self.easyocr_available:
             self.logger.info("📱 EasyOCR only (Tesseract not available)")
         elif self.tesseract_available:
@@ -142,7 +181,7 @@ class AutonomousDocumentVerifier:
         
         Performs:
         1. Image quality analysis
-        2. Text extraction (EasyOCR)
+        2. Text extraction (Advanced OCR primary, EasyOCR secondary, Tesseract tertiary)
         3. Document type verification
         4. Student name verification
         5. Fraud detection
@@ -218,13 +257,13 @@ class AutonomousDocumentVerifier:
                 structured_data = self.vision_ai.extract_structured_data(img_array, declared_type)
                 result['structured_data'] = structured_data
             
-            # Step 3: Dual OCR Verification (EasyOCR + Tesseract cross-check)
-            self.logger.info("Step 3: Dual OCR verification with cross-check")
-            ocr_verification = self._extract_text_dual_ocr(img_array)
+            # Step 3: Advanced OCR Verification (Advanced OCR + EasyOCR + Tesseract cross-check)
+            self.logger.info("Step 3: Advanced OCR verification with cross-check")
+            ocr_verification = self._extract_text_triple_ocr(img_array)
             
             # Store OCR verification details in result
             result['ocr_verification'] = ocr_verification
-            result['algorithms_used'].append('dual_ocr_verification')
+            result['algorithms_used'].append('advanced_triple_ocr_verification')
             
             # Handle verification status
             if ocr_verification['verification_status'] == 'failed':
@@ -436,17 +475,18 @@ class AutonomousDocumentVerifier:
         
         return result
     
-    def _extract_text_dual_ocr(self, img_array: np.ndarray) -> Dict[str, Any]:
+    def _extract_text_triple_ocr(self, img_array: np.ndarray) -> Dict[str, Any]:
         """
-        🔍 DUAL VERIFICATION SYSTEM
-        EasyOCR extracts text, Tesseract cross-verifies for accuracy
-        Returns comprehensive verification results
+        🔍 TRIPLE VERIFICATION SYSTEM
+        Advanced OCR (primary) → EasyOCR (secondary) → Tesseract (tertiary)
+        Returns comprehensive verification results with highest accuracy first
         """
         verification_result = {
             'extracted_text': '',
             'verification_status': 'failed',  # 'approved', 'pending', 'failed'
             'confidence_level': 'low',  # 'high', 'medium', 'low'
             'ocr_agreement': False,
+            'advanced_ocr_text': '',
             'easyocr_text': '',
             'tesseract_text': '',
             'similarity_score': 0.0,
@@ -454,10 +494,37 @@ class AutonomousDocumentVerifier:
             'reasons': []
         }
         
-        # Step 1: Extract with EasyOCR (primary)
+        # Step 1: Extract with Advanced OCR (PRIMARY - HIGHEST ACCURACY)
+        if self.advanced_ocr_available:
+            try:
+                self.logger.info("🎯 Advanced OCR: Extracting text (95-98% accuracy)...")
+                
+                # Convert image to bytes for AWS Textract
+                img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(img_rgb)
+                img_bytes = io.BytesIO()
+                pil_image.save(img_bytes, format='PNG')
+                img_bytes = img_bytes.getvalue()
+                
+                # Extract text with Advanced OCR
+                result = self.advanced_ocr.extract_text(img_bytes)
+                
+                if result['success']:
+                    verification_result['advanced_ocr_text'] = result['text']
+                    verification_result['advanced_ocr_confidence'] = result['confidence']
+                    self.logger.info(f"✅ Advanced OCR: {len(verification_result['advanced_ocr_text'])} characters (confidence: {result['confidence']:.1f}%)")
+                else:
+                    self.logger.warning(f"❌ Advanced OCR failed: {result.get('error')}")
+                    verification_result['reasons'].append(f"Advanced OCR error: {result.get('error')}")
+                
+            except Exception as e:
+                self.logger.error(f"❌ Advanced OCR failed: {str(e)}")
+                verification_result['reasons'].append(f"Advanced OCR error: {str(e)}")
+        
+        # Step 2: Extract with EasyOCR (SECONDARY)
         if self.easyocr_available and self.ocr_reader is not None:
             try:
-                self.logger.info("📱 EasyOCR: Extracting text...")
+                self.logger.info("📱 EasyOCR: Extracting text (secondary)...")
                 img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
                 results = self.ocr_reader.readtext(img_rgb)
                 
@@ -468,11 +535,11 @@ class AutonomousDocumentVerifier:
                 self.logger.error(f"❌ EasyOCR failed: {str(e)}")
                 verification_result['reasons'].append(f"EasyOCR error: {str(e)}")
         
-        # Step 2: Cross-verify with Tesseract
+        # Step 3: Extract with Tesseract (TERTIARY FALLBACK)
         if self.tesseract_available:
             try:
                 import pytesseract
-                self.logger.info("📄 Tesseract: Cross-verifying...")
+                self.logger.info("📄 Tesseract: Extracting text (tertiary fallback)...")
                 
                 img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
                 pil_image = Image.fromarray(img_rgb)
@@ -484,66 +551,119 @@ class AutonomousDocumentVerifier:
                 self.logger.error(f"❌ Tesseract failed: {str(e)}")
                 verification_result['reasons'].append(f"Tesseract error: {str(e)}")
         
-        # Step 3: Compare results and determine confidence
+        # Step 4: Determine best text and confidence based on priority
+        advanced_clean = verification_result['advanced_ocr_text'].lower().strip()
         easyocr_clean = verification_result['easyocr_text'].lower().strip()
         tesseract_clean = verification_result['tesseract_text'].lower().strip()
         
-        if easyocr_clean and tesseract_clean:
-            # Calculate similarity between the two OCR results
-            similarity = self._calculate_text_similarity(easyocr_clean, tesseract_clean)
-            verification_result['similarity_score'] = similarity
+        # Priority: Advanced OCR > EasyOCR > Tesseract
+        if advanced_clean:
+            verification_result['extracted_text'] = advanced_clean
+            verification_result['primary_ocr'] = 'advanced'
+            self.logger.info("🎯 Using Advanced OCR as primary result")
             
-            self.logger.info(f"🔍 OCR Similarity: {similarity:.2%}")
+            # Calculate agreement with secondary OCRs
+            agreement_scores = []
             
-            if similarity >= 0.8:  # High agreement
+            if easyocr_clean:
+                easy_similarity = self._calculate_text_similarity(advanced_clean, easyocr_clean)
+                agreement_scores.append(easy_similarity)
+                self.logger.info(f"🔍 Advanced vs EasyOCR similarity: {easy_similarity:.2%}")
+            
+            if tesseract_clean:
+                tess_similarity = self._calculate_text_similarity(advanced_clean, tesseract_clean)
+                agreement_scores.append(tess_similarity)
+                self.logger.info(f"🔍 Advanced vs Tesseract similarity: {tess_similarity:.2%}")
+            
+            if agreement_scores:
+                avg_agreement = sum(agreement_scores) / len(agreement_scores)
+                verification_result['similarity_score'] = avg_agreement
+                
+                if avg_agreement >= 0.8:
+                    verification_result['verification_status'] = 'approved'
+                    verification_result['confidence_level'] = 'high'
+                    verification_result['ocr_agreement'] = True
+                    verification_result['reasons'].append("High OCR agreement with Advanced OCR (≥80%)")
+                    self.logger.info("🎉 HIGH CONFIDENCE: Advanced OCR agrees with secondary OCRs")
+                    
+                elif avg_agreement >= 0.6:
+                    verification_result['verification_status'] = 'approved'
+                    verification_result['confidence_level'] = 'medium'
+                    verification_result['ocr_agreement'] = True
+                    verification_result['admin_notification'] = f"📋 Medium agreement with Advanced OCR ({avg_agreement:.1%}). Document verified but may need spot-check."
+                    verification_result['reasons'].append(f"Medium OCR agreement ({avg_agreement:.1%})")
+                    self.logger.warning("⚠️ MEDIUM CONFIDENCE: Some OCR disagreement")
+                    
+                else:
+                    verification_result['verification_status'] = 'pending'
+                    verification_result['confidence_level'] = 'low'
+                    verification_result['admin_notification'] = f"🚨 Low agreement with Advanced OCR ({avg_agreement:.1%}). Manual review recommended."
+                    verification_result['reasons'].append(f"Low OCR agreement ({avg_agreement:.1%}) - requires review")
+                    self.logger.error("🚨 LOW CONFIDENCE: Major OCR disagreement")
+            else:
+                # Only Advanced OCR worked
                 verification_result['verification_status'] = 'approved'
                 verification_result['confidence_level'] = 'high'
-                verification_result['ocr_agreement'] = True
-                verification_result['extracted_text'] = easyocr_clean  # Use EasyOCR as primary
-                verification_result['reasons'].append("High OCR agreement (≥80%)")
-                self.logger.info("🎉 HIGH CONFIDENCE: Both OCR engines agree")
+                verification_result['admin_notification'] = "✅ Advanced OCR only - highest accuracy available."
+                verification_result['reasons'].append("Advanced OCR successful - no cross-verification needed")
+                self.logger.info("🎯 Advanced OCR only - using highest accuracy result")
                 
-            elif similarity >= 0.6:  # Medium agreement
+        elif easyocr_clean:
+            # Fallback to EasyOCR as primary
+            verification_result['extracted_text'] = easyocr_clean
+            verification_result['primary_ocr'] = 'easyocr'
+            self.logger.info("📱 Using EasyOCR as primary result (Advanced OCR unavailable)")
+            
+            if tesseract_clean:
+                similarity = self._calculate_text_similarity(easyocr_clean, tesseract_clean)
+                verification_result['similarity_score'] = similarity
+                
+                if similarity >= 0.8:
+                    verification_result['verification_status'] = 'approved'
+                    verification_result['confidence_level'] = 'high'
+                    verification_result['ocr_agreement'] = True
+                    verification_result['reasons'].append("High OCR agreement (≥80%)")
+                    self.logger.info("🎉 HIGH CONFIDENCE: EasyOCR agrees with Tesseract")
+                    
+                elif similarity >= 0.6:
+                    verification_result['verification_status'] = 'pending'
+                    verification_result['confidence_level'] = 'medium'
+                    verification_result['admin_notification'] = f"📋 MANUAL REVIEW NEEDED: OCR results show medium agreement ({similarity:.1%})."
+                    verification_result['reasons'].append(f"Medium OCR agreement ({similarity:.1%}) - requires admin review")
+                    self.logger.warning("⚠️ MEDIUM CONFIDENCE: OCR disagreement")
+                    
+                else:
+                    verification_result['verification_status'] = 'pending'
+                    verification_result['confidence_level'] = 'low'
+                    verification_result['admin_notification'] = f"🚨 URGENT REVIEW: OCR results significantly differ ({similarity:.1%})."
+                    verification_result['reasons'].append(f"Low OCR agreement ({similarity:.1%}) - potential quality issue")
+                    self.logger.error("🚨 LOW CONFIDENCE: Major OCR disagreement")
+            else:
+                # Only EasyOCR worked
                 verification_result['verification_status'] = 'pending'
                 verification_result['confidence_level'] = 'medium'
                 verification_result['extracted_text'] = easyocr_clean
-                verification_result['admin_notification'] = f"📋 MANUAL REVIEW NEEDED: OCR results show medium agreement ({similarity:.1%}). Please verify document manually."
-                verification_result['reasons'].append(f"Medium OCR agreement ({similarity:.1%}) - requires admin review")
-                self.logger.warning("⚠️ MEDIUM CONFIDENCE: OCR disagreement - marking for admin review")
+                verification_result['admin_notification'] = "⚠️ Single OCR verification only (Tesseract failed). Please manually verify document quality."
+                verification_result['reasons'].append("Only EasyOCR successful - no cross-verification")
+                self.logger.warning("⚠️ SINGLE OCR: Tesseract failed - cannot cross-verify")
                 
-            else:  # Low agreement
-                verification_result['verification_status'] = 'pending'
-                verification_result['confidence_level'] = 'low'
-                verification_result['extracted_text'] = easyocr_clean
-                verification_result['admin_notification'] = f"🚨 URGENT REVIEW: OCR results significantly differ ({similarity:.1%}). Document quality may be poor or manipulated."
-                verification_result['reasons'].append(f"Low OCR agreement ({similarity:.1%}) - potential quality/fraud issue")
-                self.logger.error("🚨 LOW CONFIDENCE: Major OCR disagreement - requires urgent admin review")
-                
-        elif easyocr_clean and not tesseract_clean:
-            # Only EasyOCR worked
-            verification_result['verification_status'] = 'pending'
-            verification_result['confidence_level'] = 'medium'
-            verification_result['extracted_text'] = easyocr_clean
-            verification_result['admin_notification'] = "⚠️ Single OCR verification only (Tesseract failed). Please manually verify document quality."
-            verification_result['reasons'].append("Only EasyOCR successful - no cross-verification")
-            self.logger.warning("⚠️ SINGLE OCR: Tesseract failed - cannot cross-verify")
-            
-        elif tesseract_clean and not easyocr_clean:
-            # Only Tesseract worked
-            verification_result['verification_status'] = 'pending'
-            verification_result['confidence_level'] = 'medium'
+        elif tesseract_clean:
+            # Final fallback to Tesseract
             verification_result['extracted_text'] = tesseract_clean
-            verification_result['admin_notification'] = "⚠️ Single OCR verification only (EasyOCR failed). Please manually verify document quality."
-            verification_result['reasons'].append("Only Tesseract successful - no cross-verification")
-            self.logger.warning("⚠️ SINGLE OCR: EasyOCR failed - cannot cross-verify")
+            verification_result['primary_ocr'] = 'tesseract'
+            verification_result['verification_status'] = 'pending'
+            verification_result['confidence_level'] = 'low'
+            verification_result['admin_notification'] = "⚠️ Single OCR verification only (Advanced OCR and EasyOCR failed). Please manually verify document quality."
+            verification_result['reasons'].append("Only Tesseract successful - low confidence")
+            self.logger.warning("⚠️ SINGLE OCR: Advanced OCR and EasyOCR failed - using Tesseract fallback")
             
         else:
-            # Both failed
+            # All OCR methods failed
             verification_result['verification_status'] = 'failed'
             verification_result['confidence_level'] = 'low'
-            verification_result['admin_notification'] = "🚨 CRITICAL: Both OCR engines failed. Document may be unreadable or corrupted."
-            verification_result['reasons'].append("Both OCR engines failed")
-            self.logger.error("🚨 TOTAL FAILURE: Both OCR engines failed")
+            verification_result['admin_notification'] = "🚨 CRITICAL: All OCR engines failed. Document may be unreadable or corrupted."
+            verification_result['reasons'].append("All OCR engines failed")
+            self.logger.error("🚨 TOTAL FAILURE: All OCR engines failed")
         
         return verification_result
     

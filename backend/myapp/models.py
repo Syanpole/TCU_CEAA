@@ -641,6 +641,16 @@ class AllowanceApplication(models.Model):
     email_sent_at = models.DateTimeField(null=True, blank=True)
     notification_error = models.TextField(blank=True, null=True)
     
+    # Face verification fields (moved from grade submission)
+    face_verification_required = models.BooleanField(default=True, help_text="Whether face verification is required for this application")
+    face_verification_completed = models.BooleanField(default=False, help_text="Whether face verification has been completed")
+    face_verification_passed = models.BooleanField(null=True, blank=True, help_text="Whether face verification passed")
+    face_verification_score = models.FloatField(null=True, blank=True, help_text="Face verification similarity score (0.0-1.0)")
+    face_verification_confidence = models.CharField(max_length=20, blank=True, null=True, help_text="Face verification confidence level")
+    face_verification_data = models.JSONField(default=dict, blank=True, help_text="Detailed face verification results")
+    face_verification_attempted_at = models.DateTimeField(null=True, blank=True, help_text="When face verification was last attempted")
+    face_verification_notes = models.TextField(blank=True, null=True, help_text="Notes from face verification process")
+    
     
     class Meta:
         ordering = ['-applied_at']

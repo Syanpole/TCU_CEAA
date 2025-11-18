@@ -529,3 +529,121 @@
 .dark-theme .cancel-button:hover:not(:disabled) {
   background: #4b5563;
 }
+
+/* Face Verification Modal */
+.face-verification-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  -webkit-backdrop-filter: blur(4px); 
+  backdrop-filter: blur(4px);
+}
+
+.face-verification-modal {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.face-verification-modal .modal-header {
+  padding: 24px 24px 0 24px;
+  text-align: center;
+  position: relative;
+}
+
+.face-verification-modal .modal-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.face-verification-modal .modal-header p {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.face-verification-modal .close-modal-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.face-verification-modal .close-modal-btn:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.face-verification-container {
+  padding: 0 24px 24px 24px;
+}
+
+.verification-notice {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+}
+
+.verification-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: #92400e;
+  font-weight: 500;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dark-theme .face-verification-modal {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+.dark-theme .face-verification-modal .modal-header h3 {
+  color: #f9fafb;
+}
+
+.dark-theme .face-verification-modal .modal-header p {
+  color: #9ca3af;
+}
+
+.dark-theme .face-verification-modal .close-modal-btn:hover {
+  background: #374151;
+  color: #d1d5db;
+}

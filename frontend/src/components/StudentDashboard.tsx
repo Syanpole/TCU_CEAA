@@ -113,6 +113,8 @@ interface FullApplicationRecord {
   school_year: string;
   semester: string;
   semester_display?: string;
+  application_type?: string;
+  application_type_display?: string;
   first_name: string;
   last_name: string;
   is_submitted: boolean;
@@ -156,6 +158,7 @@ const StudentDashboard: React.FC = () => {
     school_year: string;
     semester: string;
   } | null>(null);
+  const [applicantType, setApplicantType] = useState<'new' | 'renewing' | null>(null);
 
   // Theme toggle function
   const toggleTheme = () => {
@@ -236,8 +239,13 @@ const StudentDashboard: React.FC = () => {
 
         // Check basic qualification status
         const qualificationData = qualificationResponse.data as QualificationCheckResponse;
-      setHasCompletedQualification(qualificationData.completed || false);
-      setIsQualified(qualificationData.qualified || false);
+        setHasCompletedQualification(qualificationData.completed || false);
+        setIsQualified(qualificationData.qualified || false);
+
+        const qualificationApplicantType = qualificationData.data?.applicant_type as 'new' | 'renewing' | undefined;
+        if (qualificationApplicantType) {
+          setApplicantType(qualificationApplicantType);
+        }
 
       // Check if user has already submitted a full application
       const fullApplications = Array.isArray(fullApplicationResponse.data)
@@ -251,6 +259,15 @@ const StudentDashboard: React.FC = () => {
           school_year: latestApp.school_year || '',
           semester: latestApp.semester_display || latestApp.semester || ''
         });
+        const rawApplicationType = latestApp.application_type || latestApp.application_type_display;
+        if (typeof rawApplicationType === 'string') {
+          const lowerValue = rawApplicationType.toLowerCase();
+          if (lowerValue.includes('renew')) {
+            setApplicantType('renewing');
+          } else if (lowerValue.includes('new')) {
+            setApplicantType('new');
+          }
+        }
         console.log('✅ Found existing full application:', latestApp);
       } else {
         setHasCompletedApplication(false);
@@ -359,6 +376,9 @@ const StudentDashboard: React.FC = () => {
         setHasCompletedQualification(true);
         setIsQualified(responseData.qualified);
         setShowBasicQualification(false);
+        if (data.applicant_type) {
+          setApplicantType(data.applicant_type);
+        }
         
         if (responseData.qualified) {
           // Show full application form immediately for qualified users
@@ -583,6 +603,7 @@ const StudentDashboard: React.FC = () => {
             darkMode={darkMode}
             schoolYear={applicationData?.school_year}
             semester={applicationData?.semester}
+            isRenewing={applicantType === 'renewing'}
           />
         );
       case 'documents':

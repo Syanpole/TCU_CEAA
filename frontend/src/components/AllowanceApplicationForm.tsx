@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import { sendApplicationConfirmationEmail } from '../services/email/emailService';
 import { useAuth } from '../contexts/AuthContext';
+import FaceVerification from './FaceVerification';
 import './AllowanceApplicationForm.css';
 
 interface GradeSubmission {
@@ -57,7 +58,10 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadingGrades, setLoadingGrades] = useState(true);
-  const [emailStatus, setEmailStatus] = useState<string>('');
+  const [emailStatus, setEmailStatus] = useState('');
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [faceVerificationCompleted, setFaceVerificationCompleted] = useState(false);
+  const [faceVerificationPassed, setFaceVerificationPassed] = useState(false);
 
   useEffect(() => {
     fetchApprovedGrades();
@@ -235,11 +239,28 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     return types;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const calculateAmount = (): string => {
+    const selectedType = getAvailableApplicationTypes().find(type => type.value === applicationType);
+    return selectedType ? selectedType.amount : '₱0';
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     
     if (!selectedGradeSubmission || !applicationType) {
       setError('Please select a grade submission and application type.');
+      return;
+    }
+
+    // Check if face verification is required and not completed
+    if (!faceVerificationCompleted) {
+      setShowFaceVerification(true);
+      return;
+    }
+
+    // If face verification failed, don't proceed
+    if (!faceVerificationPassed) {
+      setError('Face verification is required to submit your application.');
       return;
     }
 
@@ -340,9 +361,23 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     }
   };
 
-  const calculateAmount = (): string => {
-    const selectedType = getAvailableApplicationTypes().find(type => type.value === applicationType);
-    return selectedType ? selectedType.amount : '₱0';
+  const handleFaceVerificationComplete = (result: any) => {
+    setFaceVerificationCompleted(true);
+    setFaceVerificationPassed(result.isMatch);
+    setShowFaceVerification(false);
+    
+    if (result.isMatch) {
+      // Automatically proceed to submit the application
+      handleSubmit();
+    } else {
+      setError('Face verification failed. Please try again.');
+    }
+  };
+
+  const handleFaceVerificationSkip = () => {
+    setShowFaceVerification(false);
+    setFaceVerificationCompleted(true);
+    setFaceVerificationPassed(false);
   };
 
   return (
@@ -537,6 +572,34 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             </button>
           </div>
         </form>
+      )}
+      
+      {/* Face Verification Modal */}
+      {showFaceVerification && (
+        <div className="face-verification-modal-overlay" onClick={handleFaceVerificationSkip}>
+          <div className="face-verification-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Identity Verification Required</h3>
+              <p>Before submitting your allowance application, we need to verify your identity.</p>
+              <button 
+                className="close-modal-btn"
+                onClick={handleFaceVerificationSkip}
+                title="Skip verification (application will be rejected)"
+              >
+                ×
+              </button>
+            </div>
+            <div className="face-verification-container">
+              <FaceVerification
+                mode="verification"
+                onVerificationComplete={handleFaceVerificationComplete}
+              />
+            </div>
+            <div className="verification-notice">
+              <p><strong>Note:</strong> Face verification is required for allowance applications. Skipping this step will result in application rejection.</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

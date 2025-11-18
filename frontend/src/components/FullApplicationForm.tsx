@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/authService';
 import './FullApplicationForm.css';
 
@@ -98,6 +98,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   const [checkingExisting, setCheckingExisting] = useState(true);
   const [hasExistingApplication, setHasExistingApplication] = useState(false);
   const totalSteps = 5;
+  const hasCheckedExistingRef = useRef(false);
 
   const [formData, setFormData] = useState<ApplicationData>({
     facebook_link: '',
@@ -172,6 +173,10 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
 
   // Check for existing application on mount
   useEffect(() => {
+    if (hasCheckedExistingRef.current) {
+      return;
+    }
+    hasCheckedExistingRef.current = true;
     const checkExistingApplication = async () => {
       try {
         setCheckingExisting(true);
@@ -204,7 +209,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
     };
 
     checkExistingApplication();
-  }, [onCancel]);
+  }, []);
 
   // Load saved draft from localStorage on component mount
   useEffect(() => {
@@ -576,11 +581,11 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         <div className="faf-form-grid">
           <div className="faf-form-group">
             <label>Application Type <span className="faf-required">*</span></label>
-            <input type="text" value={formData.application_type} disabled />
+            <input type="text" value={formData.application_type} disabled title="Application Type" />
           </div>
           <div className="faf-form-group">
             <label>Scholarship Type <span className="faf-required">*</span></label>
-            <input type="text" value={formData.scholarship_type} disabled />
+            <input type="text" value={formData.scholarship_type} disabled title="Scholarship Type" />
           </div>
         </div>
       </div>
@@ -592,7 +597,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         <div className="faf-form-grid three-columns">
           <div className="faf-form-group">
             <label>School Year <span className="faf-required">*</span></label>
-            <select value={formData.school_year} onChange={(e) => handleInputChange('school_year', e.target.value)}>
+            <select value={formData.school_year} onChange={(e) => handleInputChange('school_year', e.target.value)} title="Select School Year">
               <option value="">Select School Year</option>
               <option value="S.Y 2025-2026">S.Y 2025-2026</option>
               <option value="S.Y 2026-2027">S.Y 2026-2027</option>
@@ -600,7 +605,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           </div>
           <div className="faf-form-group">
             <label>Semester <span className="faf-required">*</span></label>
-            <select value={formData.semester} onChange={(e) => handleInputChange('semester', e.target.value)}>
+            <select value={formData.semester} onChange={(e) => handleInputChange('semester', e.target.value)} title="Select Semester">
               <option value="">Select Semester</option>
               <option value="1ST SEMESTER">1ST SEMESTER</option>
               <option value="2ND SEMESTER">2ND SEMESTER</option>
@@ -608,7 +613,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           </div>
           <div className="faf-form-group">
             <label>Applying for Merit Incentive? <span className="faf-required">*</span></label>
-            <select value={formData.applying_for_merit} onChange={(e) => handleInputChange('applying_for_merit', e.target.value)}>
+            <select value={formData.applying_for_merit} onChange={(e) => handleInputChange('applying_for_merit', e.target.value)} title="Select Merit Incentive">
               <option value="">Select</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
@@ -775,6 +780,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             type="date"
             value={formData.date_of_birth}
             onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+            title="Date of Birth"
           />
         </div>
         <div className="faf-form-group">
@@ -785,6 +791,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             value={formData.age} 
             readOnly 
             className="disabled-input" 
+            title="Age"
           />
         </div>
       </div>
@@ -794,13 +801,15 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           <label>Citizenship <span className="faf-required">*</span></label>
           <input
             type="text"
+            placeholder="Filipino"
+            title="Citizenship"
             value={formData.citizenship}
             onChange={(e) => handleInputChange('citizenship', e.target.value)}
           />
         </div>
         <div className="faf-form-group">
           <label>Sex <span className="faf-required">*</span></label>
-          <select value={formData.sex} onChange={(e) => handleInputChange('sex', e.target.value)}>
+          <select value={formData.sex} onChange={(e) => handleInputChange('sex', e.target.value)} title="Select Sex">
             <option value="">Select</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
@@ -808,7 +817,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         </div>
         <div className="faf-form-group">
           <label>Marital Status <span className="faf-required">*</span></label>
-          <select value={formData.marital_status} onChange={(e) => handleInputChange('marital_status', e.target.value)}>
+          <select value={formData.marital_status} onChange={(e) => handleInputChange('marital_status', e.target.value)} title="Select Marital Status">
             <option value="">Select</option>
             <option value="Single">Single</option>
             <option value="Married">Married</option>
@@ -821,7 +830,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row three-cols">
         <div className="faf-form-group">
           <label>Religion <span className="faf-required">*</span></label>
-          <select value={formData.religion} onChange={(e) => handleInputChange('religion', e.target.value)}>
+          <select value={formData.religion} onChange={(e) => handleInputChange('religion', e.target.value)} title="Select Religion">
             <option value="">Select</option>
             <option value="Roman Catholic">Roman Catholic</option>
             <option value="Islam">Islam</option>
@@ -836,6 +845,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             type="text"
             value={formData.place_of_birth}
             onChange={(e) => handleInputChange('place_of_birth', e.target.value)}
+            title="Place of Birth"
           />
         </div>
         <div className="faf-form-group">
@@ -898,14 +908,14 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         </div>
         <div className="faf-form-group">
           <label>Ladderized: <span className="faf-required">*</span></label>
-          <select value={formData.ladderized} onChange={(e) => handleInputChange('ladderized', e.target.value)}>
+          <select value={formData.ladderized} onChange={(e) => handleInputChange('ladderized', e.target.value)} title="Select Ladderized">
             <option value="YES">YES</option>
             <option value="NO">NO</option>
           </select>
         </div>
         <div className="faf-form-group">
           <label>Year Level: <span className="faf-required">*</span></label>
-          <select value={formData.year_level} onChange={(e) => handleInputChange('year_level', e.target.value)}>
+          <select value={formData.year_level} onChange={(e) => handleInputChange('year_level', e.target.value)} title="Select Year Level">
             <option value="">Select</option>
             <option value="1st Year">1st Year</option>
             <option value="2nd Year">2nd Year</option>
@@ -937,7 +947,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         </div>
         <div className="faf-form-group">
           <label>Course Duration: <span className="faf-required">*</span></label>
-          <select value={formData.course_duration} onChange={(e) => handleInputChange('course_duration', e.target.value)}>
+          <select value={formData.course_duration} onChange={(e) => handleInputChange('course_duration', e.target.value)} title="Select Course Duration">
             <option value="">Select</option>
             <option value="4 Years">4 Years</option>
             <option value="5 Years">5 Years</option>
@@ -948,21 +958,21 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row">
         <div className="faf-form-group">
           <label>School Name: <span className="faf-required">*</span></label>
-          <input type="text" value={formData.school_name} disabled className="disabled-input" />
+          <input type="text" value={formData.school_name} disabled className="disabled-input" title="School Name" />
         </div>
       </div>
 
       <div className="faf-form-row">
         <div className="faf-form-group">
           <label>School Address: <span className="faf-required">*</span></label>
-          <input type="text" value={formData.school_address} disabled className="disabled-input" />
+          <input type="text" value={formData.school_address} disabled className="disabled-input" title="School Address" />
         </div>
       </div>
 
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Are you graduating this semester/term? <span className="faf-required">*</span></label>
-          <select value={formData.graduating_this_term} onChange={(e) => handleInputChange('graduating_this_term', e.target.value)}>
+          <select value={formData.graduating_this_term} onChange={(e) => handleInputChange('graduating_this_term', e.target.value)} title="Select Graduation Status">
             <option value="">Select</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
@@ -971,7 +981,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         {formData.graduating_this_term === 'Yes' && (
           <div className="faf-form-group">
             <label>With Honors? <span className="faf-required">*</span></label>
-            <select value={formData.with_honors} onChange={(e) => handleInputChange('with_honors', e.target.value)}>
+            <select value={formData.with_honors} onChange={(e) => handleInputChange('with_honors', e.target.value)} title="Select Honors Status">
               <option value="">Select</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
@@ -994,7 +1004,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row three-cols">
         <div className="faf-form-group">
           <label>Transferee? <span className="faf-required">*</span></label>
-          <select value={formData.transferee} onChange={(e) => handleInputChange('transferee', e.target.value)}>
+          <select value={formData.transferee} onChange={(e) => handleInputChange('transferee', e.target.value)} title="Select Transferee Status">
             <option value="">Select</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
@@ -1002,7 +1012,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         </div>
         <div className="faf-form-group">
           <label>Shiftee? <span className="faf-required">*</span></label>
-          <select value={formData.shiftee} onChange={(e) => handleInputChange('shiftee', e.target.value)}>
+          <select value={formData.shiftee} onChange={(e) => handleInputChange('shiftee', e.target.value)} title="Select Shiftee Status">
             <option value="">Select</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
@@ -1010,7 +1020,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         </div>
         <div className="faf-form-group">
           <label>Status: <span className="faf-required">*</span></label>
-          <select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)}>
+          <select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)} title="Select Student Status">
             <option value="">Select</option>
             <option value="Regular">Regular</option>
             <option value="Irregular">Irregular</option>
@@ -1037,7 +1047,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Type of School: <span className="faf-required">*</span></label>
-          <select value={formData.shs_type} onChange={(e) => handleInputChange('shs_type', e.target.value)}>
+          <select value={formData.shs_type} onChange={(e) => handleInputChange('shs_type', e.target.value)} title="Select Senior High School Type">
             <option value="">Select</option>
             <option value="Public">Public</option>
             <option value="Private">Private</option>
@@ -1089,7 +1099,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Type of School: <span className="faf-required">*</span></label>
-          <select value={formData.jhs_type} onChange={(e) => handleInputChange('jhs_type', e.target.value)}>
+          <select value={formData.jhs_type} onChange={(e) => handleInputChange('jhs_type', e.target.value)} title="Select Junior High School Type">
             <option value="">Select</option>
             <option value="Public">Public</option>
             <option value="Private">Private</option>
@@ -1141,7 +1151,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Type of School: <span className="faf-required">*</span></label>
-          <select value={formData.elem_type} onChange={(e) => handleInputChange('elem_type', e.target.value)}>
+          <select value={formData.elem_type} onChange={(e) => handleInputChange('elem_type', e.target.value)} title="Select Elementary School Type">
             <option value="">Select</option>
             <option value="Public">Public</option>
             <option value="Private">Private</option>
@@ -1235,7 +1245,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Highest Educational Attainment: <span className="faf-required">*</span></label>
-          <select value={formData.father_education} onChange={(e) => handleInputChange('father_education', e.target.value)}>
+          <select value={formData.father_education} onChange={(e) => handleInputChange('father_education', e.target.value)} title="Select Father's Education">
             <option value="">Select</option>
             <option value="Elementary">Elementary</option>
             <option value="High School">High School</option>
@@ -1309,7 +1319,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       <div className="faf-form-row two-cols">
         <div className="faf-form-group">
           <label>Highest Educational Attainment: <span className="faf-required">*</span></label>
-          <select value={formData.mother_education} onChange={(e) => handleInputChange('mother_education', e.target.value)}>
+          <select value={formData.mother_education} onChange={(e) => handleInputChange('mother_education', e.target.value)} title="Select Mother's Education">
             <option value="">Select</option>
             <option value="Elementary">Elementary</option>
             <option value="High School">High School</option>
@@ -1373,7 +1383,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           <h3>Educational Background</h3>
         </div>
         <div className="faf-review-grid">
-          <div className="faf-review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px' }}>
+          <div className="faf-review-item full-width faf-review-item-separator">
             <div className="faf-review-label">SENIOR HIGH SCHOOL</div>
           </div>
           <div className="faf-review-item full-width">
@@ -1397,7 +1407,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             <div className="faf-review-value">{formData.shs_honors || 'None'}</div>
           </div>
 
-          <div className="faf-review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px', marginTop: '20px' }}>
+          <div className="faf-review-item full-width faf-review-item-separator-top">
             <div className="faf-review-label">JUNIOR HIGH SCHOOL</div>
           </div>
           <div className="faf-review-item full-width">
@@ -1421,7 +1431,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             <div className="faf-review-value">{formData.jhs_honors || 'None'}</div>
           </div>
 
-          <div className="faf-review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px', marginTop: '20px' }}>
+          <div className="faf-review-item full-width faf-review-item-separator-top">
             <div className="faf-review-label">ELEMENTARY</div>
           </div>
           <div className="faf-review-item full-width">
@@ -1452,7 +1462,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           <h3>Parents Information</h3>
         </div>
         <div className="faf-review-grid">
-          <div className="faf-review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px' }}>
+          <div className="faf-review-item full-width faf-review-item-separator">
             <div className="faf-review-label">FATHER'S INFORMATION</div>
           </div>
           <div className="faf-review-item">
@@ -1484,7 +1494,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
             <div className="faf-review-value">{formData.father_deceased ? '† Deceased' : 'Living'}</div>
           </div>
 
-          <div className="faf-review-item full-width" style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '12px', marginTop: '20px' }}>
+          <div className="faf-review-item full-width faf-review-item-separator-top">
             <div className="faf-review-label">MOTHER'S INFORMATION</div>
           </div>
           <div className="faf-review-item">

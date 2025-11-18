@@ -858,6 +858,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.75);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -1221,6 +1222,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.65);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1453,6 +1455,70 @@
 
 .refresh-icon.spinning {
   animation: spin 1s linear infinite;
+}
+
+/* ========== EXTRACTED INFO DISPLAY ========== */
+.dr-extracted-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.dark-theme .dr-extracted-info {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dr-extracted-info h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dark-theme .dr-extracted-info h4 {
+  color: #f1f5f9;
+}
+
+.dr-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.dr-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.dr-info-label {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.dark-theme .dr-info-label {
+  color: #94a3b8;
+}
+
+.dr-info-value {
+  color: #1e293b;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.dark-theme .dr-info-value {
+  color: #f1f5f9;
+}
+
+.dr-subject-item {
+  margin-bottom: 4px;
 }
 
 /* Responsive for Delete Modal */

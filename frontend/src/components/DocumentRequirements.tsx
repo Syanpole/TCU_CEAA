@@ -6,6 +6,7 @@ interface DocumentRequirementsProps {
   darkMode?: boolean;
   schoolYear?: string;
   semester?: string;
+  isRenewing?: boolean;
 }
 
 interface DocumentSubmission {
@@ -15,17 +16,46 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
-  file_url?: string;
+  document_file?: string;
   ai_confidence_score?: number;
   ai_analysis_completed?: boolean;
   ai_analysis_notes?: string;
+  ai_auto_approved?: boolean;
+  ai_identity_verified?: boolean;
+  ai_identity_type?: 'student' | 'mother' | 'father' | null;
+  ai_document_type_match?: boolean;
+  ai_recommendations?: string[];
+  reviewed_at?: string;
+  extracted_subjects?: any[];
+  subject_count?: number;
+  description?: string;
 }
 
-const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = false, schoolYear = 'S.Y 2025-2026', semester = '1ST SEMESTER' }) => {
+const DOCUMENT_TYPE_OPTIONS = [
+  { label: '[A] Certificate of Enrollment for 1st Semester, S.Y. 2024-2025', value: 'certificate_of_enrollment', hideForRenewing: false },
+  { label: '[B] Certificate of Enrollment for 2nd Semester, S.Y. 2024-2025', value: 'certificate_of_enrollment', hideForRenewing: false },
+  { label: '[C] Certificate of Grades - Last Semester', value: 'transcript_of_records', hideForRenewing: true },
+  { label: "[D] Junior High School Certificate/Grade 10 Report Card (New Applicant)", value: 'grade_10_report_card', hideForRenewing: true },
+  { label: "[E] Senior High School Diploma/Grade 12 Report Card (New Applicant)", value: 'grade_12_report_card', hideForRenewing: true },
+  { label: '[F] School ID or Valid Government-Issued ID', value: 'school_id', hideForRenewing: false },
+  { label: "[G] Parent's Voter Registration - Taguig City", value: 'voter_certification', hideForRenewing: false },
+  { label: "[H] Student's Voter Registration - Taguig City (18+ years old)", value: 'voters_id', hideForRenewing: false },
+  { label: '[I] Birth Certificate (PSA/NSO/Civil Registry)', value: 'birth_certificate', hideForRenewing: false },
+  { label: '[J] Form 137 - Elementary/High School', value: 'form_137', hideForRenewing: true },
+  { label: '[K] Certificate of Academic Excellence (Honors Scholars)', value: 'other', hideForRenewing: true }
+];
+
+// Create mapping from label to value for backward compatibility
+const documentTypeMapping = DOCUMENT_TYPE_OPTIONS.reduce((acc, opt) => {
+  acc[opt.label] = opt.value;
+  return acc;
+}, {} as Record<string, string>);
+
+const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = false, schoolYear = 'S.Y 2025-2026', semester = '1ST SEMESTER', isRenewing = false }) => {
   const [selectedSemester, setSelectedSemester] = useState(semester);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState(schoolYear);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [documentType, setDocumentType] = useState('');
+  const [documentType, setDocumentType] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,22 +71,11 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
   const [documentToDelete, setDocumentToDelete] = useState<DocumentSubmission | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Document type mapping - frontend labels to backend values
-  const documentTypeMapping: Record<string, string> = {
-    '[A] Certificate of Enrollment for 1st Semester, S.Y. 2024-2025': 'certificate_of_enrollment',
-    '[B] Certificate of Enrollment for 2nd Semester, S.Y. 2024-2025': 'certificate_of_enrollment',
-    '[C] Certificate of Grades - Last Semester': 'transcript_of_records',
-    '[D] Junior High School Certificate/Grade 10 Report Card (New Applicant)': 'grade_10_report_card',
-    '[E] Senior High School Diploma/Grade 12 Report Card (New Applicant)': 'grade_12_report_card',
-    '[F] School ID or Valid Government-Issued ID': 'school_id',
-    '[G] Parent\'s Voter Registration - Taguig City': 'voter_certification',
-    '[H] Student\'s Voter Registration - Taguig City (18+ years old)': 'voters_id',
-    '[I] Birth Certificate (PSA/NSO/Civil Registry)': 'birth_certificate',
-    '[J] Form 137 - Elementary/High School': 'form_137',
-    '[K] Certificate of Academic Excellence (Honors Scholars)': 'other'
-  };
+  const availableDocumentTypeOptions = DOCUMENT_TYPE_OPTIONS.filter(option => !(isRenewing && option.hideForRenewing));
 
-  const documentTypes = Object.keys(documentTypeMapping);
+  const handleDocumentTypeChange: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+    setDocumentType(e.target.value);
+  };
 
   // Fetch documents on mount
   useEffect(() => {
@@ -278,6 +297,100 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
     setSelectedDocForDetails(doc);
   };
 
+  const parseExtractedInfo = (notes: string) => {
+    // Try JSON format first (existing format)
+    const extractedMatch = notes.match(/Extracted Info:\s*(\{[\s\S]*\})/);
+    if (extractedMatch) {
+      try {
+        const jsonStr = extractedMatch[1].replace(/'/g, '"');
+        return JSON.parse(jsonStr);
+      } catch (e) {
+        }
+    }
+
+    // Try new structured text format
+    const extractedInfo: any = {};
+
+    // Parse ID Verification status
+    const idVerificationMatch = notes.match(/ID Verification \((.*?)\)/);
+    if (idVerificationMatch) {
+      extractedInfo.verification_status = idVerificationMatch[1];
+    }
+
+    // Parse Status
+    const statusMatch = notes.match(/Status:\s*(.+)/);
+    if (statusMatch) {
+      extractedInfo.status = statusMatch[1].trim();
+    }
+
+    // Parse Confidence
+    const confidenceMatch = notes.match(/Confidence:\s*([\d.]+)%/);
+    if (confidenceMatch) {
+      extractedInfo.confidence = parseFloat(confidenceMatch[1]);
+    }
+
+    // Parse Checks Passed
+    const checksMatch = notes.match(/Checks Passed:\s*(\d+)/);
+    if (checksMatch) {
+      extractedInfo.checks_passed = parseInt(checksMatch[1]);
+    }
+
+    // Parse Identity Match
+    const identityMatch = notes.match(/Identity Match:\s*(.+)/);
+    if (identityMatch) {
+      extractedInfo.identity_match = identityMatch[1].trim().toLowerCase() === 'true';
+    }
+
+    // Parse Extracted Fields
+    const extractedFieldsMatch = notes.match(/Extracted Fields:\s*\n((?:  .+:.+\n?)*)/);
+    if (extractedFieldsMatch) {
+      const fieldsText = extractedFieldsMatch[1];
+      const fieldLines = fieldsText.split('\n').filter(line => line.trim());
+
+      fieldLines.forEach(line => {
+        const fieldMatch = line.match(/  (\w+):\s*(.+)/);
+        if (fieldMatch) {
+          const key = fieldMatch[1];
+          const value = fieldMatch[2].trim();
+
+          // Map common field names to our expected format
+          switch (key) {
+            case 'name':
+              extractedInfo.student_name = value;
+              break;
+            case 'student_number':
+              extractedInfo.student_id = value;
+              break;
+            case 'institution':
+              extractedInfo.institution = value;
+              break;
+            case 'college':
+              extractedInfo.program = value;
+              break;
+            case 'college_code':
+              extractedInfo.college_code = value;
+              break;
+            default:
+              extractedInfo[key] = value;
+          }
+        }
+      });
+    }
+
+    // Parse Recommendations
+    const recommendationsMatch = notes.match(/Recommendations:\s*(.+)/);
+    if (recommendationsMatch) {
+      extractedInfo.recommendations = recommendationsMatch[1].trim();
+    }
+
+    // Return extracted info if we found any data
+    if (Object.keys(extractedInfo).length > 0) {
+      return extractedInfo;
+    }
+
+    return null;
+  };
+
   return (
     <div className={`document-requirements ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       {/* Error/Success Messages */}
@@ -325,13 +438,14 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                 <label>Document Type <span className="required">*</span></label>
                 <select 
                   value={documentType}
-                  onChange={(e) => setDocumentType(e.target.value)}
+                  onChange={handleDocumentTypeChange}
                   className="document-type-select"
                   disabled={loading}
+                  title="Select the type of document to upload"
                 >
                   <option value="">Select Document Type</option>
-                  {documentTypes.map((type, index) => (
-                    <option key={index} value={type}>{type}</option>
+                  {availableDocumentTypeOptions.map((option) => (
+                    <option key={option.label} value={option.label}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -649,13 +763,184 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                 </div>
               )}
 
+              {/* AI Decision */}
+              {typeof selectedDocForDetails.ai_auto_approved !== 'undefined' && (
+                <div className="doc-modal-info-grid">
+                  <div className="doc-modal-info-box">
+                    <div className="doc-info-box-label">AI Decision</div>
+                    <div className={`doc-info-box-value ${selectedDocForDetails.ai_auto_approved ? 'status-approved' : 'status-pending'}`}>
+                      {selectedDocForDetails.ai_auto_approved ? 'Auto-Approved' : 'Manual Review Required'}
+                    </div>
+                  </div>
+                  {selectedDocForDetails.ai_identity_verified && (
+                    <div className="doc-modal-info-box">
+                      <div className="doc-info-box-label">Identity Source</div>
+                      <div className="doc-info-box-value">
+                        {selectedDocForDetails.ai_identity_type === 'student' && 'Student'}
+                        {selectedDocForDetails.ai_identity_type === 'mother' && 'Mother'}
+                        {selectedDocForDetails.ai_identity_type === 'father' && 'Father'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Analysis Details */}
               {selectedDocForDetails.ai_analysis_notes && (
                 <div className="doc-analysis-section">
                   <h3 className="doc-section-title">Analysis Details</h3>
                   <div className="doc-analysis-content">
-                    {selectedDocForDetails.ai_analysis_notes}
+                    {(() => {
+                      const extractedInfo = parseExtractedInfo(selectedDocForDetails.ai_analysis_notes);
+                      if (extractedInfo) {
+                        return (
+                          <div className="dr-extracted-info">
+                            <h4>Extracted Information</h4>
+
+                            {/* Verification Status */}
+                            {extractedInfo.verification_status && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Verification:</span>
+                                <span className="dr-info-value">{extractedInfo.verification_status}</span>
+                              </div>
+                            )}
+
+                            {/* Status */}
+                            {extractedInfo.status && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Status:</span>
+                                <span className="dr-info-value">{extractedInfo.status}</span>
+                              </div>
+                            )}
+
+                            {/* Confidence */}
+                            {extractedInfo.confidence && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Confidence:</span>
+                                <span className="dr-info-value">{extractedInfo.confidence}%</span>
+                              </div>
+                            )}
+
+                            {/* Checks Passed */}
+                            {extractedInfo.checks_passed && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Checks Passed:</span>
+                                <span className="dr-info-value">{extractedInfo.checks_passed}</span>
+                              </div>
+                            )}
+
+                            {/* Identity Match */}
+                            {typeof extractedInfo.identity_match === 'boolean' && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Identity Match:</span>
+                                <span className="dr-info-value">{extractedInfo.identity_match ? 'Yes' : 'No'}</span>
+                              </div>
+                            )}
+
+                            {/* Student Info */}
+                            {extractedInfo.student_name && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Student Name:</span>
+                                <span className="dr-info-value">{extractedInfo.student_name}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.student_id && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Student ID:</span>
+                                <span className="dr-info-value">{extractedInfo.student_id}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.institution && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Institution:</span>
+                                <span className="dr-info-value">{extractedInfo.institution}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.program && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Program:</span>
+                                <span className="dr-info-value">{extractedInfo.program}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.college_code && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">College Code:</span>
+                                <span className="dr-info-value">{extractedInfo.college_code}</span>
+                              </div>
+                            )}
+
+                            {/* Legacy fields for backward compatibility */}
+                            {extractedInfo.year_level && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Year Level:</span>
+                                <span className="dr-info-value">{extractedInfo.year_level}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.semester && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Semester:</span>
+                                <span className="dr-info-value">{extractedInfo.semester}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.enrollment_date && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Enrollment Date:</span>
+                                <span className="dr-info-value">{extractedInfo.enrollment_date}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.subject_count && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Subject Count:</span>
+                                <span className="dr-info-value">{extractedInfo.subject_count}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.subjects && extractedInfo.subjects.length > 0 && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Subjects:</span>
+                                <div className="dr-info-value">
+                                  {extractedInfo.subjects.map((subject: any, index: number) => (
+                                    <div key={index} className="dr-subject-item">
+                                      <strong>{subject.subject_code}</strong> - {subject.subject_name}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Recommendations */}
+                            {extractedInfo.recommendations && (
+                              <div className="dr-info-item">
+                                <span className="dr-info-label">Recommendations:</span>
+                                <span className="dr-info-value">{extractedInfo.recommendations}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        return <pre>{selectedDocForDetails.ai_analysis_notes}</pre>;
+                      }
+                    })()}
                   </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {selectedDocForDetails.ai_recommendations && selectedDocForDetails.ai_recommendations.length > 0 && (
+                <div className="doc-analysis-section">
+                  <h3 className="doc-section-title">Recommendations</h3>
+                  <ul className="doc-recommendations-list">
+                    {selectedDocForDetails.ai_recommendations.map((rec: any, i: number) => (
+                      <li key={i}>{rec}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
 

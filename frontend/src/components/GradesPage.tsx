@@ -9,6 +9,8 @@ interface SubjectGrade {
   units: number;
   grade_received: number;
   status: string;
+  ai_gwa_calculated?: number;
+  ai_merit_level?: string;
 }
 
 interface GroupedSemester {
@@ -24,6 +26,8 @@ interface GroupedSemester {
   status_display: string;
   submitted_at: string;
   all_approved: boolean;
+  ai_gwa_calculated?: number;
+  ai_merit_level?: string;
 }
 
 interface GradeSubmission {
@@ -42,6 +46,8 @@ interface GradeSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
+  ai_gwa_calculated?: number;
+  ai_merit_level?: string;
 }
 
 interface GradesPageProps {
@@ -131,6 +137,13 @@ const GradesPage: React.FC<GradesPageProps> = ({
         if (group.all_approved) {
           group.status = 'approved';
           group.status_display = 'Approved';
+        }
+        
+        // Include AI-calculated fields from any subject entry
+        const anySubject = group.subjects.find(item => item.ai_gwa_calculated !== undefined);
+        if (anySubject) {
+          group.ai_gwa_calculated = anySubject.ai_gwa_calculated;
+          group.ai_merit_level = anySubject.ai_merit_level;
         }
         
         return group;
@@ -343,8 +356,21 @@ const GradesPage: React.FC<GradesPageProps> = ({
                   <div className="card-body-grade">
                     <div className="gwa-display">
                       <span className="gwa-label">General Weighted Average</span>
-                      <span className="gwa-value">{semester.general_weighted_average.toFixed(2)}</span>
+                      <span className="gwa-value">
+                        {semester.ai_gwa_calculated ? 
+                          Number(semester.ai_gwa_calculated).toFixed(2) : 
+                          semester.general_weighted_average.toFixed(2)
+                        }
+                      </span>
                       <span className="gwa-subjects">{semester.subjects.length} subjects • {semester.total_units} units</span>
+                      {semester.ai_merit_level && (
+                        <div className="merit-level-badge">
+                          <span className="merit-label">Merit Level:</span>
+                          <span className={`merit-value ${semester.ai_merit_level.toLowerCase().replace(' ', '-')}`}>
+                            {semester.ai_merit_level}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="eligibility-grid">
@@ -466,17 +492,30 @@ const GradesPage: React.FC<GradesPageProps> = ({
             <div className="modal-gwa-section">
               <div className="modal-gwa-card">
                 <span className="modal-gwa-label">General Weighted Average</span>
-                <span className="modal-gwa-number">{selectedGrade.general_weighted_average.toFixed(2)}</span>
+                <span className="modal-gwa-number">
+                  {selectedGrade.ai_gwa_calculated ? 
+                    Number(selectedGrade.ai_gwa_calculated).toFixed(2) : 
+                    selectedGrade.general_weighted_average.toFixed(2)
+                  }
+                </span>
                 <div className="modal-gwa-bar">
                   <div 
                     className="modal-gwa-fill"
                     style={{ 
-                      width: `${Math.max(0, Math.min(100, (5 - selectedGrade.general_weighted_average) * 25))}%`,
-                      backgroundColor: selectedGrade.general_weighted_average <= 1.75 ? '#10b981' : 
-                                     selectedGrade.general_weighted_average <= 2.25 ? '#3b82f6' : '#64748b'
+                      width: `${Math.max(0, Math.min(100, (5 - (selectedGrade.ai_gwa_calculated || selectedGrade.general_weighted_average)) * 25))}%`,
+                      backgroundColor: (selectedGrade.ai_gwa_calculated || selectedGrade.general_weighted_average) <= 1.75 ? '#10b981' : 
+                                     (selectedGrade.ai_gwa_calculated || selectedGrade.general_weighted_average) <= 2.25 ? '#3b82f6' : '#64748b'
                     }}
                   ></div>
                 </div>
+                {selectedGrade.ai_merit_level && (
+                  <div className="modal-merit-display">
+                    <span className="modal-merit-label">AI-Calculated Merit Level:</span>
+                    <span className={`modal-merit-value ${selectedGrade.ai_merit_level.toLowerCase().replace(' ', '-')}`}>
+                      {selectedGrade.ai_merit_level}
+                    </span>
+                  </div>
+                )}
               </div>
               
               {/* Subjects List */}

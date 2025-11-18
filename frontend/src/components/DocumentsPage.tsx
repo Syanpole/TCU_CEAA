@@ -60,6 +60,101 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
     onDocumentSubmissionSuccess();
   };
 
+  const parseExtractedInfo = (notes: string) => {
+    // Try JSON format first (existing format)
+    const extractedMatch = notes.match(/Extracted Info:\s*(\{.*\})/s);
+    if (extractedMatch) {
+      try {
+        const jsonStr = extractedMatch[1].replace(/'/g, '"');
+        return JSON.parse(jsonStr);
+      } catch (e) {
+        // Continue to other formats
+      }
+    }
+
+    // Try new structured text format
+    const extractedInfo: any = {};
+
+    // Parse ID Verification status
+    const idVerificationMatch = notes.match(/ID Verification \((.*?)\)/);
+    if (idVerificationMatch) {
+      extractedInfo.verification_status = idVerificationMatch[1];
+    }
+
+    // Parse Status
+    const statusMatch = notes.match(/Status:\s*(.+)/);
+    if (statusMatch) {
+      extractedInfo.status = statusMatch[1].trim();
+    }
+
+    // Parse Confidence
+    const confidenceMatch = notes.match(/Confidence:\s*([\d.]+)%/);
+    if (confidenceMatch) {
+      extractedInfo.confidence = parseFloat(confidenceMatch[1]);
+    }
+
+    // Parse Checks Passed
+    const checksMatch = notes.match(/Checks Passed:\s*(\d+)/);
+    if (checksMatch) {
+      extractedInfo.checks_passed = parseInt(checksMatch[1]);
+    }
+
+    // Parse Identity Match
+    const identityMatch = notes.match(/Identity Match:\s*(.+)/);
+    if (identityMatch) {
+      extractedInfo.identity_match = identityMatch[1].trim().toLowerCase() === 'true';
+    }
+
+    // Parse Extracted Fields
+    const extractedFieldsMatch = notes.match(/Extracted Fields:\s*\n((?:  .+:.+\n?)*)/);
+    if (extractedFieldsMatch) {
+      const fieldsText = extractedFieldsMatch[1];
+      const fieldLines = fieldsText.split('\n').filter(line => line.trim());
+
+      fieldLines.forEach(line => {
+        const fieldMatch = line.match(/  (\w+):\s*(.+)/);
+        if (fieldMatch) {
+          const key = fieldMatch[1];
+          const value = fieldMatch[2].trim();
+
+          // Map common field names to our expected format
+          switch (key) {
+            case 'name':
+              extractedInfo.student_name = value;
+              break;
+            case 'student_number':
+              extractedInfo.student_id = value;
+              break;
+            case 'institution':
+              extractedInfo.institution = value;
+              break;
+            case 'college':
+              extractedInfo.program = value;
+              break;
+            case 'college_code':
+              extractedInfo.college_code = value;
+              break;
+            default:
+              extractedInfo[key] = value;
+          }
+        }
+      });
+    }
+
+    // Parse Recommendations
+    const recommendationsMatch = notes.match(/Recommendations:\s*(.+)/);
+    if (recommendationsMatch) {
+      extractedInfo.recommendations = recommendationsMatch[1].trim();
+    }
+
+    // Return extracted info if we found any data
+    if (Object.keys(extractedInfo).length > 0) {
+      return extractedInfo;
+    }
+
+    return null;
+  };
+
   return (
     <div className={`dp-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       <div className="dp-header">
@@ -268,7 +363,143 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
                 <div className="dp-analysis-section">
                   <h3 className="dp-section-title">Analysis Details</h3>
                   <div className="dp-analysis-content">
-                    {selectedDocForDetails.ai_analysis_notes}
+                    {(() => {
+                      const extractedInfo = parseExtractedInfo(selectedDocForDetails.ai_analysis_notes);
+                      if (extractedInfo) {
+                        return (
+                          <div className="dp-extracted-info">
+                            {/* Verification Status */}
+                            {extractedInfo.verification_status && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Verification:</span>
+                                <span className="dp-info-value">{extractedInfo.verification_status}</span>
+                              </div>
+                            )}
+
+                            {/* Status */}
+                            {extractedInfo.status && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Status:</span>
+                                <span className="dp-info-value">{extractedInfo.status}</span>
+                              </div>
+                            )}
+
+                            {/* Confidence */}
+                            {extractedInfo.confidence && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Confidence:</span>
+                                <span className="dp-info-value">{extractedInfo.confidence}%</span>
+                              </div>
+                            )}
+
+                            {/* Checks Passed */}
+                            {extractedInfo.checks_passed && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Checks Passed:</span>
+                                <span className="dp-info-value">{extractedInfo.checks_passed}</span>
+                              </div>
+                            )}
+
+                            {/* Identity Match */}
+                            {typeof extractedInfo.identity_match === 'boolean' && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Identity Match:</span>
+                                <span className="dp-info-value">{extractedInfo.identity_match ? 'Yes' : 'No'}</span>
+                              </div>
+                            )}
+
+                            {/* Student Info */}
+                            {extractedInfo.student_name && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Student Name:</span>
+                                <span className="dp-info-value">{extractedInfo.student_name}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.student_id && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Student ID:</span>
+                                <span className="dp-info-value">{extractedInfo.student_id}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.institution && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Institution:</span>
+                                <span className="dp-info-value">{extractedInfo.institution}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.program && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Program:</span>
+                                <span className="dp-info-value">{extractedInfo.program}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.college_code && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">College Code:</span>
+                                <span className="dp-info-value">{extractedInfo.college_code}</span>
+                              </div>
+                            )}
+
+                            {/* Legacy fields for backward compatibility */}
+                            {extractedInfo.year_level && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Year Level:</span>
+                                <span className="dp-info-value">{extractedInfo.year_level}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.semester && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Semester:</span>
+                                <span className="dp-info-value">{extractedInfo.semester}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.enrollment_date && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Enrollment Date:</span>
+                                <span className="dp-info-value">{extractedInfo.enrollment_date}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.subject_count && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Subject Count:</span>
+                                <span className="dp-info-value">{extractedInfo.subject_count}</span>
+                              </div>
+                            )}
+
+                            {extractedInfo.subjects && extractedInfo.subjects.length > 0 && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Subjects:</span>
+                                <div className="dp-subjects-list">
+                                  {extractedInfo.subjects.map((subject: any, index: number) => (
+                                    <div key={index} className="dp-subject-item">
+                                      <span className="dp-subject-code">{subject.subject_code}</span>
+                                      <span className="dp-subject-name">{subject.subject_name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Recommendations */}
+                            {extractedInfo.recommendations && (
+                              <div className="dp-info-item">
+                                <span className="dp-info-label">Recommendations:</span>
+                                <span className="dp-info-value">{extractedInfo.recommendations}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        return <div>{selectedDocForDetails.ai_analysis_notes}</div>;
+                      }
+                    })()}
                   </div>
                 </div>
               )}

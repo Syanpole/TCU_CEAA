@@ -502,3 +502,52 @@
     gap: 4px;
   }
 }
+
+/* Face Verification Status Styles */
+.face-verification-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.face-verification-status.passed {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.face-verification-status.failed {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.face-verification-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.dark-theme .face-verification-status.passed {
+  background: #064e3b;
+  color: #6ee7b7;
+  border-color: #059669;
+}
+
+.dark-theme .face-verification-status.failed {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border-color: #dc2626;
+}
+
+.dark-theme .face-verification-status.pending {
+  background: #451a03;
+  color: #fbbf24;
+  border-color: #d97706;
+}

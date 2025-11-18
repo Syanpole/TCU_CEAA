@@ -149,6 +149,8 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
     document_type_display = serializers.CharField(source='get_document_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     document_file = serializers.SerializerMethodField()
+    ai_identity_verified = serializers.SerializerMethodField()
+    ai_identity_type = serializers.SerializerMethodField()
     
     def get_document_file(self, obj):
         """
@@ -208,18 +210,35 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
         
         return None
     
+    def get_ai_identity_verified(self, obj):
+        try:
+            info = obj.ai_key_information or {}
+            ver = info.get('verification_result') or {}
+            return bool(ver.get('identity_verified', False))
+        except Exception:
+            return False
+    
+    def get_ai_identity_type(self, obj):
+        try:
+            info = obj.ai_key_information or {}
+            ver = info.get('verification_result') or {}
+            t = ver.get('identity_type')
+            return t if t in ['student', 'mother', 'father'] else None
+        except Exception:
+            return None
+    
     class Meta:
         model = DocumentSubmission
         fields = ['id', 'document_type', 'document_type_display', 'document_file', 'description', 
                  'status', 'status_display', 'admin_notes', 'submitted_at', 'reviewed_at', 
                  'student_name', 'student_id', 'reviewed_by_name', 'ai_analysis_completed',
                  'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
-                 'ai_auto_approved', 'ai_analysis_notes',
+                 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
                  # New COE subject extraction fields
                  'extracted_subjects', 'subject_count']
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
                           'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
-                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes',
+                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
                           'extracted_subjects', 'subject_count']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
@@ -393,6 +412,48 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             except Exception as save_error:
                 logger.error(f"Failed to update document status after error: {str(save_error)}")
         
+    def _build_user_application_data(self, user):
+        """
+        Build user application data dictionary for specialized verification services
+        """
+        from myapp.models import FullApplication
+        
+        # Get the latest FullApplication for this user
+        latest_application = FullApplication.objects.filter(
+            user=user,
+            is_submitted=True
+        ).order_by('-submitted_at').first()
+        
+        if latest_application:
+            return {
+                'first_name': latest_application.first_name or user.first_name,
+                'middle_name': latest_application.middle_name or '',
+                'last_name': latest_application.last_name or user.last_name,
+                'date_of_birth': str(latest_application.date_of_birth) if latest_application.date_of_birth else '',
+                'place_of_birth': latest_application.place_of_birth or '',
+                'mother_name': latest_application.mother_name or '',
+                'father_name': latest_application.father_name or '',
+                'barangay': latest_application.barangay or '',
+                'house_no': latest_application.house_no or '',
+                'street': latest_application.street or '',
+                'district': latest_application.district or ''
+            }
+        else:
+            # Fallback to user profile data if no application exists
+            return {
+                'first_name': user.first_name,
+                'middle_name': '',
+                'last_name': user.last_name,
+                'date_of_birth': '',
+                'place_of_birth': '',
+                'mother_name': '',
+                'father_name': '',
+                'barangay': '',
+                'house_no': '',
+                'street': '',
+                'district': ''
+            }
+    
     def run_comprehensive_ai_analysis(self, document):
         """
         🆕 Run AI document verification using specialized services
@@ -559,6 +620,191 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                     )
                 
                 logger.info(f"✅ ID verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
+            
+            # Check if document is Birth Certificate
+            elif document.document_type in ['birth_certificate', 'birth_cert', 'psa_birth_certificate', 'nso_birth_certificate']:
+                logger.info(f"👶 Routing to Birth Certificate Verification Service for document {document.id}")
+                from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+                
+                birth_cert_service = get_birth_certificate_verification_service()
+                
+                user_application_data = self._build_user_application_data(document.student)
+                birth_cert_result = birth_cert_service.verify_birth_certificate_document(
+                    image_path=document.document_file.path,
+                    user_application_data=user_application_data
+                )
+                
+                # Process Birth Certificate results
+                confidence = birth_cert_result.get('confidence', 0.0)
+                is_valid = birth_cert_result.get('is_valid', False)
+                
+                if is_valid and confidence >= 0.85:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.70:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                
+                # Build comprehensive notes
+                notes_parts = [
+                    f"Birth Certificate Verification ({status_msg})",
+                    f"Status: {birth_cert_result.get('status', 'UNKNOWN')}",
+                    f"Confidence: {confidence:.1%}",
+                ]
+                
+                if birth_cert_result.get('extracted_fields'):
+                    notes_parts.append(f"\nExtracted Fields:")
+                    for field, value in birth_cert_result['extracted_fields'].items():
+                        if value:
+                            notes_parts.append(f"  {field}: {value}")
+                
+                if birth_cert_result.get('field_matches'):
+                    notes_parts.append(f"\nField Matches:")
+                    for field, matched in birth_cert_result['field_matches'].items():
+                        notes_parts.append(f"  {field}: {'✅' if matched else '❌'}")
+                
+                if birth_cert_result.get('errors'):
+                    notes_parts.append(f"\nErrors: {', '.join(birth_cert_result['errors'])}")
+                
+                if birth_cert_result.get('recommendations'):
+                    notes_parts.append(f"\nRecommendations: {', '.join(birth_cert_result['recommendations'])}")
+                
+                document.ai_analysis_notes = "\n".join(notes_parts)
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='birth_certificate_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'Birth Certificate Verification Service (Advanced OCR + Field Extraction)',
+                        'name_match': birth_cert_result.get('field_matches', {}).get('name', False),
+                        'dob_match': birth_cert_result.get('field_matches', {}).get('date_of_birth', False)
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document,
+                        reason=f"AI confidence too low: {confidence:.1%} or field validation failed",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ Birth Certificate verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
+            
+            # Check if document is Voter Certificate/ID
+            elif document.document_type in ['voters_id', 'voter_id', 'voters_certificate', 'voter_certificate', 'voter_certification', 'comelec_stub']:
+                logger.info(f"🗳️ Routing to Voter Certificate Verification Service for document {document.id}")
+                from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+                
+                voter_cert_service = get_voter_certificate_verification_service()
+                
+                user_application_data = self._build_user_application_data(document.student)
+                voter_cert_result = voter_cert_service.verify_voter_certificate_document(
+                    image_path=document.document_file.path,
+                    confidence_threshold=0.5,
+                    include_ocr=True,
+                    user_application_data=user_application_data
+                )
+                
+                # Process Voter Certificate results
+                confidence = voter_cert_result.get('confidence', 0.0)
+                is_valid = voter_cert_result.get('is_valid', False)
+                
+                if is_valid and confidence >= 0.85:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.70:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                
+                # Build comprehensive notes
+                notes_parts = [
+                    f"Voter Certificate Verification ({status_msg})",
+                    f"Status: {voter_cert_result.get('status', 'UNKNOWN')}",
+                    f"Confidence: {confidence:.1%}",
+                ]
+                
+                if voter_cert_result.get('extracted_fields'):
+                    notes_parts.append(f"\nExtracted Fields:")
+                    for field, value in voter_cert_result['extracted_fields'].items():
+                        if value:
+                            notes_parts.append(f"  {field}: {value}")
+                
+                if voter_cert_result.get('field_matches'):
+                    notes_parts.append(f"\nField Matches:")
+                    for field, matched in voter_cert_result['field_matches'].items():
+                        notes_parts.append(f"  {field}: {'✅' if matched else '❌'}")
+                
+                if voter_cert_result.get('yolo_detections'):
+                    notes_parts.append(f"\nYOLO Detections: {', '.join(voter_cert_result['yolo_detections'])}")
+                
+                if voter_cert_result.get('errors'):
+                    notes_parts.append(f"\nErrors: {', '.join(voter_cert_result['errors'])}")
+                
+                if voter_cert_result.get('recommendations'):
+                    notes_parts.append(f"\nRecommendations: {', '.join(voter_cert_result['recommendations'])}")
+                
+                document.ai_analysis_notes = "\n".join(notes_parts)
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='voter_certificate_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'Voter Certificate Verification Service (YOLO + Advanced OCR + Field Extraction)',
+                        'name_match': voter_cert_result.get('field_matches', {}).get('name', False),
+                        'address_match': voter_cert_result.get('field_matches', {}).get('address', False)
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document,
+                        reason=f"AI confidence too low: {confidence:.1%} or field validation failed",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ Voter Certificate verification completed: {status_msg} (confidence: {confidence:.1%})")
                 return
             
             # ============================================================================

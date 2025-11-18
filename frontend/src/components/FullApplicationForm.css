@@ -48,6 +48,7 @@ body.dark-mode .faf-container {
   right: 0;
   bottom: 0;
   background: var(--form-overlay);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
@@ -774,6 +775,19 @@ body.dark-mode .faf-info-box-content p {
 
 .faf-review-item.full-width {
   grid-column: 1 / -1;
+}
+
+.faf-review-item-separator {
+  border-bottom: 2px solid var(--form-border-dark);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.faf-review-item-separator-top {
+  border-bottom: 2px solid var(--form-border-dark);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  margin-top: 20px;
 }
 
 .faf-review-label {

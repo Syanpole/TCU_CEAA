@@ -155,13 +155,14 @@ class DocumentSubmissionAdmin(admin.ModelAdmin):
 @admin.register(GradeSubmission)
 class GradeSubmissionAdmin(admin.ModelAdmin):
     # Group and display grades by student and semester
-    list_display = ['student_info', 'subject_display', 'grade_display', 'ai_status', 
-                   'verification_badge', 'status_badge', 'submitted_at']
+    list_display = ['student_info', 'subject_display', 'grade_display', 'automated_gwa_display', 
+                   'eligibility_display', 'ai_status', 'verification_badge', 'status_badge', 'submitted_at']
     list_filter = ['academic_year', 'semester', 'status', 'ai_merit_level', 'qualifies_for_merit_incentive', 'submitted_at']
     search_fields = ['student__username', 'student__student_id', 'student__first_name', 'student__last_name', 
                     'subject_code', 'subject_name', 'academic_year']
     readonly_fields = ['submitted_at', 'reviewed_at', 'ai_evaluation_completed', 'ai_evaluation_notes', 
-                      'ai_extracted_grades', 'ai_confidence_score', 'grade_sheet_preview', 'student_all_grades']
+                      'ai_extracted_grades', 'ai_confidence_score', 'grade_sheet_preview', 'student_all_grades',
+                      'automated_gwa_details', 'detection_validation_status']
     ordering = ['-academic_year', 'semester', 'student__student_id', 'subject_code']
     list_per_page = 50
     
@@ -171,6 +172,14 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
         }),
         ('📊 Grade Details (Per-Subject)', {
             'fields': ('units', 'grade_received', 'grade_sheet', 'grade_sheet_preview')
+        }),
+        ('🤖 AI Detection & Validation Status', {
+            'fields': ('detection_validation_status',),
+            'classes': ('collapse',)
+        }),
+        ('🎓 Automated GWA Calculation Results', {
+            'fields': ('automated_gwa_details',),
+            'classes': ('collapse',)
         }),
         ('🎓 Student All Grades Summary', {
             'fields': ('student_all_grades',),
@@ -256,6 +265,215 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
             )
         return format_html('<span style="color: #999;">Not set</span>')
     grade_display.short_description = 'Grade'
+    
+    def automated_gwa_display(self, obj):
+        """Display automated GWA calculation results"""
+        from django.utils.html import format_html
+        
+        # Get the latest GWA calculation for this student's semester
+        from myapp.services import gwa_calculation_service
+        gwa_data = gwa_calculation_service.calculate_semester_gwa(
+            obj.student, obj.academic_year, obj.semester
+        )
+        
+        if gwa_data:
+            gwa = gwa_data['gwa']
+            merit_level = gwa_data['merit_level']
+            
+            # Color coding based on merit level
+            color_map = {
+                'HIGH_HONORS': '#d4af37',
+                'HONORS': '#007bff', 
+                'MERIT': '#28a745',
+                'REGULAR': '#6c757d',
+                'BELOW_PASSING': '#dc3545'
+            }
+            color = color_map.get(merit_level, '#6c757d')
+            
+            # Merit level emoji
+            emoji_map = {
+                'HIGH_HONORS': '🥇',
+                'HONORS': '🥈',
+                'MERIT': '🥉',
+                'REGULAR': '📋',
+                'BELOW_PASSING': '⚠️'
+            }
+            emoji = emoji_map.get(merit_level, '📊')
+            
+            return format_html(
+                '<div style="text-align: center;">'
+                '<div style="font-size: 20px; font-weight: bold; color: {};">{:.2f}</div>'
+                '<div style="font-size: 12px; color: {}; margin-top: 2px;">{} {}</div>'
+                '<div style="font-size: 10px; color: #666;">{} units</div>'
+                '</div>',
+                color, gwa, color, emoji, merit_level.replace('_', ' ').title(), gwa_data['total_units']
+            )
+        return format_html('<span style="color: #999; font-style: italic;">Pending</span>')
+    automated_gwa_display.short_description = 'Auto GWA'
+    
+    def eligibility_display(self, obj):
+        """Display allowance eligibility based on automated GWA"""
+        from django.utils.html import format_html
+        
+        # Get the latest GWA calculation for this student's semester
+        from myapp.services import gwa_calculation_service
+        gwa_data = gwa_calculation_service.calculate_semester_gwa(
+            obj.student, obj.academic_year, obj.semester
+        )
+        
+        if gwa_data:
+            gwa = gwa_data['gwa']
+            
+            # Updated eligibility logic: GWA < 2.00 = basic only ₱5,000, GWA ≥ 2.00 = both ₱10,000
+            if gwa < 2.00:
+                # Basic only
+                return format_html(
+                    '<div style="text-align: center;">'
+                    '<div style="font-size: 16px; font-weight: bold; color: #28a745;">₱5,000</div>'
+                    '<div style="font-size: 11px; color: #666;">Basic Only</div>'
+                    '</div>'
+                )
+            else:
+                # Both basic and merit
+                return format_html(
+                    '<div style="text-align: center;">'
+                    '<div style="font-size: 16px; font-weight: bold; color: #007bff;">₱10,000</div>'
+                    '<div style="font-size: 11px; color: #666;">Basic + Merit</div>'
+                    '</div>'
+                )
+        return format_html('<span style="color: #999; font-style: italic;">Pending</span>')
+    eligibility_display.short_description = 'Allowance'
+    
+    def detection_validation_status(self, obj):
+        """Display AI detection and validation service integration status"""
+        from django.utils.html import format_html
+        from myapp.grades_detection_service import get_grades_detection_service
+        from myapp.grade_validation_service import get_grade_validation_service
+        
+        status_parts = []
+        
+        # Detection Service Status
+        detection_service = get_grades_detection_service()
+        if obj.grade_sheet:
+            try:
+                # Attempt to run detection on this grade sheet
+                detection_result = detection_service.detect_grades_from_image(obj.grade_sheet.path)
+                if detection_result.get('success'):
+                    detected_count = len(detection_result.get('detected_grades', []))
+                    status_parts.append(f'<span style="color: #28a745;">✓ Detection: {detected_count} grades found</span>')
+                else:
+                    status_parts.append('<span style="color: #dc3545;">✗ Detection: Failed</span>')
+            except Exception as e:
+                status_parts.append('<span style="color: #ffc107;">⚠️ Detection: Error</span>')
+        else:
+            status_parts.append('<span style="color: #999;">No grade sheet</span>')
+        
+        # Validation Service Status
+        validation_service = get_grade_validation_service()
+        
+        # Get COE subjects for this student
+        from myapp.models import DocumentSubmission
+        coe_doc = DocumentSubmission.objects.filter(
+            student=obj.student,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if coe_doc and coe_doc.extracted_subjects:
+            # Get all grades for this semester to validate
+            semester_grades = GradeSubmission.objects.filter(
+                student=obj.student,
+                academic_year=obj.academic_year,
+                semester=obj.semester,
+                subject_code__isnull=False
+            )
+            
+            grade_data = []
+            for grade in semester_grades:
+                grade_data.append({
+                    'subject_code': grade.subject_code,
+                    'subject_name': grade.subject_name,
+                    'grade_received': float(grade.grade_received) if grade.grade_received else None
+                })
+            
+            validation_result = validation_service.validate_grade_submissions(
+                coe_doc.extracted_subjects,
+                grade_data
+            )
+            
+            if validation_result.get('is_valid'):
+                status_parts.append('<span style="color: #28a745;">✓ Validation: Passed</span>')
+            else:
+                error_count = len(validation_result.get('errors', []))
+                status_parts.append(f'<span style="color: #dc3545;">✗ Validation: {error_count} errors</span>')
+        else:
+            status_parts.append('<span style="color: #ffc107;">⚠️ Validation: No COE</span>')
+        
+        return format_html('<br>'.join(status_parts))
+    detection_validation_status.short_description = 'AI Services Status'
+    
+    def automated_gwa_details(self, obj):
+        """Display detailed automated GWA calculation with service integration"""
+        from django.utils.html import format_html
+        from myapp.services import gwa_calculation_service
+        
+        # Get automated GWA calculation
+        gwa_data = gwa_calculation_service.calculate_semester_gwa(
+            obj.student, obj.academic_year, obj.semester
+        )
+        
+        if not gwa_data:
+            return format_html('<p style="color: #999; font-style: italic;">No automated GWA calculation available</p>')
+        
+        gwa = gwa_data['gwa']
+        merit_level = gwa_data['merit_level']
+        total_units = gwa_data['total_units']
+        total_subjects = gwa_data['total_subjects']
+        
+        # Determine allowance amount based on updated logic
+        if gwa < 2.00:
+            allowance_amount = 5000
+            allowance_type = "Basic Allowance Only"
+            allowance_color = "#28a745"
+        else:
+            allowance_amount = 10000
+            allowance_type = "Basic + Merit Allowance"
+            allowance_color = "#007bff"
+        
+        # Build detailed display
+        html_parts = []
+        html_parts.append('<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">')
+        html_parts.append('<h4 style="margin: 0 0 10px 0; color: #007bff;">🤖 Automated GWA Calculation</h4>')
+        
+        # GWA Display
+        html_parts.append('<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">')
+        html_parts.append('<div>')
+        html_parts.append(f'<div style="font-size: 24px; font-weight: bold; color: #007bff;">{gwa:.2f}</div>')
+        html_parts.append(f'<div style="font-size: 12px; color: #666;">General Weighted Average</div>')
+        html_parts.append('</div>')
+        html_parts.append('<div style="text-align: right;">')
+        html_parts.append(f'<div style="font-size: 18px; font-weight: bold;">{merit_level.replace("_", " ").title()}</div>')
+        html_parts.append(f'<div style="font-size: 12px; color: #666;">{total_subjects} subjects, {total_units} units</div>')
+        html_parts.append('</div>')
+        html_parts.append('</div>')
+        
+        # Allowance Eligibility
+        html_parts.append('<div style="background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px;">')
+        html_parts.append(f'<div style="font-size: 16px; font-weight: bold; color: {allowance_color};">₱{allowance_amount:,}</div>')
+        html_parts.append(f'<div style="font-size: 12px; color: #666;">{allowance_type}</div>')
+        html_parts.append('</div>')
+        
+        # Service Integration Status
+        html_parts.append('<div style="font-size: 11px; color: #666;">')
+        html_parts.append('<strong>Services Used:</strong> GWACalculationService, GradesDetectionService, GradeValidationService<br>')
+        html_parts.append('<strong>Eligibility Rule:</strong> GWA < 2.00 = ₱5,000 basic only, GWA ≥ 2.00 = ₱10,000 both<br>')
+        html_parts.append('<strong>Calculation:</strong> Weighted average of all approved semester grades')
+        html_parts.append('</div>')
+        
+        html_parts.append('</div>')
+        
+        return format_html(''.join(html_parts))
+    automated_gwa_details.short_description = 'Automated GWA Details'
     
     def ai_status(self, obj):
         """Display AI verification status"""
@@ -465,11 +683,12 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
             return self.readonly_fields + ['student', 'academic_year', 'semester', 'subject_code', 'subject_name']
         return self.readonly_fields
     
-    actions = ['approve_all_by_student', 'approve_selected', 'reject_selected', 'recalculate_gpa']
+    actions = ['approve_all_by_student', 'approve_selected', 'reject_selected', 'recalculate_gpa',
+               'run_detection_validation', 'auto_approve_with_services']
     
     def approve_all_by_student(self, request, queryset):
         """Approve ALL grades for the students in the selection"""
-        from myapp.tasks import calculate_gpa_and_merit
+        from myapp.services import gwa_calculation_service
         from decimal import Decimal
         from myapp.models import GradeSubmission
         
@@ -493,13 +712,13 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
             count = student_grades.update(status='approved', reviewed_by=request.user)
             total_approved += count
             
-            # Calculate GPA
-            gpa_result = calculate_gpa_and_merit(student_id, academic_year, semester)
+            # Calculate GPA using centralized service
+            student = student_grades.first().student
+            gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
             
-            if gpa_result:
-                student = student_grades.first().student
-                gpa = gpa_result.get('gpa', 0)
-                merit = gpa_result.get('merit_level', 'N/A')
+            if gwa_result:
+                gpa = gwa_result.get('gwa', 0)
+                merit = gwa_result.get('merit_level', 'N/A')
                 
                 # Determine merit emoji
                 gpa_decimal = Decimal(str(gpa))
@@ -534,17 +753,174 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
     
     def recalculate_gpa(self, request, queryset):
         """Recalculate GPA for selected students"""
-        from .tasks import calculate_gpa_and_merit
+        from myapp.services import gwa_calculation_service
         students_processed = set()
         
         for grade in queryset:
             key = (grade.student.id, grade.academic_year, grade.semester)
             if key not in students_processed:
-                calculate_gpa_and_merit(grade.student.id, grade.academic_year, grade.semester)
+                gwa_calculation_service.trigger_automated_gwa_calculation(grade.student, grade.academic_year, grade.semester)
                 students_processed.add(key)
         
         self.message_user(request, f'📊 Recalculated GPA for {len(students_processed)} student(s).')
     recalculate_gpa.short_description = '📊 Recalculate GPA and merit'
+    
+    def run_detection_validation(self, request, queryset):
+        """Run AI detection and validation services on selected grade submissions"""
+        from myapp.grades_detection_service import get_grades_detection_service
+        from myapp.grade_validation_service import get_grade_validation_service
+        from myapp.services import gwa_calculation_service
+        
+        detection_service = get_grades_detection_service()
+        validation_service = get_grade_validation_service()
+        
+        processed_count = 0
+        success_count = 0
+        messages = []
+        
+        # Group by student/semester for batch processing
+        student_semesters = {}
+        for grade in queryset:
+            key = (grade.student_id, grade.academic_year, grade.semester)
+            if key not in student_semesters:
+                student_semesters[key] = []
+            student_semesters[key].append(grade)
+        
+        for (student_id, academic_year, semester), grades in student_semesters.items():
+            student = grades[0].student
+            
+            try:
+                # Step 1: Run detection service on all grade sheets
+                detected_grades = []
+                for grade in grades:
+                    if grade.grade_sheet:
+                        try:
+                            detection_result = detection_service.detect_grades_from_image(grade.grade_sheet.path)
+                            if detection_result.get('success'):
+                                detected_grades.extend(detection_result.get('detected_grades', []))
+                        except Exception as e:
+                            messages.append(f"⚠️ Detection failed for {grade.subject_code}: {str(e)}")
+                
+                # Step 2: Get COE subjects for validation
+                from myapp.models import DocumentSubmission
+                coe_doc = DocumentSubmission.objects.filter(
+                    student=student,
+                    document_type='certificate_of_enrollment',
+                    status='approved'
+                ).order_by('-submitted_at').first()
+                
+                if coe_doc and coe_doc.extracted_subjects:
+                    # Step 3: Run validation
+                    validation_result = validation_service.validate_grade_submissions(
+                        coe_doc.extracted_subjects,
+                        detected_grades
+                    )
+                    
+                    if validation_result.get('is_valid'):
+                        # Step 4: If validation passes, trigger automated GWA calculation
+                        gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(
+                            student, academic_year, semester
+                        )
+                        
+                        if gwa_result:
+                            success_count += 1
+                            messages.append(f"✅ {student.username}: Detection → Validation → GWA {gwa_result['gwa']:.2f} calculated")
+                        else:
+                            messages.append(f"⚠️ {student.username}: Validation passed but GWA calculation failed")
+                    else:
+                        error_count = len(validation_result.get('errors', []))
+                        messages.append(f"❌ {student.username}: Validation failed ({error_count} errors)")
+                else:
+                    messages.append(f"⚠️ {student.username}: No approved COE document found")
+                
+                processed_count += 1
+                
+            except Exception as e:
+                messages.append(f"❌ Error processing {student.username}: {str(e)}")
+        
+        self.message_user(request, f'🤖 Processed {processed_count} student(s), {success_count} successful detections/validations.')
+        for msg in messages:
+            self.message_user(request, msg)
+    run_detection_validation.short_description = '🤖 Run AI Detection & Validation'
+    
+    def auto_approve_with_services(self, request, queryset):
+        """Auto-approve grades using integrated detection and validation services"""
+        from myapp.grades_detection_service import get_grades_detection_service
+        from myapp.grade_validation_service import get_grade_validation_service
+        from myapp.services import gwa_calculation_service
+        
+        detection_service = get_grades_detection_service()
+        validation_service = get_grade_validation_service()
+        
+        approved_count = 0
+        messages = []
+        
+        # Group by student/semester for batch processing
+        student_semesters = {}
+        for grade in queryset:
+            key = (grade.student_id, grade.academic_year, grade.semester)
+            if key not in student_semesters:
+                student_semesters[key] = []
+            student_semesters[key].append(grade)
+        
+        for (student_id, academic_year, semester), grades in student_semesters.items():
+            student = grades[0].student
+            
+            try:
+                # Step 1: Run detection service
+                detected_grades = []
+                for grade in grades:
+                    if grade.grade_sheet:
+                        detection_result = detection_service.detect_grades_from_image(grade.grade_sheet.path)
+                        if detection_result.get('success'):
+                            detected_grades.extend(detection_result.get('detected_grades', []))
+                
+                # Step 2: Get COE and validate
+                from myapp.models import DocumentSubmission
+                coe_doc = DocumentSubmission.objects.filter(
+                    student=student,
+                    document_type='certificate_of_enrollment',
+                    status='approved'
+                ).order_by('-submitted_at').first()
+                
+                if coe_doc and coe_doc.extracted_subjects:
+                    validation_result = validation_service.validate_grade_submissions(
+                        coe_doc.extracted_subjects,
+                        detected_grades
+                    )
+                    
+                    if validation_result.get('is_valid'):
+                        # Step 3: Auto-approve all grades for this semester
+                        count = GradeSubmission.objects.filter(
+                            student=student,
+                            academic_year=academic_year,
+                            semester=semester
+                        ).update(status='approved', reviewed_by=request.user)
+                        
+                        # Step 4: Trigger GWA calculation
+                        gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(
+                            student, academic_year, semester
+                        )
+                        
+                        if gwa_result:
+                            gwa = gwa_result['gwa']
+                            allowance = "₱5,000" if gwa < 2.00 else "₱10,000"
+                            messages.append(f"✅ {student.username}: {count} grades auto-approved | GWA {gwa:.2f} | {allowance}")
+                            approved_count += count
+                        else:
+                            messages.append(f"⚠️ {student.username}: Grades approved but GWA calculation failed")
+                    else:
+                        messages.append(f"❌ {student.username}: Validation failed - cannot auto-approve")
+                else:
+                    messages.append(f"⚠️ {student.username}: No COE document - cannot validate")
+                    
+            except Exception as e:
+                messages.append(f"❌ Error auto-approving {student.username}: {str(e)}")
+        
+        self.message_user(request, f'✅ Auto-approved {approved_count} grade submission(s) using integrated AI services.')
+        for msg in messages:
+            self.message_user(request, msg)
+    auto_approve_with_services.short_description = '🚀 Auto-Approve with AI Services'
 
 @admin.register(AllowanceApplication)
 class AllowanceApplicationAdmin(admin.ModelAdmin):
