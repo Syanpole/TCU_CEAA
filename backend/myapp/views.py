@@ -18,6 +18,9 @@ from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, Regis
 from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
 from .email_verification_service import VerificationService
 import logging
+import json
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,9 @@ from django.contrib import messages
 from django.db import transaction
 from rest_framework.authtoken.models import Token
 from .models import Task, Student, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, AuditLog, SystemAnalytics, VerifiedStudent, EmailVerificationCode, BasicQualification, FullApplication
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CustomUserAdmin(UserAdmin):
