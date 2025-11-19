@@ -1,0 +1,455 @@
+.live-camera-capture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-header {
+  position: relative;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 1rem;
+  color: white;
+  border-bottom: 2px solid #333;
+}
+
+.camera-header h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.camera-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.camera-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.liveness-indicator {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.liveness-pending {
+  color: #ffa500;
+  font-weight: 500;
+}
+
+.liveness-passed {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.liveness-failed {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.liveness-testing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.liveness-instruction {
+  color: #2196f3;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.liveness-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.liveness-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  transition: width 0.3s ease;
+}
+
+.camera-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+.color-flash-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 50;
+  animation: flashPulse 0.3s ease-in-out;
+}
+
+@keyframes flashPulse {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.camera-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: white;
+}
+
+.loading-spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.camera-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: white;
+  padding: 2rem;
+  text-align: center;
+}
+
+.camera-error p {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.retry-btn {
+  background: #2196f3;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover {
+  background: #1976d2;
+  transform: translateY(-2px);
+}
+
+.countdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.countdown-number {
+  font-size: 6rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  animation: pulse 1s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  padding: 2rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-guide {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-width: 400px;
+}
+
+.camera-guide p {
+  margin: 0.5rem 0;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.capture-btn {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: white;
+  border: 4px solid #2196f3;
+  color: #2196f3;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.capture-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.capture-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #999;
+  color: #999;
+}
+
+.confirm-liveness-btn {
+  width: auto;
+  min-width: 12rem;
+  height: 3.5rem;
+  border-radius: 2rem;
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  padding: 0 2rem;
+}
+
+.confirm-liveness-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+  background: linear-gradient(135deg, #66bb6a, #81c784);
+}
+
+.confirm-liveness-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.facial-recognition-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  color: white;
+}
+
+.facial-recognition-spinner {
+  width: 4rem;
+  height: 4rem;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #4caf50;
+  border-right-color: #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+.facial-recognition-overlay p {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+
+.facial-recognition-subtext {
+  font-size: 0.9rem !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.5rem !important;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.preview-image {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.preview-controls {
+  background: rgba(0, 0, 0, 0.9);
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.retake-btn,
+.confirm-btn {
+  flex: 1;
+  max-width: 200px;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retake-btn {
+  background: #f44336;
+  color: white;
+}
+
+.retake-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+.confirm-btn {
+  background: #4caf50;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .camera-header h3 {
+    font-size: 1rem;
+    padding-right: 3rem;
+  }
+
+  .camera-guide {
+    font-size: 0.85rem;
+    padding: 0.75rem;
+  }
+
+  .camera-guide p {
+    font-size: 0.8rem;
+    margin: 0.3rem 0;
+  }
+
+  .capture-btn {
+    width: 4rem;
+    height: 4rem;
+    font-size: 1.2rem;
+  }
+
+  .countdown-number {
+    font-size: 4rem;
+  }
+
+  .retake-btn,
+  .confirm-btn {
+    font-size: 0.9rem;
+    padding: 0.875rem;
+  }
+}
+
+/* Landscape mode adjustments */
+@media (orientation: landscape) and (max-height: 600px) {
+  .camera-guide {
+    display: none;
+  }
+
+  .camera-controls {
+    padding: 1rem;
+  }
+
+  .capture-btn {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+}

@@ -10,6 +10,9 @@ interface AllowanceApplication {
   status: string;
   status_display: string;
   applied_at: string;
+  face_verification_required?: boolean;
+  face_verification_completed?: boolean;
+  face_verification_passed?: boolean;
 }
 
 interface ApplicationDetailsPageProps {
@@ -225,6 +228,21 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
                     <span className="detail-label">Status:</span>
                     <span className="detail-value">{application.status_display}</span>
                   </div>
+                  {application.face_verification_required && (
+                    <div className="detail-row">
+                      <span className="detail-label">Face Verification:</span>
+                      <span className={`detail-value face-verification-status ${
+                        application.face_verification_completed 
+                          ? (application.face_verification_passed ? 'passed' : 'failed') 
+                          : 'pending'
+                      }`}>
+                        {application.face_verification_completed 
+                          ? (application.face_verification_passed ? '✅ Passed' : '❌ Failed') 
+                          : '⏳ Required'
+                        }
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="application-footer">

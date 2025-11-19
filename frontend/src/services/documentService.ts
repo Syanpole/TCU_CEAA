@@ -48,78 +48,92 @@ export const documentService = {
     }
   },
 
-  // Check if user can submit grades
+  // Check if user can submit grades (server-side check)
   async checkGradeSubmissionEligibility(): Promise<GradeSubmissionEligibility> {
     try {
-      const documents = await this.getUserDocuments();
+      // Use backend API for real-time eligibility check
+      console.log('🔍 Checking grade submission eligibility via backend...');
+      const response = await apiClient.get('/grade-workflow/check-eligibility/');
+      const data = response.data as any;
       
-      // Dynamic required documents based on what user has submitted
-      // We consider any relevant academic/enrollment documents as valid
-      const validDocumentTypes = [
-        'certificate_of_enrollment',
-        'enrollment_certificate',
-        'birth_certificate',
-        'school_id',
-        'grade_10_report_card',
-        'grade_12_report_card',
-        'transcript_of_records',
-        'diploma',
-        'report_card',
-        'academic_records',
-        'valid_id',
-        'junior_hs_certificate',
-        'senior_hs_diploma'
-      ];
+      console.log('✅ Backend eligibility response:', data);
       
-      // Filter documents that are valid for grade submission
-      const submittedValidDocs = documents.filter(doc => 
-        validDocumentTypes.includes(doc.document_type)
-      );
+      return {
+        canSubmit: data.can_submit,
+        requiredDocuments: data.required_documents || [],
+        missingDocuments: data.missing_documents || [],
+        pendingDocuments: data.pending_documents || [],
+        approvedDocuments: data.approved_documents || []
+      };
+    } catch (error: any) {
+      console.error('❌ Error checking grade submission eligibility:', error);
+      console.error('Error details:', error.response?.data || error.message);
       
-      const approvedDocuments = submittedValidDocs
-        .filter(doc => doc.status === 'approved')
-        .map(doc => doc.document_type);
-      
-      const pendingDocuments = submittedValidDocs
-        .filter(doc => doc.status === 'pending')
-        .map(doc => doc.document_type);
-      
-      const submittedDocTypes = submittedValidDocs.map(doc => doc.document_type);
-      
-      // Determine required documents based on what they've submitted
-      let requiredDocuments: string[] = [];
-      
-      if (submittedDocTypes.length === 0) {
-        // If no documents submitted yet, suggest basic requirements
-        requiredDocuments = ['certificate_of_enrollment', 'birth_certificate'];
-      } else {
-        // Use the documents they've already submitted as requirements
-        requiredDocuments = submittedDocTypes;
+      // Fallback to client-side check if backend fails
+      try {
+        const documents = await this.getUserDocuments();
+        
+        const validDocumentTypes = [
+          'certificate_of_enrollment',
+          'enrollment_certificate',
+          'birth_certificate',
+          'school_id',
+          'grade_10_report_card',
+          'grade_12_report_card',
+          'transcript_of_records',
+          'diploma',
+          'report_card',
+          'academic_records',
+          'valid_id',
+          'junior_hs_certificate',
+          'senior_hs_diploma'
+        ];
+        
+        const submittedValidDocs = documents.filter(doc => 
+          validDocumentTypes.includes(doc.document_type)
+        );
+        
+        const approvedDocuments = submittedValidDocs
+          .filter(doc => doc.status === 'approved')
+          .map(doc => doc.document_type);
+        
+        const pendingDocuments = submittedValidDocs
+          .filter(doc => doc.status === 'pending')
+          .map(doc => doc.document_type);
+        
+        const submittedDocTypes = submittedValidDocs.map(doc => doc.document_type);
+        
+        let requiredDocuments: string[] = [];
+        
+        if (submittedDocTypes.length === 0) {
+          requiredDocuments = ['certificate_of_enrollment', 'birth_certificate'];
+        } else {
+          requiredDocuments = submittedDocTypes;
+        }
+        
+        const missingDocuments = requiredDocuments.filter(
+          docType => !submittedDocTypes.includes(docType)
+        );
+        
+        const canSubmit = approvedDocuments.length > 0;
+        
+        return {
+          canSubmit,
+          requiredDocuments,
+          missingDocuments,
+          pendingDocuments,
+          approvedDocuments
+        };
+      } catch (fallbackError) {
+        console.error('Fallback eligibility check also failed:', fallbackError);
+        return {
+          canSubmit: false,
+          requiredDocuments: ['certificate_of_enrollment', 'id_copy'],
+          missingDocuments: ['certificate_of_enrollment', 'id_copy'],
+          pendingDocuments: [],
+          approvedDocuments: []
+        };
       }
-      
-      const missingDocuments = requiredDocuments.filter(
-        docType => !submittedDocTypes.includes(docType)
-      );
-      
-      // Can submit if at least one valid document is approved
-      const canSubmit = approvedDocuments.length > 0;
-      
-      return {
-        canSubmit,
-        requiredDocuments,
-        missingDocuments,
-        pendingDocuments,
-        approvedDocuments
-      };
-    } catch (error) {
-      console.error('Error checking grade submission eligibility:', error);
-      return {
-        canSubmit: false,
-        requiredDocuments: ['certificate_of_enrollment', 'birth_certificate'],
-        missingDocuments: ['certificate_of_enrollment', 'birth_certificate'],
-        pendingDocuments: [],
-        approvedDocuments: []
-      };
     }
   },
 
@@ -182,6 +196,30 @@ export const documentService = {
       case 'pending': return '#f59e0b';
       case 'revision_needed': return '#8b5cf6';
       default: return '#6b7280';
+    }
+  },
+
+  // Get submitted ID image for facial comparison
+  async getSubmittedIdImage(): Promise<string | null> {
+    try {
+      const documents = await this.getUserDocuments();
+      const idDoc = documents.find(doc => 
+        (doc.document_type === 'valid_id' || 
+         doc.document_type === 'school_id' ||
+         doc.document_type.includes('_id')) && 
+        doc.status === 'approved'
+      );
+      
+      if (idDoc) {
+        // Fetch the actual document image URL
+        const response = await apiClient.get(`/documents/${idDoc.id}/`);
+        const data = response.data as any;
+        return data.document_image || data.file || null;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching submitted ID image:', error);
+      return null;
     }
   }
 };

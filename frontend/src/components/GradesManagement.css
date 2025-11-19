@@ -551,3 +551,600 @@
     min-width: auto;
   }
 }
+
+/* Semester Groups Container */
+.semester-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Student Section */
+.student-section {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+.student-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.student-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+}
+
+.student-id {
+  background: var(--surface-bg);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.semester-count {
+  background: var(--accent-red);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Semester Cards */
+.semester-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.semester-card {
+  background: var(--surface-bg);
+  border-radius: 10px;
+  overflow: hidden;
+  border-left: 4px solid var(--accent-red);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.semester-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Card Header */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: rgba(220, 38, 38, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.card-header:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.card-header[data-merit-bg="HIGH_HONORS"] {
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.card-header[data-merit-bg="HIGH_HONORS"]:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.card-header[data-merit-bg="HONORS"] {
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.card-header[data-merit-bg="HONORS"]:hover {
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.card-header[data-merit-bg="MERIT"] {
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.card-header[data-merit-bg="MERIT"]:hover {
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.card-header[data-merit-bg="REGULAR"] {
+  background: rgba(108, 117, 125, 0.05);
+}
+
+.card-header[data-merit-bg="REGULAR"]:hover {
+  background: rgba(108, 117, 125, 0.1);
+}
+
+.card-header[data-merit-bg="BELOW_PASSING"] {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.card-header[data-merit-bg="BELOW_PASSING"]:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.expand-icon {
+  font-size: 1rem;
+  transition: transform 0.3s ease;
+  color: var(--text-secondary);
+}
+
+.semester-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.semester-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.semester-meta {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.gwa-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.gwa-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.gwa-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.merit-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.merit-emoji {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.merit-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.allowance-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.allowance-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.allowance-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.approved-badge {
+  background: var(--accent-green);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pending-badge {
+  background: var(--accent-orange);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Card Content */
+.card-content {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.subjects-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.subjects-table thead {
+  background: var(--primary-bg);
+}
+
+.subjects-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  font-size: 0.875rem;
+}
+
+.subjects-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.875rem;
+}
+
+.subjects-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.subjects-table tbody tr:hover {
+  background: var(--surface-bg);
+}
+
+.subjects-table tbody tr.status-approved {
+  opacity: 1;
+}
+
+.subjects-table tbody tr.status-pending {
+  opacity: 0.8;
+}
+
+.subjects-table tbody tr.status-rejected {
+  opacity: 0.6;
+}
+
+.subject-code {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subject-name {
+  color: var(--text-secondary);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.grade-cell {
+  font-weight: 600;
+}
+
+.grade-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  background: rgba(220, 38, 38, 0.1);
+  font-weight: 600;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.confidence-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 100px;
+  height: 24px;
+  position: relative;
+}
+
+.confidence-bar {
+  position: absolute;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #d4af37);
+  transition: width 0.3s ease;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.confidence-text {
+  position: relative;
+  z-index: 2;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+/* Card Footer */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--primary-bg);
+  border-top: 1px solid var(--border-color);
+  border-radius: 0 0 10px 10px;
+}
+
+.footer-left {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.summary-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.footer-right {
+  display: flex;
+  gap: 1rem;
+}
+
+.action-btn.approve-all-btn {
+  background: var(--accent-green);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+}
+
+.action-btn.approve-all-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+}
+
+.action-btn.recalculate-btn {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+}
+
+.action-btn.recalculate-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+}
+
+/* Expand Icon */
+.expand-icon {
+  transition: transform 0.3s ease;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* GWA Display Colors */
+.gwa-display[data-merit="HIGH_HONORS"],
+.merit-display[data-merit="HIGH_HONORS"],
+.allowance-display[data-merit="HIGH_HONORS"] .allowance-amount {
+  color: #d4af37;
+}
+
+.gwa-display[data-merit="HONORS"],
+.merit-display[data-merit="HONORS"],
+.allowance-display[data-merit="HONORS"] .allowance-amount {
+  color: #007bff;
+}
+
+.gwa-display[data-merit="MERIT"],
+.merit-display[data-merit="MERIT"],
+.allowance-display[data-merit="MERIT"] .allowance-amount {
+  color: #28a745;
+}
+
+.gwa-display[data-merit="REGULAR"],
+.merit-display[data-merit="REGULAR"],
+.allowance-display[data-merit="REGULAR"] .allowance-amount {
+  color: #6c757d;
+}
+
+.gwa-display[data-merit="BELOW_PASSING"],
+.merit-display[data-merit="BELOW_PASSING"],
+.allowance-display[data-merit="BELOW_PASSING"] .allowance-amount {
+  color: #dc3545;
+}
+
+/* Semester Card Border Colors */
+.semester-card[data-border-color="#d4af37"] {
+  border-left-color: #d4af37;
+}
+
+.semester-card[data-border-color="#007bff"] {
+  border-left-color: #007bff;
+}
+
+.semester-card[data-border-color="#28a745"] {
+  border-left-color: #28a745;
+}
+
+.semester-card[data-border-color="#6c757d"] {
+  border-left-color: #6c757d;
+}
+
+.semester-card[data-border-color="#dc3545"] {
+  border-left-color: #dc3545;
+}
+
+/* Grade Badge Colors */
+.grade-badge[data-merit="HIGH_HONORS"] {
+  color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.grade-badge[data-merit="HONORS"] {
+  color: #007bff;
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.grade-badge[data-merit="MERIT"] {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.grade-badge[data-merit="REGULAR"] {
+  color: #6c757d;
+  background: rgba(108, 117, 125, 0.1);
+}
+
+.grade-badge[data-merit="BELOW_PASSING"] {
+  color: #dc3545;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Status Badge Colors */
+.status-badge[data-status="approved"] {
+  background: #28a745;
+}
+
+.status-badge[data-status="pending"] {
+  background: #ffc107;
+  color: #000;
+}
+
+.status-badge[data-status="rejected"] {
+  background: #dc3545;
+}
+
+.status-badge[data-status="processing"] {
+  background: #17a2b8;
+}
+
+/* Subject Row Status Styling */
+.subject-row[data-status="approved"] {
+  opacity: 1;
+}
+
+.subject-row[data-status="pending"] {
+  opacity: 0.85;
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.subject-row[data-status="rejected"] {
+  opacity: 0.7;
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.subject-row[data-status="processing"] {
+  opacity: 0.8;
+  background: rgba(23, 162, 184, 0.05);
+}
+
+@media (max-width: 768px) {
+  .header-right {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-left {
+    width: 100%;
+  }
+
+  .footer-right {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .action-btn.approve-all-btn,
+  .action-btn.recalculate-btn {
+    width: 100%;
+  }
+
+  .subjects-table {
+    font-size: 0.75rem;
+  }
+
+  .subjects-table th,
+  .subjects-table td {
+    padding: 0.5rem 0.25rem;
+  }
+}
+

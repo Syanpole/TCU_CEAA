@@ -8,7 +8,25 @@ from .views import (
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
     send_verification_code, verify_email_code, resend_verification_code,
     request_password_reset, verify_reset_code, reset_password,
-    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard
+    ai_document_analysis, ai_analysis_status, ai_dashboard_stats, ai_batch_process, admin_document_dashboard,
+    # New grade submission endpoints
+    check_grade_submission_eligibility, get_coe_subjects, submit_subject_grade, validate_grade_submissions, get_grade_submission_status
+)
+
+# Face verification views
+from .face_verification_views import (
+    verify_face_with_id, extract_id_face, verify_liveness_only,
+    verify_grade_submission_identity, verify_allowance_application_identity
+)
+
+# Face adjudication views
+from .face_adjudication_views import VerificationAdjudicationViewSet
+
+# Fraud management views
+from .fraud_management_views import (
+    get_fraud_reports, get_fraud_report_detail, update_fraud_report,
+    resolve_fraud_report, contact_real_owner, get_fraud_notifications,
+    mark_notification_read
 )
 
 router = DefaultRouter()
@@ -19,6 +37,7 @@ router.register(r'grades', GradeSubmissionViewSet, basename='grades')
 router.register(r'applications', AllowanceApplicationViewSet, basename='applications')
 router.register(r'basic-qualification', BasicQualificationViewSet, basename='basic-qualification')
 router.register(r'full-application', FullApplicationViewSet, basename='full-application')
+router.register(r'admin/face-adjudications', VerificationAdjudicationViewSet, basename='face-adjudications')
 
 urlpatterns = [
     path('api/', include(router.urls)),
@@ -48,5 +67,28 @@ urlpatterns = [
     path('api/ai/batch-process/', ai_batch_process, name='ai-batch-process'),
     # 📊 Admin Document Management
     path('api/admin/documents/dashboard/', admin_document_dashboard, name='admin-document-dashboard'),
+    
+    # 🔒 Face Verification Endpoints
+    path('api/face-verification/verify/', verify_face_with_id, name='verify-face-with-id'),
+    path('api/face-verification/extract-face/', extract_id_face, name='extract-id-face'),
+    path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
+    path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
+    path('api/face-verification/allowance-application/', verify_allowance_application_identity, name='verify-allowance-application-identity'),
+    
+    # 📚 New Grade Submission Workflow Endpoints (Per-Subject)
+    path('api/grade-workflow/check-eligibility/', check_grade_submission_eligibility, name='check-grade-submission-eligibility'),
+    path('api/grade-workflow/coe-subjects/', get_coe_subjects, name='get-coe-subjects'),
+    path('api/grade-workflow/submit-subject/', submit_subject_grade, name='submit-subject-grade'),
+    path('api/grade-workflow/validate/', validate_grade_submissions, name='validate-grade-submissions'),
+    path('api/grade-workflow/status/', get_grade_submission_status, name='get-grade-submission-status'),
+    
+    # 🚨 Fraud Management Endpoints
+    path('api/fraud-reports/', get_fraud_reports, name='fraud-reports-list'),
+    path('api/fraud-reports/<int:report_id>/', get_fraud_report_detail, name='fraud-report-detail'),
+    path('api/fraud-reports/<int:report_id>/update/', update_fraud_report, name='fraud-report-update'),
+    path('api/fraud-reports/<int:report_id>/resolve/', resolve_fraud_report, name='fraud-report-resolve'),
+    path('api/fraud-reports/<int:report_id>/contact-real-owner/', contact_real_owner, name='fraud-contact-owner'),
+    path('api/fraud-notifications/', get_fraud_notifications, name='fraud-notifications'),
+    path('api/fraud-notifications/<int:notification_id>/mark-read/', mark_notification_read, name='fraud-notification-read'),
 ]
 

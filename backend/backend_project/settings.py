@@ -30,7 +30,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-FALLBACK-KEY-ONLY-FOR
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,192.168.100.13,*').split(',')
 
 
 # Application definition
@@ -212,6 +212,28 @@ USE_ADVANCED_OCR = os.environ.get('USE_ADVANCED_OCR', 'False') == 'True'
 ADVANCED_OCR_REGION = os.environ.get('ADVANCED_OCR_REGION', 'us-east-1')
 OCR_CONFIDENCE_THRESHOLD = int(os.environ.get('OCR_CONFIDENCE_THRESHOLD', '80'))
 
+# ============================================================================
+# AUTOMATED BIOMETRIC VERIFICATION CONFIGURATION
+# ============================================================================
+VERIFICATION_SERVICE_ENABLED = os.environ.get('VERIFICATION_SERVICE_ENABLED', 'False') == 'True'
+VERIFICATION_SERVICE_REGION = os.environ.get('VERIFICATION_SERVICE_REGION', 'us-east-1')
+VERIFICATION_SERVICE_ID = os.environ.get('VERIFICATION_SERVICE_ID', 'tcu-ceaa-verification')
+VERIFICATION_SERVICE_MIN_CONFIDENCE = int(os.environ.get('VERIFICATION_SERVICE_MIN_CONFIDENCE', '80'))
+
+# Face Verification Thresholds
+FACE_SIMILARITY_THRESHOLD = float(os.environ.get('FACE_SIMILARITY_THRESHOLD', '0.99'))  # >99% for high confidence
+FACE_CONFIDENCE_VERY_HIGH = float(os.environ.get('FACE_CONFIDENCE_VERY_HIGH', '0.99'))
+FACE_CONFIDENCE_HIGH = float(os.environ.get('FACE_CONFIDENCE_HIGH', '0.95'))
+FACE_CONFIDENCE_MEDIUM = float(os.environ.get('FACE_CONFIDENCE_MEDIUM', '0.90'))
+FACE_CONFIDENCE_LOW = float(os.environ.get('FACE_CONFIDENCE_LOW', '0.85'))
+
+# Verification Routing: Route verification attempts to admin if similarity below this threshold
+VERIFICATION_ADMIN_REVIEW_THRESHOLD = float(os.environ.get('VERIFICATION_ADMIN_REVIEW_THRESHOLD', '0.90'))
+
+# Cooldown Configuration
+VERIFICATION_MAX_ATTEMPTS = int(os.environ.get('VERIFICATION_MAX_ATTEMPTS', '3'))
+VERIFICATION_COOLDOWN_HOURS = int(os.environ.get('VERIFICATION_COOLDOWN_HOURS', '24'))
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -256,3 +278,6 @@ TEST_DISCOVER_PATTERN = 'test*.py'
 
 # This prevents Django from discovering test_*.py files in the backend root directory
 # Those are manual testing scripts, not Django test cases
+
+
+

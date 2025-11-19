@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/authService';
 import documentService, { GradeSubmissionEligibility } from '../services/documentService';
+import gradeService, { COESubject, GradeSubmissionStatus } from '../services/gradeService';
 import NotificationModal from './NotificationModal';
+import LiveCameraCapture from './LiveCameraCapture';
 import './GradeSubmissionForm.css';
 
 interface GradeSubmissionFormProps {
@@ -9,38 +11,41 @@ interface GradeSubmissionFormProps {
   onCancel?: () => void;
 }
 
-interface FormData {
-  semester: string;
-  academic_year: string;
-  total_units: string;
-  general_weighted_average: string;
-  has_failing_grades: boolean;
-  has_incomplete_grades: boolean;
-  has_dropped_subjects: boolean;
-  grade_sheet: File | null;
+interface SubjectSubmissionState {
+  subject: COESubject;
+  file: File | null;
+  units: number;
+  grade: number;
+  status: 'not-submitted' | 'uploading' | 'submitted' | 'approved' | 'rejected';
+  submissionId?: number;
+  error?: string;
+  adminNotes?: string;
 }
 
 const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   onSubmissionSuccess,
   onCancel
 }) => {
-  const [formData, setFormData] = useState<FormData>({
-    semester: '',
-    academic_year: '',
-    total_units: '',
-    general_weighted_average: '',
-    has_failing_grades: false,
-    has_incomplete_grades: false,
-    has_dropped_subjects: false,
-    grade_sheet: null
-  });
+  // COE and subject state
+  const [coeSubjects, setCoeSubjects] = useState<COESubject[]>([]);
+  const [subjectStates, setSubjectStates] = useState<SubjectSubmissionState[]>([]);
+  const [semester, setSemester] = useState('');
+  const [academicYear, setAcademicYear] = useState('');
+  
+  // UI state
   const [loading, setLoading] = useState(false);
+  const [coeLoading, setCoeLoading] = useState(true);
   const [error, setError] = useState('');
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'error'>('success');
   const [notificationMessage, setNotificationMessage] = useState('');
+  
+  // Eligibility and status
   const [eligibility, setEligibility] = useState<GradeSubmissionEligibility | null>(null);
   const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [gradeStatus, setGradeStatus] = useState<GradeSubmissionStatus | null>(null);
+  
+
 
   const semesters = [
     { value: '1st', label: '1st Semester' },
@@ -48,15 +53,76 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     { value: 'summer', label: 'Summer' }
   ];
 
-  // Check document status on component mount
+  // Fetch submission status
+  const fetchSubmissionStatus = useCallback(async () => {
+    if (!semester || !academicYear) return;
+    
+    try {
+      const status = await gradeService.getGradeSubmissionStatus(academicYear, semester);
+      setGradeStatus(status);
+
+      // Update subject states with existing submissions
+      if (status.submissions && status.submissions.length > 0) {
+        setSubjectStates(prevStates => 
+          prevStates.map(state => {
+            const existingSubmission = status.submissions.find(
+              sub => sub.subject_code === state.subject.subject_code
+            );
+            if (existingSubmission) {
+              return {
+                ...state,
+                status: existingSubmission.status as any,
+                submissionId: existingSubmission.id,
+                units: existingSubmission.units,
+                grade: existingSubmission.grade_received,
+                adminNotes: existingSubmission.admin_notes,
+              };
+            }
+            return state;
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching submission status:', error);
+    }
+  }, [semester, academicYear]);
+
+  // Check document eligibility and load COE subjects on mount
   useEffect(() => {
-    const checkEligibility = async () => {
+    const initializeForm = async () => {
       try {
         setDocumentsLoading(true);
+        setCoeLoading(true);
+
+        // Check eligibility
         const eligibilityData = await documentService.checkGradeSubmissionEligibility();
         setEligibility(eligibilityData);
-      } catch (error) {
-        console.error('Error checking eligibility:', error);
+
+        if (eligibilityData.canSubmit) {
+          // Fetch COE subjects
+          const coeData = await gradeService.getCOESubjects();
+          setCoeSubjects(coeData.subjects);
+          
+          // Initialize subject states
+          const initialStates: SubjectSubmissionState[] = coeData.subjects.map(subject => ({
+            subject,
+            file: null,
+            units: 3, // Default units
+            grade: 1.0, // Default grade
+            status: 'not-submitted' as const,
+          }));
+          setSubjectStates(initialStates);
+
+          // Set default semester and academic year from COE if available
+          if (coeData.semester) setSemester(coeData.semester);
+          if (coeData.academic_year) setAcademicYear(coeData.academic_year);
+
+          // Fetch existing submissions status
+          await fetchSubmissionStatus();
+        }
+      } catch (error: any) {
+        console.error('Error initializing form:', error);
+        setError(error.message || 'Failed to load COE subjects');
         setEligibility({
           canSubmit: false,
           requiredDocuments: ['enrollment_certificate', 'id_copy'],
@@ -66,369 +132,359 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         });
       } finally {
         setDocumentsLoading(false);
+        setCoeLoading(false);
       }
     };
 
-    checkEligibility();
-  }, []);
+    initializeForm();
+  }, []); // Run only once on mount
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+  // Handle file selection for a subject
+  const handleFileChange = (index: number, file: File | null) => {
+    setSubjectStates(prev => {
+      const newStates = [...prev];
+      newStates[index] = { ...newStates[index], file, error: undefined };
+      return newStates;
+    });
+  };
+
+  // Handle units change for a subject
+  const handleUnitsChange = (index: number, units: number) => {
+    setSubjectStates(prev => {
+      const newStates = [...prev];
+      newStates[index] = { ...newStates[index], units };
+      return newStates;
+    });
+  };
+
+  // Handle grade change for a subject
+  const handleGradeChange = (index: number, grade: number) => {
+    setSubjectStates(prev => {
+      const newStates = [...prev];
+      newStates[index] = { ...newStates[index], grade };
+      return newStates;
+    });
+  };
+
+  // Submit grade for a single subject
+  const handleSubmitSubject = async (index: number) => {
+    const state = subjectStates[index];
     
-    if (type === 'checkbox') {
-      const { checked } = e.target as HTMLInputElement;
-      setFormData(prev => ({
-        ...prev,
-        [name]: checked
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+    if (!state.file) {
+      setSubjectStates(prev => {
+        const newStates = [...prev];
+        newStates[index] = { ...newStates[index], error: 'Please select a grade sheet file' };
+        return newStates;
+      });
+      return;
     }
-  };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setFormData(prev => ({
-      ...prev,
-      grade_sheet: file
-    }));
-  };
+    if (!semester || !academicYear) {
+      setError('Please select semester and academic year');
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Check if user can submit grades
-    if (!eligibility?.canSubmit) {
-      setNotificationType('warning');
-      if (eligibility?.missingDocuments.length && eligibility?.requiredDocuments.length === 0) {
-        setNotificationMessage('Please upload at least one supporting document before submitting grades. Required documents include: Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.');
-      } else if (eligibility?.missingDocuments.length) {
-        setNotificationMessage(`Please upload the following required documents first: ${eligibility.missingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}`);
-      } else if (eligibility?.pendingDocuments.length) {
-        setNotificationMessage(`Your documents are still under review. Please wait for admin approval of: ${eligibility.pendingDocuments.map(doc => documentService.getDocumentTypeLabel(doc)).join(', ')}`);
-      } else {
-        setNotificationMessage('You need to have at least one approved supporting document before submitting grades. Please upload your Certificate of Enrollment, Birth Certificate, School ID, Report Card, or Transcript of Records.');
-      }
+    // Update status to uploading
+    setSubjectStates(prev => {
+      const newStates = [...prev];
+      newStates[index] = { ...newStates[index], status: 'uploading', error: undefined };
+      return newStates;
+    });
+
+    try {
+      const submission = await gradeService.submitSubjectGrade({
+        subject_code: state.subject.subject_code,
+        subject_name: state.subject.subject_name,
+        academic_year: academicYear,
+        semester: semester,
+        units: state.units,
+        grade_received: state.grade,
+        grade_sheet: state.file,
+      });
+
+      // Update state with submission result
+      setSubjectStates(prev => {
+        const newStates = [...prev];
+        newStates[index] = {
+          ...newStates[index],
+          status: 'submitted',
+          submissionId: submission.id,
+          error: undefined,
+        };
+        return newStates;
+      });
+
+      // Refresh status
+      await fetchSubmissionStatus();
+
+      setNotificationType('success');
+      setNotificationMessage(`✅ Grade submitted for ${state.subject.subject_code} - ${state.subject.subject_name}`);
       setShowNotification(true);
-      return;
+    } catch (error: any) {
+      setSubjectStates(prev => {
+        const newStates = [...prev];
+        newStates[index] = {
+          ...newStates[index],
+          status: 'not-submitted',
+          error: error.message || 'Failed to submit grade',
+        };
+        return newStates;
+      });
     }
-    
-    if (!formData.semester || !formData.academic_year || !formData.total_units || 
-        !formData.general_weighted_average || !formData.grade_sheet) {
-      setError('Please fill in all required fields');
-      return;
-    }
+  };
 
-    // Validate numeric fields
-    const totalUnits = parseInt(formData.total_units);
-    const gwa = parseFloat(formData.general_weighted_average);
-
-    if (isNaN(totalUnits) || totalUnits < 1 || totalUnits > 30) {
-      setError('Total units must be between 1 and 30');
-      return;
-    }
-
-    // Validate GWA is in point scale (1.00 - 5.00) - accepts any decimal format
-    if (isNaN(gwa) || gwa < 1.0 || gwa > 5.0) {
-      setError('General Weighted Average must be between 1.0 and 5.0 (point scale). Examples: 1, 1.5, 1.75, 2.0, 2.35');
-      return;
-    }
-
-    // Validate file upload
-    if (!formData.grade_sheet || !(formData.grade_sheet instanceof File)) {
-      setError('Please upload your grade sheet file');
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (formData.grade_sheet.size > maxSize) {
-      setError('File size must be less than 10MB');
+  // Validate all submissions
+  const handleValidateAll = async () => {
+    if (!semester || !academicYear) {
+      setError('Please select semester and academic year');
       return;
     }
 
     setLoading(true);
-    setError('');
-
     try {
-      const submitFormData = new FormData();
-      submitFormData.append('semester', formData.semester);
-      submitFormData.append('academic_year', formData.academic_year);
-      submitFormData.append('total_units', formData.total_units);
-      submitFormData.append('general_weighted_average', formData.general_weighted_average);
-      submitFormData.append('has_failing_grades', formData.has_failing_grades.toString());
-      submitFormData.append('has_incomplete_grades', formData.has_incomplete_grades.toString());
-      submitFormData.append('has_dropped_subjects', formData.has_dropped_subjects.toString());
-      submitFormData.append('grade_sheet', formData.grade_sheet);
-
-      // Debug logging
-      console.log('Submitting grade with data:', {
-        semester: formData.semester,
-        academic_year: formData.academic_year,
-        total_units: formData.total_units,
-        general_weighted_average: formData.general_weighted_average,
-        has_failing_grades: formData.has_failing_grades,
-        has_incomplete_grades: formData.has_incomplete_grades,
-        has_dropped_subjects: formData.has_dropped_subjects,
-        grade_sheet: formData.grade_sheet?.name,
-        grade_sheet_size: formData.grade_sheet?.size
-      });
-
-      await apiClient.post('/grades/', submitFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      // Reset form
-      setFormData({
-        semester: '',
-        academic_year: '',
-        total_units: '',
-        general_weighted_average: '',
-        has_failing_grades: false,
-        has_incomplete_grades: false,
-        has_dropped_subjects: false,
-        grade_sheet: null
-      });
-
-      // Show success notification
-      setNotificationType('success');
-      setNotificationMessage('🎉 Excellent! Your grades have been submitted and AUTOMATICALLY APPROVED by our advanced AI system! The AI has comprehensively analyzed your grade sheet, validated all information, calculated your allowance eligibility, and completed the entire evaluation process autonomously. No waiting for manual review - your submission is immediately processed and approved! The only remaining step is the final allowance application approval by admin, which typically takes 3-5 business days. You can now proceed with confidence knowing your academic records are fully verified and approved by our intelligent system!');
-      setShowNotification(true);
-
-      // Close form after notification
-      setTimeout(() => {
-        if (onSubmissionSuccess) {
-          onSubmissionSuccess();
-        }
-      }, 5000); // Longer delay for important message
-
-    } catch (error: any) {
-      console.error('Error submitting grades:', error);
-      console.error('Error response:', error.response);
+      const validation = await gradeService.validateGradeSubmissions(academicYear, semester);
       
-      // Extract detailed error message
-      let errorMessage = 'Failed to submit grades';
-      
-      if (error.response?.data) {
-        // Check for fraud rejection (admin_notes contains rejection reason)
-        if (error.response.data.admin_notes && error.response.data.admin_notes.includes('FRAUD ALERT')) {
-          // Fraud detected by AI - show detailed message
-          errorMessage = error.response.data.admin_notes;
-          setNotificationType('error');
-          setNotificationMessage(errorMessage);
-          setShowNotification(true);
-          return; // Don't set error, use notification modal instead
-        }
+      if (validation.is_valid) {
+        setNotificationType('success');
+        setNotificationMessage('✅ All grades validated successfully! Your submissions match your COE subjects.');
+      } else {
+        const errorMsg = [
+          '⚠️ Grade validation issues found:',
+          '',
+          ...validation.errors,
+          '',
+          ...(validation.warnings.length > 0 ? ['Warnings:', ...validation.warnings] : [])
+        ].join('\n');
         
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.grade_sheet) {
-          // Handle grade_sheet field errors (this is where rejection message appears)
-          const gradeSheetError = Array.isArray(error.response.data.grade_sheet) 
-            ? error.response.data.grade_sheet[0] 
-            : error.response.data.grade_sheet;
-          
-          // Check if it's a fraud rejection
-          if (typeof gradeSheetError === 'string' && gradeSheetError.includes('SECURITY REJECTION')) {
-            setNotificationType('error');
-            setNotificationMessage(`🚨 Grade Sheet Rejected\n\n${gradeSheetError}`);
-            setShowNotification(true);
-            return;
-          }
-          
-          errorMessage = `Grade Sheet Error: ${gradeSheetError}`;
-        } else if (error.response.data.general_weighted_average) {
-          errorMessage = `GWA Error: ${error.response.data.general_weighted_average[0]}`;
-        } else if (error.response.data.non_field_errors) {
-          errorMessage = error.response.data.non_field_errors[0];
-        } else {
-          // Try to extract first error from any field
-          const firstError = Object.values(error.response.data).find(val => Array.isArray(val) || typeof val === 'string');
-          if (firstError) {
-            errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-          }
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
+        setNotificationType('warning');
+        setNotificationMessage(errorMsg);
       }
-      
-      setError(errorMessage);
+      setShowNotification(true);
+    } catch (error: any) {
+      setNotificationType('error');
+      setNotificationMessage(error.message || 'Failed to validate submissions');
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
   };
 
+  // Calculate progress
+  const submittedCount = subjectStates.filter(s => s.status !== 'not-submitted').length;
+  const totalSubjects = subjectStates.length;
+  const allSubmitted = submittedCount === totalSubjects && totalSubjects > 0;
+
   return (
     <div className="grade-submission-form-compact">
-      {/* Header with Icon */}
+      {/* Header */}
       <div className="compact-header">
-        <h2>Submit Grades</h2>
-        <p className="header-subtitle">Academic Performance Submission</p>
+        <h2>Submit Grades by Subject</h2>
+        <p className="header-subtitle">Upload grade sheet for each subject from your COE</p>
       </div>
 
-      {/* Quick Status Check */}
-      {!documentsLoading && eligibility && !eligibility.canSubmit && (
-        <div className="quick-warning">
-          ⚠️ Document approval required
+      {/* Loading states */}
+      {(documentsLoading || coeLoading) && (
+        <div className="compact-loading">
+          <div className="loading-spinner-small"></div>
+          <span>{documentsLoading ? 'Verifying eligibility...' : 'Loading COE subjects...'}</span>
         </div>
       )}
 
-      {/* Document Status Check - Minimized */}
-      {documentsLoading ? (
-        <div className="compact-loading">
-          <div className="loading-spinner-small"></div>
-          <span>Verifying eligibility...</span>
-        </div>
-      ) : eligibility && !eligibility.canSubmit ? (
-        <div className="compact-status-section">
-          <h4>📋 Document Status</h4>
-          {eligibility.requiredDocuments.map(docType => {
-            const isApproved = eligibility.approvedDocuments.includes(docType);
-            const isPending = eligibility.pendingDocuments.includes(docType);
-            
-            return (
-              <div key={docType} className="compact-doc-item">
-                <span className="doc-icon">{isApproved ? '✅' : isPending ? '⏳' : '❌'}</span>
-                <span className="doc-name">{documentService.getDocumentTypeLabel(docType)}</span>
+      {/* Main Form - Only show if eligible */}
+      {!documentsLoading && !coeLoading && eligibility?.canSubmit && (
+        <div className="compact-form">
+          {error && (
+            <div className="compact-error">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* Semester and Academic Year Selection */}
+          <div className="compact-grid compact-grid-spacing">
+            <div className="compact-field">
+              <label>Semester</label>
+              <select
+                value={semester}
+                onChange={(e) => {
+                  setSemester(e.target.value);
+                  fetchSubmissionStatus();
+                }}
+                required
+                className="compact-input"
+                title="Select semester"
+              >
+                <option value="">Select...</option>
+                {semesters.map(sem => (
+                  <option key={sem.value} value={sem.value}>{sem.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="compact-field">
+              <label>Academic Year</label>
+              <input
+                type="text"
+                value={academicYear}
+                onChange={(e) => {
+                  setAcademicYear(e.target.value);
+                  fetchSubmissionStatus();
+                }}
+                placeholder="2024-2025"
+                required
+                className="compact-input"
+              />
+            </div>
+          </div>
+
+          {/* Progress Indicator */}
+          {totalSubjects > 0 && (
+            <div className="progress-section">
+              <h4>📊 Submission Progress</h4>
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: (submittedCount / totalSubjects) * 100 + '%' }}
+                ></div>
               </div>
-            );
-          })}
-        </div>
-      ) : null}
+              <p className="progress-text">
+                {submittedCount} of {totalSubjects} subjects submitted
+              </p>
+            </div>
+          )}
 
-      {/* Compact Form */}
-      <form onSubmit={handleSubmit} className="compact-form">
-        {error && (
-          <div className="compact-error">
-            ⚠️ {error}
-          </div>
-        )}
+          {/* Subject List */}
+          {coeSubjects.length === 0 ? (
+            <div className="no-subjects-message">
+              <p>📋 No subjects found in your COE. Please ensure your Certificate of Enrollment has been approved and contains subject information.</p>
+            </div>
+          ) : (
+            <div className="subject-list">
+              <h4>📚 Subjects from COE ({coeSubjects.length})</h4>
+              {subjectStates.map((state, index) => (
+                <div key={state.subject.subject_code} className="subject-card">
+                  <div className="subject-header">
+                    <div className="subject-info">
+                      <span className="subject-code">{state.subject.subject_code}</span>
+                      <span className="subject-name">{state.subject.subject_name}</span>
+                    </div>
+                    <div className="subject-status">
+                      {state.status === 'not-submitted' && <span className="status-badge status-pending">Not Submitted</span>}
+                      {state.status === 'uploading' && <span className="status-badge status-uploading">Uploading...</span>}
+                      {state.status === 'submitted' && <span className="status-badge status-submitted">Submitted</span>}
+                      {state.status === 'approved' && <span className="status-badge status-approved">✅ Approved</span>}
+                      {state.status === 'rejected' && <span className="status-badge status-rejected">❌ Rejected</span>}
+                    </div>
+                  </div>
 
-        {/* Form Grid */}
-        <div className="compact-grid">
-          <div className="compact-field">
-            <label>Semester</label>
-            <select
-              name="semester"
-              value={formData.semester}
-              onChange={handleInputChange}
-              required
-              className="compact-input"
-            >
-              <option value="">Select...</option>
-              {semesters.map(sem => (
-                <option key={sem.value} value={sem.value}>{sem.label}</option>
+                  {(state.status === 'not-submitted' || state.status === 'uploading') && (
+                    <div className="subject-inputs">
+                      <div className="input-row">
+                        <div className="input-group">
+                          <label>Units</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="6"
+                            value={state.units}
+                            onChange={(e) => handleUnitsChange(index, parseInt(e.target.value) || 3)}
+                            className="compact-input"
+                            title="Credit units for this subject"
+                            placeholder="3"
+                          />
+                        </div>
+                        <div className="input-group">
+                          <label>Grade</label>
+                          <input
+                            type="number"
+                            min="1.0"
+                            max="5.0"
+                            step="0.25"
+                            value={state.grade}
+                            onChange={(e) => handleGradeChange(index, parseFloat(e.target.value) || 1.0)}
+                            className="compact-input"
+                            title="Grade received (1.0-5.0)"
+                            placeholder="1.0"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="file-upload-section">
+                        <label className="upload-label-inline">
+                          📄 Grade Sheet
+                          <input
+                            type="file"
+                            onChange={(e) => handleFileChange(index, e.target.files?.[0] || null)}
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="file-input-hidden"
+                          />
+                        </label>
+                        {state.file && (
+                          <span className="file-name">✓ {state.file.name}</span>
+                        )}
+                      </div>
+
+                      {state.error && (
+                        <div className="subject-error">
+                          ⚠️ {state.error}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleSubmitSubject(index)}
+                        className="btn-submit-subject"
+                        disabled={!state.file || state.status === 'uploading'}
+                      >
+                        {state.status === 'uploading' ? 'Uploading...' : 'Submit Grade'}
+                      </button>
+                    </div>
+                  )}
+
+                  {(state.status === 'submitted' || state.status === 'approved' || state.status === 'rejected') && (
+                    <div className="subject-details">
+                      <p><strong>Units:</strong> {state.units} | <strong>Grade:</strong> {state.grade}</p>
+                      {state.adminNotes && (
+                        <p className="admin-notes"><strong>Admin Notes:</strong> {state.adminNotes}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
-            </select>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="compact-actions compact-actions-spacing">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="btn-compact btn-cancel"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+
+            {allSubmitted && (
+              <button
+                type="button"
+                onClick={handleValidateAll}
+                className="btn-compact btn-validate"
+                disabled={loading}
+              >
+                Validate All
+              </button>
+            )}
           </div>
 
-          <div className="compact-field">
-            <label>Academic Year</label>
-            <input
-              type="text"
-              name="academic_year"
-              value={formData.academic_year}
-              onChange={handleInputChange}
-              placeholder="2024-2025"
-              required
-              className="compact-input"
-            />
-          </div>
-
-          <div className="compact-field">
-            <label>GWA</label>
-            <input
-              type="number"
-              name="general_weighted_average"
-              value={formData.general_weighted_average}
-              onChange={handleInputChange}
-              min="1"
-              max="5"
-              step="any"
-              placeholder="1.75"
-              required
-              className="compact-input"
-            />
-          </div>
-
-          <div className="compact-field">
-            <label>Total Units</label>
-            <input
-              type="number"
-              name="total_units"
-              value={formData.total_units}
-              onChange={handleInputChange}
-              min="1"
-              max="30"
-              placeholder="21"
-              required
-              className="compact-input"
-            />
-          </div>
-        </div>
-
-        {/* File Upload */}
-        <div className="compact-upload">
-          <label className="upload-label">
-            📄 Grade Sheet
-            <input
-              type="file"
-              name="grade_sheet"
-              onChange={handleFileChange}
-              accept=".pdf,.jpg,.jpeg,.png"
-              required
-              className="file-input-hidden"
-            />
-          </label>
-          {formData.grade_sheet && (
-            <div className="file-selected">
-              ✓ {formData.grade_sheet.name}
+          {/* Info Section */}
+          {gradeStatus?.gpa_calculated && (
+            <div className="compact-ai-info compact-ai-info-spacing">
+              <div className="ai-badge">🎓 GPA CALCULATED</div>
+              <p>Your GPA: {gradeStatus.general_weighted_average?.toFixed(2)}</p>
             </div>
           )}
         </div>
-
-        {/* AI Info - Compact */}
-        <div className="compact-ai-info">
-          <div className="ai-badge">🤖 AI AUTO-APPROVAL</div>
-          <p>Instant verification & processing</p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="compact-actions">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-compact btn-cancel"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="btn-compact btn-submit"
-            disabled={loading || !eligibility?.canSubmit || !formData.semester || !formData.academic_year || 
-                     !formData.total_units || !formData.general_weighted_average || !formData.grade_sheet}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-compact"></span>
-                Processing...
-              </>
-            ) : (
-              'Submit Grade'
-            )}
-          </button>
-        </div>
-      </form>
+      )}
 
       <NotificationModal
         isOpen={showNotification}

@@ -1,0 +1,297 @@
+.biometric-consent-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.biometric-consent-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.consent-modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px 25px;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.consent-modal-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.consent-modal-header p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.consent-modal-content {
+  padding: 30px 25px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.consent-section {
+  margin-bottom: 28px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-left: 4px solid #667eea;
+  border-radius: 8px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.section-icon {
+  font-size: 20px;
+}
+
+.section-body {
+  color: #555;
+  line-height: 1.6;
+}
+
+.section-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+}
+
+.section-body ul {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.section-body li {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.section-body strong {
+  color: #333;
+}
+
+.info-box {
+  background-color: #e8f0fe;
+  border-left: 3px solid #1f73e6;
+  padding: 12px 15px;
+  margin-top: 15px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1f4788;
+}
+
+.info-box.alert {
+  background-color: #fef3e2;
+  border-left-color: #f9ab00;
+  color: #783a1a;
+}
+
+.important-notice {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 25px;
+}
+
+.important-notice h4 {
+  margin: 0 0 12px 0;
+  color: #856404;
+  font-size: 15px;
+}
+
+.important-notice ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #856404;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.important-notice li {
+  margin-bottom: 8px;
+}
+
+.consent-modal-footer {
+  padding: 25px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.consent-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.consent-checkbox input[type="checkbox"] {
+  margin-top: 4px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: #667eea;
+}
+
+.consent-checkbox label {
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.consent-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.decline-button,
+.accept-button {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.decline-button {
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.decline-button:hover {
+  background-color: #efefef;
+  border-color: #ccc;
+}
+
+.accept-button {
+  background-color: #667eea;
+  color: white;
+}
+
+.accept-button:hover:not(:disabled) {
+  background-color: #5568d3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.accept-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.consent-footer-info {
+  padding: 12px 25px;
+  background-color: #f0f0f0;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+}
+
+.consent-footer-info a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.consent-footer-info a:hover {
+  text-decoration: underline;
+}
+
+/* Scrollbar styling */
+.biometric-consent-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.biometric-consent-modal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.biometric-consent-modal::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.biometric-consent-modal::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .biometric-consent-overlay {
+    padding: 10px;
+  }
+
+  .biometric-consent-modal {
+    max-height: 95vh;
+  }
+
+  .consent-modal-header {
+    padding: 20px 15px;
+  }
+
+  .consent-modal-header h2 {
+    font-size: 18px;
+  }
+
+  .consent-modal-content {
+    padding: 20px 15px;
+  }
+
+  .consent-section {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .section-header h3 {
+    font-size: 15px;
+  }
+
+  .consent-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .decline-button,
+  .accept-button {
+    width: 100%;
+    padding: 12px 16px;
+  }
+}

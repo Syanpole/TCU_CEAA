@@ -3,7 +3,45 @@ import { apiClient } from '../services/authService';
 import GradeDetailsModal from './GradeDetailsModal';
 import './GradesManagement.css';
 
-interface Grade {
+interface Subject {
+  id: number;
+  subject_code: string;
+  subject_name: string;
+  units: number;
+  grade_received: number | null;
+  status: string;
+  ai_confidence_score: number;
+  ai_merit_level: string;
+  submitted_at: string;
+  reviewed_at: string;
+  admin_notes: string;
+}
+
+interface SemesterGroup {
+  academic_year: string;
+  semester: string;
+  semester_label: string;
+  subjects: Subject[];
+  gwa: number | null;
+  subject_count: number;
+  total_units: number;
+  status_breakdown: { [key: string]: number };
+  all_approved: boolean;
+  merit_level: string;
+  qualifies_basic: boolean;
+  qualifies_merit: boolean;
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+}
+
+interface StudentGrades {
+  student_id: number;
+  student_name: string;
+  semester_groups: SemesterGroup[];
+}
+
+interface GradeDetailsModal {
   id: number;
   student_name: string;
   student_id: string;
@@ -38,108 +76,197 @@ interface GradesManagementProps {
 }
 
 const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => {
-  const [grades, setGrades] = useState<Grade[]>([]);
+  const [studentGrades, setStudentGrades] = useState<StudentGrades[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [selectedGrade, setSelectedGrade] = useState<GradeDetailsModal | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [deletingGradeId, setDeletingGradeId] = useState<number | null>(null);
-
-  // Helper function to safely format percentage values
-  const safePercentage = (value: number | string): string => {
-    const numValue = Number(value);
-    if (isNaN(numValue)) return '0.00%';
-    return `${numValue.toFixed(2)}%`;
-  };
 
   useEffect(() => {
-    const fetchGrades = async () => {
+    const fetchGroupedGrades = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await apiClient.get<Grade[]>('/grades/');
-        setGrades(response.data);
+        const response = await apiClient.get<StudentGrades[] | StudentGrades>('/grades/grouped_by_semester/');
+        
+        // Handle both single object and array responses
+        let data: StudentGrades[] = Array.isArray(response.data) 
+          ? response.data 
+          : [response.data as StudentGrades];
+        
+        setStudentGrades(data);
       } catch (err) {
-        console.error('Error fetching grades:', err);
+        console.error('Error fetching grouped grades:', err);
         setError('Failed to load grades. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchGrades();
+    fetchGroupedGrades();
   }, []);
 
-  const filteredGrades = grades.filter(grade => {
-    const matchesSearch = grade.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         grade.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         grade.academic_year.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === '' || grade.status === statusFilter;
-    const matchesSemester = semesterFilter === '' || grade.semester === semesterFilter;
-    return matchesSearch && matchesStatus && matchesSemester;
-  });
+  const toggleGroupExpansion = (key: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedGroups(newExpanded);
+  };
 
-  const getStatusColor = (status: string) => {
+  const getMeritColor = (merit_level: string): string => {
+    switch (merit_level) {
+      case 'HIGH_HONORS': return '#d4af37';
+      case 'HONORS': return '#007bff';
+      case 'MERIT': return '#28a745';
+      case 'REGULAR': return '#6c757d';
+      case 'BELOW_PASSING': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
+
+  const getMeritEmoji = (merit_level: string): string => {
+    switch (merit_level) {
+      case 'HIGH_HONORS': return '🥇';
+      case 'HONORS': return '🥈';
+      case 'MERIT': return '🥉';
+      case 'REGULAR': return '📋';
+      case 'BELOW_PASSING': return '⚠️';
+      default: return '📊';
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case 'approved': return '#10b981';
       case 'rejected': return '#ef4444';
       case 'pending': return '#f59e0b';
+      case 'processing': return '#3b82f6';
       default: return '#6b7280';
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     });
   };
 
-  const handleViewDetails = async (gradeId: number) => {
-    try {
-      setLoadingDetails(true);
-      const response = await apiClient.get<Grade>(`/grades/${gradeId}/`);
-      setSelectedGrade(response.data);
-    } catch (err) {
-      console.error('Error fetching grade details:', err);
-      alert('Failed to load grade details. Please try again.');
-    } finally {
-      setLoadingDetails(false);
-    }
+  const handleViewDetails = async (subject: Subject, studentName: string, academicYear: string, semester: string) => {
+    // For now, we'll create a minimal detail object from subject data
+    // In a real app, you'd fetch full details from the API
+    const detailGrade: GradeDetailsModal = {
+      id: subject.id,
+      student_name: studentName,
+      student_id: '',
+      academic_year: academicYear,
+      semester: semester,
+      semester_display: semester,
+      total_units: subject.units,
+      general_weighted_average: subject.grade_received || 0,
+      semestral_weighted_average: subject.grade_received || 0,
+      grade_sheet: '',
+      has_failing_grades: (subject.grade_received || 0) > 3,
+      has_incomplete_grades: subject.status !== 'approved',
+      has_dropped_subjects: false,
+      ai_evaluation_completed: false,
+      ai_evaluation_notes: '',
+      ai_confidence_score: subject.ai_confidence_score,
+      ai_extracted_grades: {},
+      ai_grade_validation: {},
+      ai_recommendations: [],
+      qualifies_for_basic_allowance: false,
+      qualifies_for_merit_incentive: false,
+      status: subject.status,
+      status_display: subject.status,
+      admin_notes: subject.admin_notes,
+      submitted_at: subject.submitted_at,
+      reviewed_at: subject.reviewed_at,
+      reviewed_by_name: ''
+    };
+    setSelectedGrade(detailGrade);
   };
 
-  const handleCloseDetails = () => {
-    setSelectedGrade(null);
-  };
-
-  const handleDeleteGrade = async (gradeId: number, studentName: string) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete the grade submission for ${studentName}? This action cannot be undone.`
+  const handleApproveSemesterGroup = async (studentId: number, academicYear: string, semester: string) => {
+    const confirmApprove = window.confirm(
+      `Are you sure you want to approve all subjects in this semester group? This will update eligibility and allowance amounts.`
     );
     
-    if (!confirmDelete) return;
+    if (!confirmApprove) return;
 
     try {
-      setDeletingGradeId(gradeId);
-      await apiClient.delete(`/grades/${gradeId}/`);
+      const response = await apiClient.post('/grades/approve_semester_group/', {
+        student_id: studentId,
+        academic_year: academicYear,
+        semester: semester
+      });
+
+      // Refresh the grouped grades
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      setStudentGrades(updatedResponse.data);
       
-      // Remove the grade from the local state
-      setGrades(grades.filter(g => g.id !== gradeId));
-      
-      alert('Grade submission deleted successfully!');
+      alert(`✅ Successfully approved all grades in this semester group!`);
     } catch (err) {
-      console.error('Error deleting grade:', err);
-      alert('Failed to delete grade submission. Please try again.');
-    } finally {
-      setDeletingGradeId(null);
+      console.error('Error approving semester group:', err);
+      alert('Failed to approve semester group. Please try again.');
     }
   };
+
+  const handleRecalculateSemesterGWA = async (studentId: number, academicYear: string, semester: string) => {
+    try {
+      const response = await apiClient.post('/grades/grouped_by_semester/', {
+        student_id: studentId,
+        academic_year: academicYear,
+        semester: semester,
+        action: 'recalculate_gwa'
+      });
+
+      // Refresh the grouped grades
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      setStudentGrades(updatedResponse.data);
+      
+      alert(`✅ GWA recalculated for this semester group!`);
+    } catch (err) {
+      console.error('Error recalculating GWA:', err);
+      alert('Failed to recalculate GWA. Please try again.');
+    }
+  };
+
+  const filteredStudents = searchTerm.trim() === '' 
+    ? studentGrades  // Show all students when search is empty
+    : studentGrades.filter(student => {
+        const matchesSearch = student.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             student.student_id.toString().includes(searchTerm);
+        return matchesSearch;
+      });
+
+  const getTotalStats = (): { total: number; approved: number; pending: number; merit: number } => {
+    let totals = { total: 0, approved: 0, pending: 0, merit: 0 };
+    
+    // Use filtered students for stats
+    const statsSource = searchTerm.trim() === '' ? studentGrades : filteredStudents;
+    
+    statsSource.forEach(student => {
+      student.semester_groups.forEach(group => {
+        totals.total += group.subject_count || 0;
+        totals.approved += group.approved_count || 0;
+        totals.pending += group.pending_count || 0;
+        if (group.qualifies_merit) totals.merit += 1;
+      });
+    });
+    
+    return totals;
+  };
+
+  const stats = getTotalStats();
 
   if (loading) {
     return (
@@ -147,7 +274,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
         <div className="loading-content">
           <div className="loading-spinner"></div>
           <h2 className="loading-title">Loading Grades</h2>
-          <p className="loading-text">Please wait...</p>
+          <p className="loading-text">Grouping by semester and calculating GWA...</p>
         </div>
       </div>
     );
@@ -177,21 +304,25 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
         {/* Header */}
         <div className="management-header">
           <div className="header-content">
-            <h1>Grades Management</h1>
-            <p>Review and analyze all grade submissions in the TCU-CEAA system</p>
+            <h1>📚 Grades Management Dashboard</h1>
+            <p>Review and manage grade submissions grouped by semester with automatic GWA calculation</p>
           </div>
           
           <div className="header-stats">
             <div className="stat-item">
-              <div className="stat-number">{grades.length}</div>
-              <div className="stat-label">Total Submissions</div>
+              <div className="stat-number">{stats.total}</div>
+              <div className="stat-label">Total Subjects</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{grades.filter(g => g.qualifies_for_basic_allowance).length}</div>
-              <div className="stat-label">Basic Eligible</div>
+              <div className="stat-number">{stats.approved}</div>
+              <div className="stat-label">Approved</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{grades.filter(g => g.qualifies_for_merit_incentive).length}</div>
+              <div className="stat-number">{stats.pending}</div>
+              <div className="stat-label">Pending</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">{stats.merit}</div>
               <div className="stat-label">Merit Eligible</div>
             </div>
           </div>
@@ -206,158 +337,166 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
               </svg>
               <input
                 type="text"
-                placeholder="Search by student name, ID, or academic year..."
+                placeholder="Search by student name or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              value={semesterFilter}
-              onChange={(e) => setSemesterFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Semesters</option>
-              <option value="first">First Semester</option>
-              <option value="second">Second Semester</option>
-              <option value="summer">Summer</option>
-            </select>
           </div>
         </div>
 
-        {/* Grades List */}
-        <div className="grades-list">
-          {filteredGrades.length === 0 ? (
+        {/* Semester Groups */}
+        <div className="semester-groups-container">
+          {filteredStudents.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📊</div>
-              <h3>No Grades Found</h3>
+              <h3>No Students Found</h3>
               <p>
-                {searchTerm || statusFilter || semesterFilter
-                  ? `No grades match your filters`
+                {searchTerm
+                  ? `No students match your search`
                   : 'No grade submissions have been made yet.'
                 }
               </p>
-              {(searchTerm || statusFilter || semesterFilter) && (
+              {searchTerm && (
                 <button 
                   className="clear-filters-btn"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('');
-                    setSemesterFilter('');
-                  }}
+                  onClick={() => setSearchTerm('')}
                 >
-                  Clear Filters
+                  Clear Search
                 </button>
               )}
             </div>
           ) : (
-            filteredGrades.map((grade) => (
-              <div key={grade.id} className="grade-card">
-                <div className="grade-header">
-                  <div className="student-info">
-                    <h3 className="student-name">{grade.student_name}</h3>
-                    <p className="student-details">
-                      ID: {grade.student_id} • {grade.academic_year} {grade.semester_display}
-                    </p>
-                  </div>
-                  <div className="grade-status">
-                    <span 
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusColor(grade.status) }}
-                    >
-                      {grade.status_display}
-                    </span>
-                  </div>
+            filteredStudents.map((student) => (
+              <div key={student.student_id} className="student-section">
+                <div className="student-header">
+                  <h2 className="student-name">{student.student_name}</h2>
+                  <span className="student-id">ID: {student.student_id}</span>
+                  <span className="semester-count">{student.semester_groups.length} semester{student.semester_groups.length !== 1 ? 's' : ''}</span>
                 </div>
 
-                <div className="grade-metrics">
-                  <div className="metric-item">
-                    <div className="metric-label">General Weighted Average</div>
-                    <div className="metric-value">{safePercentage(grade.general_weighted_average)}</div>
-                  </div>
-                  <div className="metric-item">
-                    <div className="metric-label">Semestral Weighted Average</div>
-                    <div className="metric-value">{safePercentage(grade.semestral_weighted_average)}</div>
-                  </div>
-                </div>
+                <div className="semester-cards">
+                  {student.semester_groups.map((group, groupIndex) => {
+                    const groupKey = `${student.student_id}-${group.academic_year}-${group.semester}`;
+                    const isExpanded = expandedGroups.has(groupKey);
+                    const merritColor = getMeritColor(group.merit_level);
+                    const merritEmoji = getMeritEmoji(group.merit_level);
+                    const allowanceAmount = group.qualifies_merit ? '₱10,000' : group.qualifies_basic ? '₱5,000' : '₱0';
 
-                <div className="eligibility-section">
-                  <div className="eligibility-title">Allowance Eligibility</div>
-                  <div className="eligibility-indicators">
-                    <div className={`eligibility-item ${grade.qualifies_for_basic_allowance ? 'eligible' : 'not-eligible'}`}>
-                      <span className="eligibility-icon">
-                        {grade.qualifies_for_basic_allowance ? '✅' : '❌'}
-                      </span>
-                      <span className="eligibility-label">Basic Allowance</span>
-                    </div>
-                    <div className={`eligibility-item ${grade.qualifies_for_merit_incentive ? 'eligible' : 'not-eligible'}`}>
-                      <span className="eligibility-icon">
-                        {grade.qualifies_for_merit_incentive ? '✅' : '❌'}
-                      </span>
-                      <span className="eligibility-label">Merit Incentive</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grade-footer">
-                  <div className="submission-date">
-                    Submitted: {formatDate(grade.submitted_at)}
-                  </div>
-                  <div className="grade-actions">
-                    <button 
-                      className="action-btn view-btn"
-                      onClick={() => handleViewDetails(grade.id)}
-                      disabled={loadingDetails || deletingGradeId === grade.id}
-                    >
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM11.999 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" clipRule="evenodd" />
-                      </svg>
-                      {loadingDetails ? 'Loading...' : 'View Details'}
-                    </button>
-                    {grade.status === 'pending' && (
-                      <>
-                        <button 
-                          className="action-btn approve-btn"
-                          disabled={deletingGradeId === grade.id}
+                    return (
+                      <div key={groupIndex} className="semester-card" data-merit={group.merit_level} data-border-color={merritColor}>
+                        {/* Card Header - Click to Expand */}
+                        <div 
+                          className="card-header"
+                          onClick={() => toggleGroupExpansion(groupKey)}
+                          data-merit-bg={group.merit_level}
                         >
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Approve
-                        </button>
-                        <button 
-                          className="action-btn reject-btn"
-                          disabled={deletingGradeId === grade.id}
-                        >
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    <button 
-                      className="action-btn delete-btn"
-                      onClick={() => handleDeleteGrade(grade.id, grade.student_name)}
-                      disabled={deletingGradeId === grade.id}
-                    >
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd" />
-                      </svg>
-                      {deletingGradeId === grade.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </div>
+                          <div className="header-left">
+                            <div className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+                              ▼
+                            </div>
+                            <div className="semester-info">
+                              <div className="semester-title">{group.semester_label}</div>
+                              <div className="semester-meta">{group.subject_count} subjects • {group.total_units} units</div>
+                            </div>
+                          </div>
+
+                          <div className="header-right">
+                            <div className="gwa-display" data-merit={group.merit_level}>
+                              <div className="gwa-value">{group.gwa?.toFixed(2) || 'N/A'}</div>
+                              <div className="gwa-label">GWA</div>
+                            </div>
+                            <div className="merit-display" data-merit={group.merit_level}>
+                              <div className="merit-emoji">{merritEmoji}</div>
+                              <div className="merit-label">{group.merit_level.replace(/_/g, ' ')}</div>
+                            </div>
+                            <div className="allowance-display" data-merit={group.merit_level}>
+                              <div className="allowance-amount">
+                                {allowanceAmount}
+                              </div>
+                              <div className="allowance-label">Allowance</div>
+                            </div>
+                            <div className="status-indicator">
+                              {group.all_approved ? (
+                                <span className="approved-badge">✅ Complete</span>
+                              ) : (
+                                <span className="pending-badge">⏳ {group.pending_count} Pending</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Content - Subjects Table (Collapsible) */}
+                        {isExpanded && (
+                          <div className="card-content">
+                            <table className="subjects-table">
+                              <thead>
+                                <tr>
+                                  <th>Subject Code</th>
+                                  <th>Subject Name</th>
+                                  <th className="text-center">Units</th>
+                                  <th className="text-center">Grade</th>
+                                  <th className="text-center">Status</th>
+                                  <th className="text-center">AI Confidence</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.subjects.map((subject, subIndex) => (
+                                  <tr key={subIndex} className={`subject-row status-${subject.status}`} data-status={subject.status}>
+                                    <td className="subject-code">{subject.subject_code}</td>
+                                    <td className="subject-name">{subject.subject_name}</td>
+                                    <td className="text-center">{subject.units}</td>
+                                    <td className="text-center grade-cell">
+                                      <span className="grade-badge" data-merit={subject.ai_merit_level}>
+                                        {subject.grade_received?.toFixed(2) || '—'}
+                                      </span>
+                                    </td>
+                                    <td className="text-center">
+                                      <span className="status-badge" data-status={subject.status}>
+                                        {subject.status}
+                                      </span>
+                                    </td>
+                                    <td className="text-center">
+                                      <div className="confidence-meter">
+                                        <div className="confidence-bar" style={{ width: `${subject.ai_confidence_score * 100}%` }}></div>
+                                        <span className="confidence-text">{(subject.ai_confidence_score * 100).toFixed(0)}%</span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+
+                            {/* Summary Footer */}
+                            <div className="card-footer">
+                              <div className="footer-left">
+                                <div className="summary-item">
+                                  <span className="summary-label">Completion:</span>
+                                  <span className="summary-value">{group.approved_count}/{group.subject_count} approved</span>
+                                </div>
+                              </div>
+                              <div className="footer-right">
+                                <button 
+                                  className="action-btn approve-all-btn"
+                                  onClick={() => handleApproveSemesterGroup(student.student_id, group.academic_year, group.semester)}
+                                  disabled={group.all_approved}
+                                >
+                                  ✅ Approve All
+                                </button>
+                                <button 
+                                  className="action-btn recalculate-btn"
+                                  onClick={() => handleRecalculateSemesterGWA(student.student_id, group.academic_year, group.semester)}
+                                >
+                                  🔄 Recalculate
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -368,8 +507,8 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       {/* Grade Details Modal */}
       {selectedGrade && (
         <GradeDetailsModal 
-          grade={selectedGrade} 
-          onClose={handleCloseDetails}
+          grade={selectedGrade as any}
+          onClose={() => setSelectedGrade(null)}
         />
       )}
     </div>

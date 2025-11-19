@@ -283,6 +283,21 @@ class DocumentSubmission(models.Model):
     ai_analysis_notes = models.TextField(blank=True, null=True)
     address_match_score = models.FloatField(default=0.0, help_text="Address matching confidence score (0.0-1.0)")
     
+    # Face Verification and Liveness Detection Fields
+    liveness_verification_completed = models.BooleanField(default=False, help_text="Whether liveness verification was performed")
+    liveness_verification_passed = models.BooleanField(default=False, help_text="Whether liveness checks passed")
+    liveness_data = models.JSONField(default=dict, blank=True, help_text="Liveness challenge results (color flash, blink, movement)")
+    face_detected_in_document = models.BooleanField(default=False, help_text="Whether a face was detected in the document")
+    face_embedding = models.JSONField(default=dict, blank=True, help_text="Face embedding vector for comparison")
+    face_verification_completed = models.BooleanField(default=False, help_text="Whether face verification with selfie was done")
+    face_match_score = models.FloatField(default=0.0, help_text="Face similarity score (0.0-1.0)")
+    face_match_confidence = models.CharField(max_length=20, blank=True, null=True, help_text="Confidence level: very_low, low, medium, high, very_high")
+    selfie_captured = models.BooleanField(default=False, help_text="Whether a live selfie was captured for verification")
+    
+    # COE Subject Extraction Fields (for Certificate of Enrollment documents)
+    extracted_subjects = models.JSONField(default=list, blank=True, help_text="List of subjects extracted from COE: [{subject_code, subject_name}, ...]")
+    subject_count = models.IntegerField(default=0, help_text="Total number of subjects extracted from COE")
+    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 
@@ -309,21 +324,28 @@ class GradeSubmission(models.Model):
     ]
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
-    academic_year = models.CharField(max_length=9, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
+    academic_year = models.CharField(max_length=20, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
     semester = models.CharField(max_length=10, choices=SEMESTER_CHOICES)
     
-    # Grade details
-    total_units = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(30)])
+    # Per-Subject Information (NEW - One submission per subject)
+    subject_code = models.CharField(max_length=20, blank=True, null=True, help_text="Subject code (e.g., GE101, MATH101)")
+    subject_name = models.CharField(max_length=200, blank=True, null=True, help_text="Subject name (e.g., Technopreneurship)")
+    units = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(10)], help_text="Number of units for this subject")
+    grade_received = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Grade for this subject")
+    
+    # Legacy fields (kept for backward compatibility with old submissions)
+    total_units = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(30)], blank=True, null=True)
     # GWA in point scale: 1.00-5.00 (1.00 is highest, 5.00 is failing)
     # Note: Backend validation will accept both percentage (65-100) and point scale (1.00-5.00)
     general_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
-                                                 validators=[MinValueValidator(1.0), MaxValueValidator(100.0)])
+                                                 validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
+                                                 blank=True, null=True)
     # DEPRECATED: SWA field kept for backward compatibility but not used in frontend
     semestral_weighted_average = models.DecimalField(max_digits=5, decimal_places=2, 
                                                    validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
                                                    null=True, blank=True, default=None)
     
-    # Grade sheet upload
+    # Grade sheet upload (one grade image per subject)
     grade_sheet = models.FileField(upload_to='grades/%Y/%m/', validators=grade_sheet_validators)
     
     # Validation flags
@@ -341,6 +363,13 @@ class GradeSubmission(models.Model):
     qualifies_for_basic_allowance = models.BooleanField(default=False)
     qualifies_for_merit_incentive = models.BooleanField(default=False)
     
+    # AI Grades Detection fields (for OCR-based grade extraction)
+    ai_grades_detected = models.BooleanField(default=False, help_text="Whether AI detected grades from document")
+    ai_gwa_calculated = models.FloatField(null=True, blank=True, help_text="AI-calculated GWA from OCR")
+    ai_merit_level = models.CharField(max_length=50, blank=True, null=True, help_text="AI-determined merit level")
+    ai_grades_confidence = models.FloatField(default=0.0, help_text="Confidence in OCR grade detection (0.0-1.0)")
+    ai_grades_recommendations = models.JSONField(default=list, blank=True, help_text="Merit-based recommendations")
+    
     # Admin review
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True)
@@ -352,7 +381,7 @@ class GradeSubmission(models.Model):
     
     class Meta:
         ordering = ['-submitted_at']
-        unique_together = ['student', 'academic_year', 'semester']
+        unique_together = ['student', 'academic_year', 'semester', 'subject_code']
     
     def _convert_to_percentage(self, gwa_value):
         """
@@ -611,6 +640,21 @@ class AllowanceApplication(models.Model):
     email_sent = models.BooleanField(default=False)
     email_sent_at = models.DateTimeField(null=True, blank=True)
     notification_error = models.TextField(blank=True, null=True)
+    
+    # Face verification fields (moved from grade submission)
+    face_verification_required = models.BooleanField(default=True, help_text="Whether face verification is required for this application")
+    face_verification_completed = models.BooleanField(default=False, help_text="Whether face verification has been completed")
+    face_verification_passed = models.BooleanField(null=True, blank=True, help_text="Whether face verification passed")
+    face_verification_score = models.FloatField(null=True, blank=True, help_text="Face verification similarity score (0.0-1.0)")
+    face_verification_confidence = models.CharField(max_length=20, blank=True, null=True, help_text="Face verification confidence level")
+    face_verification_data = models.JSONField(default=dict, blank=True, help_text="Detailed face verification results")
+    face_verification_attempted_at = models.DateTimeField(null=True, blank=True, help_text="When face verification was last attempted")
+    face_verification_notes = models.TextField(blank=True, null=True, help_text="Notes from face verification process")
+    
+    # Face verification attempt tracking (for retry logic and cooldown)
+    verification_attempt_count = models.IntegerField(default=0, help_text="Number of failed verification attempts")
+    last_verification_attempt_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of last verification attempt")
+    verification_cooldown_until = models.DateTimeField(null=True, blank=True, help_text="When the user can try verification again (after 3 failed attempts, cooldown 24 hours)")
     
     
     class Meta:
@@ -1145,5 +1189,120 @@ class FullApplication(models.Model):
     
     def __str__(self):
         return f"Application for {self.user.username} - {self.school_year} {self.semester}"
+
+
+class VerificationAdjudication(models.Model):
+    """
+    Model to track face verification attempts and admin adjudication decisions.
+    All face verifications are reviewed by an administrator for final approval/rejection.
+    This implements the human-in-the-loop security model.
+    """
+    
+    ADMIN_DECISION_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('escalated', 'Escalated for Investigation'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending_review', 'Pending Admin Review'),
+        ('under_review', 'Currently Under Review'),
+        ('completed', 'Review Completed'),
+        ('error', 'Processing Error'),
+    ]
+    
+    VERIFICATION_BACKEND_CHOICES = [
+        ('rekognition', 'AWS Rekognition'),
+        ('yolo_insightface', 'YOLO + InsightFace'),
+    ]
+    
+    # User and application references
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='face_verifications')
+    application = models.ForeignKey(AllowanceApplication, on_delete=models.CASCADE, null=True, blank=True, related_name='face_verifications')
+    document_submission = models.ForeignKey('DocumentSubmission', on_delete=models.SET_NULL, null=True, blank=True, related_name='face_verifications')
+    
+    # Image paths/references
+    school_id_image_path = models.CharField(max_length=500, help_text="Path to the submitted School ID image")
+    selfie_image_path = models.CharField(max_length=500, help_text="Path to the live captured selfie")
+    
+    # Automated verification results (from AWS Rekognition or YOLO/InsightFace)
+    verification_backend = models.CharField(max_length=20, choices=VERIFICATION_BACKEND_CHOICES, default='yolo_insightface')
+    automated_liveness_score = models.FloatField(default=0.0, help_text="Liveness detection score (0.0-1.0, higher = more confident)")
+    automated_match_result = models.BooleanField(default=False, help_text="Whether automated verification passed")
+    automated_similarity_score = models.FloatField(null=True, blank=True, help_text="Face similarity score (0.0-1.0, >0.99 = very high confidence)")
+    automated_confidence_level = models.CharField(
+        max_length=20, 
+        choices=[
+            ('very_high', 'Very High (≥99%)'),
+            ('high', 'High (≥95%)'),
+            ('medium', 'Medium (≥90%)'),
+            ('low', 'Low (≥85%)'),
+            ('very_low', 'Very Low (<85%)'),
+        ],
+        default='very_low',
+        help_text="Automated verification confidence level"
+    )
+    automated_verification_data = models.JSONField(default=dict, blank=True, help_text="Detailed automated verification results")
+    liveness_data = models.JSONField(default=dict, blank=True, help_text="Liveness detection challenge results")
+    
+    # Admin review fields
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_review', db_index=True)
+    admin_decision = models.CharField(max_length=20, choices=ADMIN_DECISION_CHOICES, default='pending', db_index=True)
+    admin_decision_score = models.FloatField(null=True, blank=True, help_text="Optional admin override confidence score")
+    admin_notes = models.TextField(blank=True, null=True, help_text="Admin notes/comments on the verification")
+    admin_reviewer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='face_verifications_reviewed',
+        limit_choices_to={'role': 'admin'},
+        help_text="Admin who reviewed this verification"
+    )
+    
+    # Admin context information
+    admin_device_info = models.CharField(max_length=500, blank=True, null=True, help_text="Device info of admin reviewer")
+    admin_ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of admin reviewer")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True, help_text="When admin completed the review")
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['admin_decision', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['application', '-created_at']),
+        ]
+        verbose_name = "Face Verification Adjudication"
+        verbose_name_plural = "Face Verification Adjudications"
+    
+    def __str__(self):
+        return f"Face Verification - {self.user.username} - {self.get_admin_decision_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    
+    def is_pending_review(self):
+        """Check if this verification is still awaiting admin review"""
+        return self.admin_decision == 'pending'
+    
+    def mark_as_reviewed(self, admin_user, decision, score=None, notes=''):
+        """Mark this verification as reviewed by an admin"""
+        self.admin_reviewer = admin_user
+        self.admin_decision = decision
+        self.admin_decision_score = score
+        self.admin_notes = notes
+        self.status = 'completed'
+        self.reviewed_at = timezone.now()
+        self.save()
+    
+    def is_approved(self):
+        """Check if admin approved this verification"""
+        return self.admin_decision == 'approved'
+
+
+# Import fraud detection models at the end to avoid circular import
+from .fraud_detection_models import FraudReport, FraudNotification, UserAccountAction
 
 

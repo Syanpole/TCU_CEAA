@@ -18,6 +18,9 @@ from .serializers import (TaskSerializer, UserSerializer, LoginSerializer, Regis
 from .email_utils import send_approval_email, send_verification_code_email, send_password_reset_email
 from .email_verification_service import VerificationService
 import logging
+import json
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
 
@@ -596,6 +599,32 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
         document.reviewed_by = request.user
         document.save()
         
+        # If COE is approved, extract subjects
+        if new_status == 'approved' and document.document_type == 'certificate_of_enrollment':
+            try:
+                from .coe_verification_service import get_coe_verification_service
+                coe_service = get_coe_verification_service()
+                
+                # Get the file path
+                file_path = document.document_file.path if hasattr(document.document_file, 'path') else None
+                
+                if file_path:
+                    logger.info(f"Extracting subjects from approved COE for student {document.student.student_id}")
+                    
+                    # Extract subjects
+                    subject_result = coe_service.extract_subject_list(file_path)
+                    
+                    if subject_result['success'] and subject_result['subjects']:
+                        document.extracted_subjects = subject_result['subjects']
+                        document.subject_count = subject_result['subject_count']
+                        document.save()
+                        
+                        logger.info(f"✅ Extracted {subject_result['subject_count']} subjects from COE")
+                    else:
+                        logger.warning(f"⚠️ Could not extract subjects from COE: {subject_result.get('errors')}")
+            except Exception as e:
+                logger.error(f"❌ Error extracting subjects from COE: {str(e)}")
+        
         # Create audit log
         AuditLog.objects.create(
             user=request.user,
@@ -606,7 +635,8 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                 'student_id': document.student.student_id,
                 'document_type': document.document_type,
                 'new_status': new_status,
-                'admin_notes': admin_notes
+                'admin_notes': admin_notes,
+                'subjects_extracted': document.subject_count if document.document_type == 'certificate_of_enrollment' else None
             },
             ip_address=request.META.get('REMOTE_ADDR', ''),
             user_agent=request.META.get('HTTP_USER_AGENT', '')
@@ -764,6 +794,598 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(grade_submission)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def grouped_by_semester(self, request):
+        """
+        Get grades grouped by (academic_year, semester) with GWA calculation.
+        Admins can get grouped grades for all students or specific students.
+        Students can only get their own grouped grades.
+        
+        Query parameters:
+        - student_id: (Admin only) Filter by specific student
+        - academic_year: Filter by academic year
+        - semester: Filter by semester
+        - status: Filter by status (pending, approved, rejected)
+        
+        Returns:
+            List of semester groups with:
+            - academic_year, semester, semester_label
+            - subjects: List of grades in group
+            - gwa: Calculated GWA
+            - subject_count: Number of subjects
+            - total_units: Total units for semester
+            - merit_level: Merit classification
+            - qualifies_basic: Basic allowance eligibility
+            - qualifies_merit: Merit allowance eligibility
+        """
+        from .semester_grouping_service import get_semester_grouping_service
+        
+        grouping_service = get_semester_grouping_service()
+        
+        try:
+            if request.user.is_admin():
+                # Admin can view grouped grades
+                student_id = request.query_params.get('student_id')
+                academic_year = request.query_params.get('academic_year')
+                semester = request.query_params.get('semester')
+                status_filter = request.query_params.get('status')
+                
+                if student_id:
+                    # Get grouped grades for specific student
+                    try:
+                        student = CustomUser.objects.get(id=student_id, role='student')
+                    except CustomUser.DoesNotExist:
+                        return Response(
+                            {'error': f'Student with ID {student_id} not found'},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                    
+                    filters = {}
+                    if academic_year:
+                        filters['academic_year'] = academic_year
+                    if semester:
+                        filters['semester'] = semester
+                    if status_filter:
+                        filters['status'] = status_filter
+                    
+                    grouped_data = grouping_service.group_student_grades_by_semester(student, filters)
+                    return Response({
+                        'student_id': student.id,
+                        'student_name': f"{student.first_name} {student.last_name}",
+                        'semester_groups': grouped_data
+                    })
+                else:
+                    # Get grouped grades for all students
+                    grouped_all = grouping_service.get_grouped_grades_for_admin(
+                        academic_year=academic_year,
+                        semester=semester,
+                        status=status_filter
+                    )
+                    
+                    # Convert to list format for response
+                    response_data = []
+                    for student_id, groups in grouped_all.items():
+                        try:
+                            student = CustomUser.objects.get(id=student_id)
+                            response_data.append({
+                                'student_id': student_id,
+                                'student_name': f"{student.first_name} {student.last_name}",
+                                'semester_groups': groups
+                            })
+                        except CustomUser.DoesNotExist:
+                            pass
+                    
+                    return Response(response_data)
+            else:
+                # Students can only see their own grouped grades
+                academic_year = request.query_params.get('academic_year')
+                semester = request.query_params.get('semester')
+                
+                filters = {}
+                if academic_year:
+                    filters['academic_year'] = academic_year
+                if semester:
+                    filters['semester'] = semester
+                
+                grouped_data = grouping_service.group_student_grades_by_semester(
+                    request.user,
+                    filters
+                )
+                
+                return Response({
+                    'student_id': request.user.id,
+                    'student_name': f"{request.user.first_name} {request.user.last_name}",
+                    'semester_groups': grouped_data
+                })
+        
+        except Exception as e:
+            logger.error(f"Error getting grouped grades: {str(e)}")
+            return Response(
+                {'error': f'Error retrieving grouped grades: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve_semester_group(self, request):
+        """
+        Admin action to approve all grades in a semester group.
+        
+        Expected data:
+        - student_id: Student ID
+        - academic_year: Academic year
+        - semester: Semester
+        """
+        if not request.user.is_admin():
+            return Response(
+                {'error': 'Only admins can approve semester groups'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            student_id = request.data.get('student_id')
+            academic_year = request.data.get('academic_year')
+            semester = request.data.get('semester')
+            admin_notes = request.data.get('admin_notes', '')
+            
+            if not all([student_id, academic_year, semester]):
+                return Response(
+                    {'error': 'Missing required fields: student_id, academic_year, semester'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update all grades in this semester group
+            updated_count = GradeSubmission.objects.filter(
+                student_id=student_id,
+                academic_year=academic_year,
+                semester=semester
+            ).update(
+                status='approved',
+                reviewed_by=request.user,
+                reviewed_at=timezone.now(),
+                admin_notes=admin_notes
+            )
+            
+            if updated_count == 0:
+                return Response(
+                    {'error': f'No grades found for this semester group'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f"Admin {request.user.id} approved {updated_count} grades for semester group")
+            
+            # Get updated semester data
+            from .semester_grouping_service import get_semester_grouping_service
+            grouping_service = get_semester_grouping_service()
+            
+            try:
+                student = CustomUser.objects.get(id=student_id)
+                updated_group = grouping_service.get_semester_detail(student, academic_year, semester)
+                
+                return Response({
+                    'message': f'Successfully approved {updated_count} grade(s)',
+                    'updated_count': updated_count,
+                    'semester_group': updated_group
+                })
+            except CustomUser.DoesNotExist:
+                return Response({
+                    'message': f'Successfully approved {updated_count} grade(s)',
+                    'updated_count': updated_count
+                })
+        
+        except Exception as e:
+            logger.error(f"Error approving semester group: {str(e)}")
+            return Response(
+                {'error': f'Error approving semester group: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# New Grade Submission API Endpoints (Per-Subject Workflow)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_grade_submission_eligibility(request):
+    """
+    Check if the current user is eligible to submit grades.
+    
+    Returns:
+        - can_submit: Boolean indicating if user can submit grades
+        - required_documents: List of required document types
+        - approved_documents: List of approved document types
+        - missing_documents: List of missing document types
+        - pending_documents: List of pending document types
+        - messages: List of user-friendly messages
+    """
+    try:
+        # Check for approved COE
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).first()
+        
+        # Check for approved ID documents
+        id_documents = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type__in=['student_id', 'government_id', 'school_id', 'birth_certificate'],
+            status='approved'
+        )
+        
+        # Get all user documents for comprehensive check
+        all_docs = DocumentSubmission.objects.filter(student=request.user)
+        approved_docs = all_docs.filter(status='approved')
+        pending_docs = all_docs.filter(status__in=['pending', 'needs_review', 'ai_processing'])
+        
+        required_doc_types = ['certificate_of_enrollment', 'id_copy']
+        approved_doc_types = list(approved_docs.values_list('document_type', flat=True))
+        pending_doc_types = list(pending_docs.values_list('document_type', flat=True))
+        
+        has_approved_coe = coe_document is not None
+        has_approved_id = id_documents.exists()
+        
+        messages = []
+        can_submit = has_approved_coe and has_approved_id
+        
+        if not has_approved_coe:
+            if all_docs.filter(document_type='certificate_of_enrollment').exists():
+                messages.append('Your Certificate of Enrollment is still being reviewed.')
+            else:
+                messages.append('Please submit your Certificate of Enrollment.')
+        elif coe_document.subject_count == 0:
+            messages.append('Your COE has been approved but no subjects were extracted. Please contact admin.')
+            can_submit = False
+        
+        if not has_approved_id:
+            if all_docs.filter(document_type__in=['student_id', 'government_id', 'school_id', 'birth_certificate']).exists():
+                messages.append('Your ID document is still being reviewed.')
+            else:
+                messages.append('Please submit a valid ID (School ID, Birth Certificate, or Government ID).')
+        
+        if can_submit:
+            messages.append('✅ You are eligible to submit grades!')
+        
+        return Response({
+            'can_submit': can_submit,
+            'required_documents': required_doc_types,
+            'approved_documents': approved_doc_types,
+            'pending_documents': pending_doc_types,
+            'missing_documents': [doc for doc in required_doc_types if doc not in approved_doc_types],
+            'messages': messages,
+            'coe_subjects_count': coe_document.subject_count if coe_document else 0
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking grade submission eligibility: {str(e)}")
+        return Response({
+            'error': f'Error checking eligibility: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_coe_subjects(request):
+    """
+    Get the list of subjects extracted from the student's approved COE.
+    
+    Returns:
+        - subjects: List of subjects from COE
+        - subject_count: Number of subjects
+        - coe_document_id: ID of the COE document
+    """
+    try:
+        # Find the student's approved COE document
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document:
+            return Response({
+                'error': 'No approved Certificate of Enrollment found. Please submit and get your COE approved first.',
+                'subjects': [],
+                'subject_count': 0
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if subjects have been extracted
+        if not coe_document.extracted_subjects or coe_document.subject_count == 0:
+            return Response({
+                'error': 'No subjects found in your COE. Please contact admin for manual verification.',
+                'subjects': [],
+                'subject_count': 0,
+                'coe_document_id': coe_document.id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'subjects': coe_document.extracted_subjects,
+            'subject_count': coe_document.subject_count,
+            'coe_document_id': coe_document.id,
+            'coe_submitted_at': coe_document.submitted_at
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching COE subjects: {str(e)}")
+        return Response({
+            'error': f'Error fetching subjects: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_subject_grade(request):
+    """
+    Submit a grade for a single subject.
+    
+    Expected data:
+        - subject_code: Subject code (e.g., GE101)
+        - subject_name: Subject name
+        - academic_year: Academic year (YYYY-YYYY)
+        - semester: Semester (1st, 2nd, summer)
+        - units: Number of units
+        - grade_received: Grade for this subject
+        - grade_sheet: Image file of the grade
+    """
+    try:
+        from .serializers import GradeSubmissionCreateSerializer
+        
+        # Validate required fields
+        required_fields = ['subject_code', 'subject_name', 'academic_year', 'semester', 'grade_sheet']
+        for field in required_fields:
+            if field not in request.data:
+                return Response({
+                    'error': f'Missing required field: {field}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create grade submission
+        data = request.data.copy()
+        
+        # Create the grade submission
+        grade_submission = GradeSubmission.objects.create(
+            student=request.user,
+            subject_code=data.get('subject_code'),
+            subject_name=data.get('subject_name'),
+            academic_year=data.get('academic_year'),
+            semester=data.get('semester'),
+            units=data.get('units'),
+            grade_received=data.get('grade_received'),
+            grade_sheet=data.get('grade_sheet'),
+            status='processing'  # Set to processing while AI verifies
+        )
+        
+        # Trigger AI verification asynchronously
+        from .tasks import verify_grade_sheet_task
+        try:
+            verify_grade_sheet_task(grade_submission.id)
+        except Exception as e:
+            logger.error(f"Error triggering AI verification: {str(e)}")
+            # Continue even if AI verification fails
+        
+        serializer = GradeSubmissionSerializer(grade_submission)
+        
+        audit_logger.log(
+            user=request.user,
+            action_type='GRADE_SUBMITTED',
+            action_description=f'Grade submitted for {data.get("subject_code")} - {data.get("subject_name")}',
+            severity='info',
+            target_model='GradeSubmission',
+            target_object_id=grade_submission.id,
+            metadata={
+                'subject_code': data.get('subject_code'),
+                'subject_name': data.get('subject_name'),
+                'semester': data.get('semester')
+            },
+            request=request
+        )
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        logger.error(f"Error submitting subject grade: {str(e)}")
+        return Response({
+            'error': f'Error submitting grade: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_grade_submissions(request):
+    """
+    Validate all grade submissions against the COE subject list.
+    
+    Expected data:
+        - academic_year: Academic year to validate
+        - semester: Semester to validate
+    
+    Returns validation results with detailed feedback.
+    """
+    try:
+        from .grade_validation_service import get_grade_validation_service
+        
+        academic_year = request.data.get('academic_year')
+        semester = request.data.get('semester')
+        
+        if not academic_year or not semester:
+            return Response({
+                'error': 'Missing academic_year or semester'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get COE subjects
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document or not coe_document.extracted_subjects:
+            return Response({
+                'error': 'No approved COE with extracted subjects found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get grade submissions for this period
+        grade_submissions = GradeSubmission.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            subject_code__isnull=False  # Only new per-subject submissions
+        ).values('id', 'subject_code', 'subject_name', 'units', 'grade_received', 'status')
+        
+        # Validate
+        validation_service = get_grade_validation_service()
+        validation_result = validation_service.validate_grade_submissions(
+            coe_subjects=coe_document.extracted_subjects,
+            grade_submissions=list(grade_submissions)
+        )
+        
+        # Add validation summary
+        validation_result['summary'] = validation_service.get_validation_summary(validation_result)
+        
+        # Calculate GPA and merit eligibility if validation passed
+        if validation_result['is_valid']:
+            from .services import gwa_calculation_service
+            gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(
+                request.user, academic_year, semester
+            )
+            if gwa_result:
+                validation_result['gwa_calculation'] = {
+                    'success': True,
+                    'gwa': gwa_result['gwa'],
+                    'merit_level': gwa_result['merit_level'],
+                    'qualifies_for_merit': gwa_result['merit_eligible'],
+                    'total_units': gwa_result['total_units'],
+                    'calculation_triggered': gwa_result['calculation_triggered']
+                }
+            else:
+                validation_result['gwa_calculation'] = {
+                    'success': False,
+                    'message': 'GWA calculation could not be completed'
+                }
+        
+        audit_logger.log(
+            user=request.user,
+            action_type='GRADES_VALIDATED',
+            action_description=f'Grade validation for {academic_year} {semester}: {"PASSED" if validation_result["is_valid"] else "FAILED"}',
+            severity='info' if validation_result['is_valid'] else 'warning',
+            metadata={
+                'academic_year': academic_year,
+                'semester': semester,
+                'is_valid': validation_result['is_valid'],
+                'error_count': len(validation_result['errors'])
+            },
+            request=request
+        )
+        
+        return Response(validation_result)
+    
+    except Exception as e:
+        logger.error(f"Error validating grades: {str(e)}")
+        return Response({
+            'error': f'Validation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_grade_submission_status(request):
+    """
+    Get the current status of grade submissions for a student.
+    
+    Query params:
+        - academic_year: Academic year
+        - semester: Semester
+    
+    Returns:
+        - total_subjects: Number of subjects from COE
+        - submitted_count: Number of grades submitted
+        - approved_count: Number of grades approved
+        - rejected_count: Number of grades rejected
+        - pending_count: Number of grades pending review
+        - is_complete: Whether all subjects have been submitted
+        - can_proceed_to_liveness: Whether student can proceed to liveness detection
+        - submissions: List of grade submissions with details
+    """
+    try:
+        academic_year = request.query_params.get('academic_year')
+        semester = request.query_params.get('semester')
+        
+        if not academic_year or not semester:
+            return Response({
+                'error': 'Missing academic_year or semester parameter'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get COE subjects
+        coe_document = DocumentSubmission.objects.filter(
+            student=request.user,
+            document_type='certificate_of_enrollment',
+            status='approved'
+        ).order_by('-submitted_at').first()
+        
+        if not coe_document or not coe_document.extracted_subjects:
+            return Response({
+                'error': 'No approved COE found',
+                'total_subjects': 0,
+                'submitted_count': 0
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get grade submissions
+        submissions = GradeSubmission.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            subject_code__isnull=False
+        )
+        
+        total_subjects = coe_document.subject_count
+        submitted_count = submissions.count()
+        approved_count = submissions.filter(status='approved').count()
+        rejected_count = submissions.filter(status='rejected').count()
+        pending_count = submissions.filter(status='pending').count()
+        
+        # Check if can proceed to liveness (all submitted)
+        is_complete = submitted_count == total_subjects
+        all_approved = approved_count == total_subjects
+        # Allow proceeding to liveness once all subjects are submitted (don't wait for admin approval)
+        can_proceed_to_liveness = is_complete
+        
+        # Calculate GPA if all approved
+        gpa_data = None
+        if all_approved:
+            from .services import gwa_calculation_service
+            gwa_result = gwa_calculation_service.calculate_semester_gwa(request.user, academic_year, semester)
+            if gwa_result:
+                gpa_data = {
+                    'gpa': gwa_result['gwa'],
+                    'merit_level': gwa_result['merit_level'],
+                    'qualifies_for_merit': gwa_result['merit_eligible'],
+                    'total_units': gwa_result['total_units']
+                }
+        
+        serializer = GradeSubmissionSerializer(submissions, many=True)
+        
+        response_data = {
+            'total_subjects': total_subjects,
+            'submitted_count': submitted_count,
+            'approved_count': approved_count,
+            'rejected_count': rejected_count,
+            'pending_count': pending_count,
+            'is_complete': is_complete,
+            'all_approved': all_approved,
+            'can_proceed_to_liveness': can_proceed_to_liveness,
+            'submissions': serializer.data,
+            'coe_subjects': coe_document.extracted_subjects
+        }
+        
+        if gpa_data:
+            response_data['gpa_calculated'] = True
+            response_data.update(gpa_data)
+        
+        return Response(response_data)
+    
+    except Exception as e:
+        logger.error(f"Error getting grade submission status: {str(e)}")
+        return Response({
+            'error': f'Error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class AllowanceApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -855,6 +1477,232 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
                 response_data['email_error'] = email_error
         
         return Response(response_data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def verify_identity(self, request, pk=None):
+        """
+        Verify student identity for allowance application using liveness detection and face verification.
+        This is the final step after allowance application to confirm the student's identity.
+        
+        Expected POST data:
+        - photo: File (Live selfie with liveness verification)
+        - liveness_data: JSON string (liveness challenge results)
+        
+        Returns:
+        - success: Boolean
+        - liveness_passed: Boolean
+        - face_verified: Boolean
+        - message: String
+        """
+        from .face_comparison_service import FaceComparisonService
+        
+        try:
+            application = self.get_object()
+            
+            # Check if application belongs to the requesting user
+            if application.student != request.user:
+                return Response({
+                    'error': 'You can only verify your own applications'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Check if face verification is already completed
+            if application.face_verification_completed:
+                return Response({
+                    'success': False,
+                    'error': 'Face verification has already been completed for this application'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get uploaded photo
+            photo = request.FILES.get('photo')
+            liveness_data_str = request.POST.get('liveness_data')
+            
+            # Validate inputs
+            if not photo:
+                return Response({
+                    'error': 'Photo is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not liveness_data_str:
+                return Response({
+                    'error': 'Liveness data is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Parse liveness data
+            try:
+                liveness_data = json.loads(liveness_data_str)
+            except json.JSONDecodeError:
+                return Response({
+                    'error': 'Invalid liveness data format'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Initialize face service
+            face_service = FaceComparisonService()
+            
+            # Verify liveness first
+            liveness_passed = face_service._verify_liveness_data(liveness_data)
+            
+            if not liveness_passed:
+                logger.warning(f"Liveness verification failed for user {request.user.id} on application {application.id}")
+                
+                # Update application with failed verification
+                application.face_verification_completed = True
+                application.face_verification_passed = False
+                application.face_verification_attempted_at = timezone.now()
+                application.face_verification_notes = 'Liveness verification failed. Please ensure you complete all challenges (color flash, blink, movement).'
+                application.face_verification_data = {
+                    'liveness_passed': False,
+                    'liveness_data': liveness_data,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.save()
+                
+                return Response({
+                    'success': False,
+                    'liveness_passed': False,
+                    'face_verified': False,
+                    'message': 'Liveness verification failed. Please ensure you complete all challenges (color flash, blink, movement).'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get the user's ID document for face comparison
+            # Look for approved ID documents (school_id, birth_certificate, or voters_certificate)
+            id_document = DocumentSubmission.objects.filter(
+                student=request.user,
+                status='approved',
+                document_type__in=['school_id', 'birth_certificate', 'voters_certificate']
+            ).first()
+            
+            if not id_document or not id_document.file:
+                # Update application with failed verification
+                application.face_verification_completed = True
+                application.face_verification_passed = False
+                application.face_verification_attempted_at = timezone.now()
+                application.face_verification_notes = 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
+                application.face_verification_data = {
+                    'liveness_passed': True,
+                    'id_document_missing': True,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.save()
+                
+                return Response({
+                    'success': False,
+                    'liveness_passed': True,
+                    'face_verified': False,
+                    'message': 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save selfie temporarily
+            selfie_path = default_storage.save(
+                f'temp/allowance_selfie_{request.user.id}_{application.id}.jpg',
+                ContentFile(photo.read())
+            )
+            
+            try:
+                # Get full paths
+                id_full_path = default_storage.path(id_document.file.name)
+                selfie_full_path = default_storage.path(selfie_path)
+                
+                # Perform face verification
+                verification_result = face_service.verify_id_with_selfie(
+                    id_full_path,
+                    selfie_full_path,
+                    liveness_data
+                )
+                
+                # Clean up temporary file
+                default_storage.delete(selfie_path)
+                
+                face_verified = verification_result.get('match', False)
+                similarity_score = verification_result.get('similarity_score', 0.0)
+                confidence = verification_result.get('confidence', 'very_low')
+                
+                # Update application with verification results
+                application.face_verification_completed = True
+                application.face_verification_passed = face_verified
+                application.face_verification_score = similarity_score
+                application.face_verification_confidence = confidence
+                application.face_verification_attempted_at = timezone.now()
+                
+                # Prepare verification data
+                verification_data = {
+                    'liveness_passed': True,
+                    'face_verified': face_verified,
+                    'similarity_score': similarity_score,
+                    'confidence': confidence,
+                    'id_document_type': id_document.document_type,
+                    'id_document_id': id_document.id,
+                    'liveness_data': liveness_data,
+                    'verification_result': verification_result,
+                    'attempted_at': application.face_verification_attempted_at.isoformat()
+                }
+                application.face_verification_data = verification_data
+                
+                # Set verification notes
+                if face_verified:
+                    application.face_verification_notes = f'Identity verification successful! Face matches ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}).'
+                else:
+                    application.face_verification_notes = f'Face verification failed. Face does not sufficiently match ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}). This may indicate identity fraud.'
+                
+                application.save()
+                
+                # Log verification attempt
+                logger.info(
+                    f"Allowance application identity verification for user {request.user.id}, application {application.id}: "
+                    f"Liveness={liveness_passed}, Face Match={face_verified}, "
+                    f"Similarity={similarity_score:.4f}, Confidence={confidence}"
+                )
+                
+                # Create audit log
+                audit_logger.log(
+                    user=request.user,
+                    action_type='application_submitted',
+                    action_description=f'Identity verification completed for allowance application #{application.id}',
+                    severity='info',
+                    target_model='AllowanceApplication',
+                    target_object_id=application.id,
+                    metadata={
+                        'application_id': application.id,
+                        'face_verified': face_verified,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'liveness_passed': liveness_passed
+                    },
+                    request=request
+                )
+                
+                if face_verified:
+                    return Response({
+                        'success': True,
+                        'liveness_passed': True,
+                        'face_verified': True,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'message': 'Identity verification successful! Your face matches your ID document.'
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        'success': False,
+                        'liveness_passed': True,
+                        'face_verified': False,
+                        'similarity_score': similarity_score,
+                        'confidence': confidence,
+                        'message': f'Face verification failed. Your face does not sufficiently match your ID document (Similarity: {similarity_score:.2%}, Confidence: {confidence}). This may indicate identity fraud.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+            except Exception as processing_error:
+                # Clean up on error
+                default_storage.delete(selfie_path)
+                raise processing_error
+                
+        except Exception as e:
+            logger.error(f"Allowance application identity verification error: {str(e)}")
+            return Response(
+                {
+                    'error': 'Identity verification failed',
+                    'detail': str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # Dashboard endpoints
 @api_view(['GET'])
@@ -1039,21 +1887,67 @@ def analytics_overview(request):
     grade_status_dist = GradeSubmission.objects.values('status').annotate(count=Count('id'))
     application_status_dist = AllowanceApplication.objects.values('status').annotate(count=Count('id'))
     
-    # Top performing students
-    top_students = GradeSubmission.objects.filter(
+    # Top performing students - grouped by semester with proper GWA calculation
+    from .semester_grouping_service import get_semester_grouping_service
+    
+    top_students_raw = GradeSubmission.objects.filter(
         status='approved',
         qualifies_for_merit_incentive=True
     ).order_by('-semestral_weighted_average')[:10]
     
+    semester_grouping_service = get_semester_grouping_service()
     top_students_data = []
-    for grade in top_students:
+    seen_students = set()
+    
+    for grade in top_students_raw:
+        student_id = grade.student.id
+        
+        # Only include each student once (their best semester)
+        if student_id in seen_students:
+            continue
+        seen_students.add(student_id)
+        
+        # Get semester grouping with proper GWA calculation
+        semester_detail = semester_grouping_service.get_semester_detail(
+            grade.student,
+            grade.academic_year,
+            grade.semester
+        )
+        
+        if not semester_detail:
+            continue
+        
+        # Get all approved documents for this student
+        approved_docs = DocumentSubmission.objects.filter(
+            student=grade.student,
+            status='approved'
+        ).count()
+        
+        # Get allowance applications
+        allowance_apps = AllowanceApplication.objects.filter(
+            student=grade.student,
+            status__in=['approved', 'disbursed']
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
         top_students_data.append({
             'student_name': f"{grade.student.first_name} {grade.student.last_name}",
             'student_id': grade.student.student_id,
-            'gwa': float(grade.general_weighted_average),
-            'swa': float(grade.semestral_weighted_average),
-            'academic_year': grade.academic_year,
-            'semester': grade.get_semester_display()
+            'academic_year': semester_detail['academic_year'],
+            'semester': semester_detail['semester_label'],
+            'gwa': semester_detail.get('gwa', 0.0) or 0.0,  # Use calculated GWA from service
+            'swa': float(grade.semestral_weighted_average) if grade.semestral_weighted_average is not None else 0.0,
+            'total_units': semester_detail.get('total_units', 0),
+            'subject_count': semester_detail.get('subject_count', 0),
+            'approved_documents': approved_docs,
+            'allowance_amount': float(allowance_apps),
+            'applications_pending': AllowanceApplication.objects.filter(
+                student=grade.student,
+                status='pending'
+            ).count(),
+            'qualifies_basic': semester_detail.get('qualifies_basic', False),
+            'qualifies_merit': semester_detail.get('qualifies_merit', False),
+            'merit_level': semester_detail.get('merit_level', 'BELOW_PASSING'),
+            'all_approved': semester_detail.get('all_approved', False)
         })
     
     # Financial summary
@@ -1487,10 +2381,23 @@ def ai_document_analysis(request):
             # Update document status based on COE verification
             if coe_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = coe_result.get('confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = coe_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = coe_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = coe_result.get('is_valid', False)
+            document.ai_analysis_notes = f"COE Verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {coe_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            
+            # Save extracted subjects to document model
+            extracted_info = coe_result.get('extracted_info', {})
+            if extracted_info.get('subjects'):
+                document.extracted_subjects = extracted_info['subjects']
+                document.subject_count = extracted_info.get('subject_count', len(extracted_info['subjects']))
+                logger.info(f"✅ Saved {document.subject_count} subjects to document model")
+            else:
+                logger.warning("⚠️ No subjects extracted from COE document")
             
             document.save()
             
@@ -1542,10 +2449,15 @@ def ai_document_analysis(request):
             # Update document status based on ID verification
             if id_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
+                document.ai_confidence_score = id_result.get('overall_confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = id_result.get('overall_confidence', 0.0) * 100
+                document.ai_confidence_score = id_result.get('overall_confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = id_result.get('is_valid', False)
+            document.ai_analysis_notes = f"ID Verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {id_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            document.ai_extracted_text = id_result.get('extracted_text', '')
             
             document.save()
             
@@ -1555,16 +2467,74 @@ def ai_document_analysis(request):
                 'ai_analysis': ai_results
             })
         
+        # Check if document is Birth Certificate
+        elif document.document_type == 'birth_certificate':
+            from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+            birth_service = get_birth_certificate_verification_service()
+            birth_result = birth_service.verify_birth_certificate_document(
+                image_path=document.document_file.path,
+                confidence_threshold=0.5,
+                include_ocr=True
+            )
+            ai_results = {
+                'document_id': document_id,
+                'document_type': 'birth_certificate',
+                'processing_timestamp': timezone.now().isoformat(),
+                'service_used': 'Birth Certificate Verification Service (Advanced OCR + Field Extraction)',
+                'verification_result': birth_result,
+                'algorithms_results': {
+                    'birth_ocr': {
+                        'name': 'Advanced OCR',
+                        'confidence': birth_result.get('ocr_data', {}).get('ocr_confidence', 0.0) if birth_result.get('ocr_data') else 0.0,
+                        'extracted_info': birth_result.get('extracted_info', {})
+                    }
+                }
+            }
+            if birth_result.get('is_valid'):
+                document.status = 'verified'
+                document.ai_confidence_score = birth_result.get('confidence', 0.0)
+            else:
+                document.status = 'needs_review'
+                document.ai_confidence_score = birth_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = birth_result.get('is_valid', False)
+            document.ai_analysis_notes = f"Birth Certificate verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {birth_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
+            document.save()
+            return Response({
+                'success': True,
+                'message': f"Birth Certificate verification completed: {birth_result.get('status')}",
+                'ai_analysis': ai_results
+            })
         # Check if document is Voter's Certificate
         elif document.document_type in ['voters_certificate', 'voter_certificate', 'voters_id', 'voter_id']:
             from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
             
             voter_service = get_voter_certificate_verification_service()
             
+            user_application_data = {}
+            try:
+                from myapp.models import FullApplication
+                full_app = FullApplication.objects.filter(user=request.user).order_by('-id').first()
+                if full_app:
+                    user_application_data = {
+                        'first_name': full_app.first_name,
+                        'middle_name': full_app.middle_name,
+                        'last_name': full_app.last_name,
+                        'barangay': full_app.barangay,
+                        'house_no': full_app.house_no,
+                        'street': full_app.street,
+                        'district': full_app.district,
+                        'mother_name': full_app.mother_name,
+                        'father_name': full_app.father_name
+                    }
+            except Exception:
+                user_application_data = {}
             voter_result = voter_service.verify_voter_certificate_document(
                 image_path=document.document_file.path,
                 confidence_threshold=0.5,
-                include_ocr=True
+                include_ocr=True,
+                user_application_data=user_application_data
             )
             
             # Format response for Voter Certificate verification
@@ -1594,10 +2564,14 @@ def ai_document_analysis(request):
             # Update document status based on Voter Certificate verification
             if voter_result.get('is_valid'):
                 document.status = 'verified'
-                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = voter_result.get('confidence', 0.0)
             else:
                 document.status = 'needs_review'
-                document.ai_verification_score = voter_result.get('confidence', 0.0) * 100
+                document.ai_confidence_score = voter_result.get('confidence', 0.0)
+            document.ai_analysis_completed = True
+            document.ai_auto_approved = voter_result.get('is_valid', False)
+            document.ai_analysis_notes = f"Voter Certificate verification completed\nConfidence: {document.ai_confidence_score:.1%}\nStatus: {voter_result.get('status', 'UNKNOWN')}"
+            document.ai_key_information = ai_results
             
             document.save()
             
@@ -1609,6 +2583,7 @@ def ai_document_analysis(request):
         
         # ============================================================================
         # FALLBACK: Use legacy document validator for other document types
+        # Note: Birth Certificate, Voter Certificate, COE, and ID documents are handled above
         # ============================================================================
         
         # Import AI services
@@ -1751,8 +2726,9 @@ def ai_document_analysis(request):
                 'confidence': 0.0
             }
         
-        # 7. ID Verification 
-        if document.document_type in ['school_id', 'government_id', 'birth_certificate']:
+        # 7. ID Verification (fallback for documents not handled by specialized services)
+        # Note: Birth certificates are handled by specialized Birth Certificate service above
+        if document.document_type in ['school_id', 'government_id'] and document.document_type not in ['birth_certificate', 'voters_certificate', 'voter_certificate', 'voters_id', 'voter_id', 'certificate_of_enrollment']:
             try:
                 from myapp.id_verification_service import IDVerificationService
                 id_service = IDVerificationService()
@@ -1789,7 +2765,8 @@ def ai_document_analysis(request):
                     'confidence': 0.0
                 }
         
-        # 8. COE Verification (Certificate of Enrollment Detection)
+        # 8. COE Verification (fallback - should not reach here as COE is handled above)
+        # This is redundant and should be removed in future refactoring
         if document.document_type in ['certificate_of_enrollment', 'enrollment_certificate']:
             try:
                 from myapp.coe_verification_service import get_coe_verification_service

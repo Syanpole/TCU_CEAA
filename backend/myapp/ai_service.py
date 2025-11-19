@@ -143,10 +143,12 @@ class AIDocumentAnalyzer:
             try:
                 from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
                 
+                logger.info(f"🔍 Birth Certificate detected - routing to specialized Birth Certificate Verification Service")
                 birth_cert_service = get_birth_certificate_verification_service()
                 status = birth_cert_service.get_verification_status()
                 
                 if status.get('fully_operational', False):
+                    logger.info(f"✅ Using Birth Certificate Verification Service (Advanced OCR + Field Extraction)")
                     # Use specialized birth certificate verification with advanced OCR
                     birth_cert_result = birth_cert_service.verify_birth_certificate_document(
                         document_submission.document_file.path,
@@ -156,20 +158,22 @@ class AIDocumentAnalyzer:
                     # Convert birth certificate service result to standard analysis format
                     return self._convert_birth_cert_result_to_analysis(birth_cert_result, document_submission)
                 else:
-                    logger.warning(f"Birth certificate service not fully operational: {status}")
+                    logger.warning(f"⚠️ Birth certificate service not fully operational: {status}")
             except Exception as e:
-                logger.warning(f"Birth certificate service failed, falling back to standard analysis: {str(e)}")
+                logger.warning(f"❌ Birth certificate service failed, falling back to standard analysis: {str(e)}")
         
         # Check if document is a Voter's Certificate/ID - route to specialized service
         if document_submission.document_type in ['voters_id', 'voter_id', 'voters_certificate', 
-                                                   'voter_certification', 'comelec_stub']:
+                                                   'voter_certification', 'voter_certificate', 'comelec_stub']:
             try:
                 from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
                 
+                logger.info(f"🔍 Voter Certificate detected - routing to specialized Voter Certificate Verification Service")
                 voter_service = get_voter_certificate_verification_service()
                 status = voter_service.get_verification_status()
                 
                 if status.get('fully_operational', False):
+                    logger.info(f"✅ Using Voter Certificate Verification Service (YOLO + Advanced OCR + Field Extraction)")
                     # Use specialized voter certificate verification with advanced OCR
                     voter_result = voter_service.verify_voter_certificate_document(
                         document_submission.document_file.path,
@@ -179,9 +183,9 @@ class AIDocumentAnalyzer:
                     # Convert voter service result to standard analysis format
                     return self._convert_voter_result_to_analysis(voter_result, document_submission)
                 else:
-                    logger.warning(f"Voter certificate service not fully operational: {status}")
+                    logger.warning(f"⚠️ Voter certificate service not fully operational: {status}")
             except Exception as e:
-                logger.warning(f"Voter certificate service failed, falling back to standard analysis: {str(e)}")
+                logger.warning(f"❌ Voter certificate service failed, falling back to standard analysis: {str(e)}")
         
         analysis_result = {
             'confidence_score': 0.0,

@@ -1,57 +1,57 @@
 {
   "success": true,
   "is_valid": true,
-  "confidence": 0.9311888217521925,
+  "confidence": 0.9143467655181885,
   "status": "VALID",
   "detections": [
     {
       "class_id": 2,
       "class_name": "Person",
-      "confidence": 0.849075436592102,
+      "confidence": 0.8833242654800415,
       "bbox": [
-        115.36721801757812,
-        886.5573120117188,
-        448.4836120605469,
-        1235.97607421875
+        203.85362243652344,
+        766.6538696289062,
+        582.4627685546875,
+        1193.800048828125
       ]
     },
     {
       "class_id": 1,
       "class_name": "FINGER PRINT",
-      "confidence": 0.8384491205215454,
+      "confidence": 0.8463305830955505,
       "bbox": [
-        1169.9168701171875,
-        902.1342163085938,
-        1433.224365234375,
-        1155.530029296875
+        1665.522216796875,
+        775.5548095703125,
+        2034.4478759765625,
+        1162.424560546875
       ]
     },
     {
       "class_id": 0,
       "class_name": "COMELEC Logo",
-      "confidence": 0.8089092969894409,
+      "confidence": 0.8215834498405457,
       "bbox": [
-        468.4619445800781,
-        341.9486083984375,
-        610.9134521484375,
-        471.8404235839844
+        686.459228515625,
+        141.8443145751953,
+        852.28076171875,
+        273.3501892089844
       ]
     }
   ],
   "detected_elements": {
     "comelec_logo": {
       "present": true,
-      "confidence": 0.8089092969894409,
+      "confidence": 0.8215834498405457,
       "count": 1
     },
     "fingerprint": {
       "present": true,
-      "confidence": 0.8384491205215454,
+      "confidence": 0.8463305830955505,
       "count": 1
     },
     "photo": {
       "present": true,
-      "confidence": 0.849075436592102,
+      "confidence": 0.8833242654800415,
       "count": 1
     }
   },
@@ -63,20 +63,20 @@
   },
   "ocr_data": {
     "success": true,
-    "raw_text": "CN : 76070E1904SCF1000020240717090345\nRepublic of the Philippines\nCOMMISSION ON ELECTIONS\nOffice of the Election Officer\nCITY OF TAGUIG, NATIONAL CAPITAL REGION - FOURTH DISTRICT\nVOTER'S CERTIFICATION\nVoter's Identification Number :\n76070318CE1904SCF10000\nProvince :\nNATIONAL CAPITAL REGION FOURTH DISTRICT\nCity /\nCITY OF TAGUIG\nVRR No. :\n7607300629227\nMunicipality :\nBarangay : NEW LOWER BICUTAN\nIlliterate /\nNONE\nDisabled :\nPrecinct No. : 0318 C\nName :\nFELICIANo, SEAN PAUL CUEVAS\nBIOMETRICS :\nMETRICS\nVoter's\nSex :\nMALE\nI\nCivil Status : SINGLE\nM-\nBLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23\nResidence :\nNEW LOWER BICUTAN\nNATIONAL CAPITAL REGION FOURTH DISTRICT\nCITY OF TAGUIG\nVOTING RECORD :\nPERIOD OF RESIDENCE IN :\nCurrent :\n19 YEAR(S) AND 8 MONTH(S)\nSENIOR\nit\nCity/Municipality :\nPrevious :\n05/19/2004\nDate of Birth :\nDate of Registration : 02/12/2024\nSector :\nNEW REGISTRATION\nRegistration Type :\nIssued and signed on this 17th day of July, 2024 at CITY OF TAGUIG, NATIONAL CAPITAL REGION DISTRICT. - FOURTH\nCERTIFIED CORRECT :\nFREE\nUnder O.R. #\nATTY. EDGAR ICIANO D. ARINGAY\n0.00\n$88 Election Officer\nAmount Paid :\n07/17/2024\nDate Issued :",
-    "ocr_confidence": 0.9538635908547094,
+    "raw_text": ":\nStatus\nsidence\nCN : 76070E1904SCF1000020240717090345\nRepublic of the Philippines\nCOMMISSION ON ELECTIONS\nOffice of the Election Officer\nCITY OF TAGUIG, NATIONAL CAPITAL REGION - FOURTH DISTRICT\nVOTER'S CERTIFICATION\n0.0\nSect\nVoter's Identification Number :\n76070318CE1904SCF10000\nRegistr\nProvince :\nNATIONAL CAPITAL REGION - FOURTH DISTRICT\nand parss)\nCity /\nCITY OF TAGUIG\nMunicipality :\nVRR No. :\n7607300629227\nBarangay :\nNEW LOWER BICUTAN\nIlliterate /\nNONE\nDisabled :\nPrecinct No. : 0318 C\nO.R.\nName :\nFELICIANo, SEAN PAUL CUEVAS\n*\nBIOMETRICS :\nMETROCS\nVoter\"\nSex :\nMALE\nCertification\nCivil Status : SINGLE\nM-\nResidence :\nBLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23\nNEW LOWER BICUTAN\nCITY OF TAGUIG\nNATIONAL CAPITAL REGION - FOURTH DISTRICT\nVOTING RECORD :\nPERIOD OF RESIDENCE IN :\nCity/Municipality :\n19 YEAR(S) AND 8 MONTH(S)\nCurrent :\nit\nPrevious :\nDate of Birth :\n05/19/2004\nDate of Registration :\n02/12/2024\nSector :\nRegistration\nType\nNEW REGISTRATION",
+    "ocr_confidence": 0.8980573391914368,
     "interpreted_fields": {
       "voter_name": "FELICIANo, SEAN PAUL CUEVAS",
       "registration_number": "76070318CE1904SCF10000",
       "precinct_number": "0318 C",
-      "address": "NEW LOWER BICUTAN",
+      "address": "BLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23",
       "date_of_birth": "05/19/2004",
       "registration_date": "02/12/2024"
     },
     "voter_name": "FELICIANo, SEAN PAUL CUEVAS",
     "registration_number": "76070318CE1904SCF10000",
     "precinct_number": "0318 C",
-    "address": "NEW LOWER BICUTAN",
+    "address": "BLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23",
     "date_of_birth": "05/19/2004",
     "registration_date": "02/12/2024",
     "errors": []
@@ -85,12 +85,37 @@
     "voter_name": "FELICIANo, SEAN PAUL CUEVAS",
     "registration_number": "76070318CE1904SCF10000",
     "precinct_number": "0318 C",
-    "address": "NEW LOWER BICUTAN",
+    "address": "BLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23",
     "date_of_birth": "05/19/2004",
     "registration_date": "02/12/2024"
   },
+  "field_matches": {
+    "voter_name": {
+      "match": true,
+      "score": 1.0,
+      "extracted": "FELICIANo, SEAN PAUL CUEVAS",
+      "application": "SEAN PAUL CUEVAS FELICIANO"
+    },
+    "address": {
+      "match": true,
+      "score": 0.8085106382978723,
+      "extracted": "BLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23",
+      "application": "BLK 26 LOT 7 P-2 MAGUINDANAO ST. RD 23 NEW LOWER BICUTAN"
+    }
+  },
   "recommendations": [
+    "\u2705 2/2 fields match user's application (100%)",
     "\u2705 Document appears valid with good confidence"
   ],
-  "errors": []
+  "errors": [],
+  "parent_matches": {
+    "parent_name_match": false,
+    "matched_parent": null,
+    "score": 0.0,
+    "extracted": "FELICIANO, SEAN PAUL CUEVAS",
+    "mother_name": "",
+    "father_name": ""
+  },
+  "identity_verified": true,
+  "identity_type": "student"
 }

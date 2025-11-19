@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication, VerificationAdjudication
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
 import json
@@ -149,6 +149,8 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
     document_type_display = serializers.CharField(source='get_document_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     document_file = serializers.SerializerMethodField()
+    ai_identity_verified = serializers.SerializerMethodField()
+    ai_identity_type = serializers.SerializerMethodField()
     
     def get_document_file(self, obj):
         """
@@ -208,16 +210,36 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
         
         return None
     
+    def get_ai_identity_verified(self, obj):
+        try:
+            info = obj.ai_key_information or {}
+            ver = info.get('verification_result') or {}
+            return bool(ver.get('identity_verified', False))
+        except Exception:
+            return False
+    
+    def get_ai_identity_type(self, obj):
+        try:
+            info = obj.ai_key_information or {}
+            ver = info.get('verification_result') or {}
+            t = ver.get('identity_type')
+            return t if t in ['student', 'mother', 'father'] else None
+        except Exception:
+            return None
+    
     class Meta:
         model = DocumentSubmission
         fields = ['id', 'document_type', 'document_type_display', 'document_file', 'description', 
                  'status', 'status_display', 'admin_notes', 'submitted_at', 'reviewed_at', 
                  'student_name', 'student_id', 'reviewed_by_name', 'ai_analysis_completed',
                  'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
-                 'ai_auto_approved', 'ai_analysis_notes']
+                 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
+                 # New COE subject extraction fields
+                 'extracted_subjects', 'subject_count']
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
                           'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
-                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes']
+                          'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
+                          'extracted_subjects', 'subject_count']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
@@ -390,6 +412,48 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             except Exception as save_error:
                 logger.error(f"Failed to update document status after error: {str(save_error)}")
         
+    def _build_user_application_data(self, user):
+        """
+        Build user application data dictionary for specialized verification services
+        """
+        from myapp.models import FullApplication
+        
+        # Get the latest FullApplication for this user
+        latest_application = FullApplication.objects.filter(
+            user=user,
+            is_submitted=True
+        ).order_by('-submitted_at').first()
+        
+        if latest_application:
+            return {
+                'first_name': latest_application.first_name or user.first_name,
+                'middle_name': latest_application.middle_name or '',
+                'last_name': latest_application.last_name or user.last_name,
+                'date_of_birth': str(latest_application.date_of_birth) if latest_application.date_of_birth else '',
+                'place_of_birth': latest_application.place_of_birth or '',
+                'mother_name': latest_application.mother_name or '',
+                'father_name': latest_application.father_name or '',
+                'barangay': latest_application.barangay or '',
+                'house_no': latest_application.house_no or '',
+                'street': latest_application.street or '',
+                'district': latest_application.district or ''
+            }
+        else:
+            # Fallback to user profile data if no application exists
+            return {
+                'first_name': user.first_name,
+                'middle_name': '',
+                'last_name': user.last_name,
+                'date_of_birth': '',
+                'place_of_birth': '',
+                'mother_name': '',
+                'father_name': '',
+                'barangay': '',
+                'house_no': '',
+                'street': '',
+                'district': ''
+            }
+    
     def run_comprehensive_ai_analysis(self, document):
         """
         🆕 Run AI document verification using specialized services
@@ -556,6 +620,191 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                     )
                 
                 logger.info(f"✅ ID verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
+            
+            # Check if document is Birth Certificate
+            elif document.document_type in ['birth_certificate', 'birth_cert', 'psa_birth_certificate', 'nso_birth_certificate']:
+                logger.info(f"👶 Routing to Birth Certificate Verification Service for document {document.id}")
+                from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+                
+                birth_cert_service = get_birth_certificate_verification_service()
+                
+                user_application_data = self._build_user_application_data(document.student)
+                birth_cert_result = birth_cert_service.verify_birth_certificate_document(
+                    image_path=document.document_file.path,
+                    user_application_data=user_application_data
+                )
+                
+                # Process Birth Certificate results
+                confidence = birth_cert_result.get('confidence', 0.0)
+                is_valid = birth_cert_result.get('is_valid', False)
+                
+                if is_valid and confidence >= 0.85:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.70:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                
+                # Build comprehensive notes
+                notes_parts = [
+                    f"Birth Certificate Verification ({status_msg})",
+                    f"Status: {birth_cert_result.get('status', 'UNKNOWN')}",
+                    f"Confidence: {confidence:.1%}",
+                ]
+                
+                if birth_cert_result.get('extracted_fields'):
+                    notes_parts.append(f"\nExtracted Fields:")
+                    for field, value in birth_cert_result['extracted_fields'].items():
+                        if value:
+                            notes_parts.append(f"  {field}: {value}")
+                
+                if birth_cert_result.get('field_matches'):
+                    notes_parts.append(f"\nField Matches:")
+                    for field, matched in birth_cert_result['field_matches'].items():
+                        notes_parts.append(f"  {field}: {'✅' if matched else '❌'}")
+                
+                if birth_cert_result.get('errors'):
+                    notes_parts.append(f"\nErrors: {', '.join(birth_cert_result['errors'])}")
+                
+                if birth_cert_result.get('recommendations'):
+                    notes_parts.append(f"\nRecommendations: {', '.join(birth_cert_result['recommendations'])}")
+                
+                document.ai_analysis_notes = "\n".join(notes_parts)
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='birth_certificate_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'Birth Certificate Verification Service (Advanced OCR + Field Extraction)',
+                        'name_match': birth_cert_result.get('field_matches', {}).get('name', False),
+                        'dob_match': birth_cert_result.get('field_matches', {}).get('date_of_birth', False)
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document,
+                        reason=f"AI confidence too low: {confidence:.1%} or field validation failed",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ Birth Certificate verification completed: {status_msg} (confidence: {confidence:.1%})")
+                return
+            
+            # Check if document is Voter Certificate/ID
+            elif document.document_type in ['voters_id', 'voter_id', 'voters_certificate', 'voter_certificate', 'voter_certification', 'comelec_stub']:
+                logger.info(f"🗳️ Routing to Voter Certificate Verification Service for document {document.id}")
+                from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+                
+                voter_cert_service = get_voter_certificate_verification_service()
+                
+                user_application_data = self._build_user_application_data(document.student)
+                voter_cert_result = voter_cert_service.verify_voter_certificate_document(
+                    image_path=document.document_file.path,
+                    confidence_threshold=0.5,
+                    include_ocr=True,
+                    user_application_data=user_application_data
+                )
+                
+                # Process Voter Certificate results
+                confidence = voter_cert_result.get('confidence', 0.0)
+                is_valid = voter_cert_result.get('is_valid', False)
+                
+                if is_valid and confidence >= 0.85:
+                    document.status = 'approved'
+                    document.ai_auto_approved = True
+                    status_msg = "AUTO-APPROVED"
+                elif confidence >= 0.70:
+                    document.status = 'needs_review'
+                    document.ai_auto_approved = False
+                    status_msg = "NEEDS REVIEW"
+                else:
+                    document.status = 'rejected'
+                    document.ai_auto_approved = False
+                    status_msg = "AUTO-REJECTED"
+                
+                document.ai_confidence_score = confidence
+                document.ai_analysis_completed = True
+                document.reviewed_at = timezone.now()
+                
+                # Build comprehensive notes
+                notes_parts = [
+                    f"Voter Certificate Verification ({status_msg})",
+                    f"Status: {voter_cert_result.get('status', 'UNKNOWN')}",
+                    f"Confidence: {confidence:.1%}",
+                ]
+                
+                if voter_cert_result.get('extracted_fields'):
+                    notes_parts.append(f"\nExtracted Fields:")
+                    for field, value in voter_cert_result['extracted_fields'].items():
+                        if value:
+                            notes_parts.append(f"  {field}: {value}")
+                
+                if voter_cert_result.get('field_matches'):
+                    notes_parts.append(f"\nField Matches:")
+                    for field, matched in voter_cert_result['field_matches'].items():
+                        notes_parts.append(f"  {field}: {'✅' if matched else '❌'}")
+                
+                if voter_cert_result.get('yolo_detections'):
+                    notes_parts.append(f"\nYOLO Detections: {', '.join(voter_cert_result['yolo_detections'])}")
+                
+                if voter_cert_result.get('errors'):
+                    notes_parts.append(f"\nErrors: {', '.join(voter_cert_result['errors'])}")
+                
+                if voter_cert_result.get('recommendations'):
+                    notes_parts.append(f"\nRecommendations: {', '.join(voter_cert_result['recommendations'])}")
+                
+                document.ai_analysis_notes = "\n".join(notes_parts)
+                document.save()
+                
+                # Log the analysis
+                audit_logger.log_ai_analysis(
+                    user=document.student,
+                    target_model='DocumentSubmission',
+                    target_id=document.id,
+                    analysis_type='voter_certificate_verification',
+                    results={
+                        'confidence_score': confidence,
+                        'status': status_msg.lower(),
+                        'is_valid': is_valid,
+                        'service_used': 'Voter Certificate Verification Service (YOLO + Advanced OCR + Field Extraction)',
+                        'name_match': voter_cert_result.get('field_matches', {}).get('name', False),
+                        'address_match': voter_cert_result.get('field_matches', {}).get('address', False)
+                    },
+                    request=request
+                )
+                
+                if document.status == 'approved':
+                    audit_logger.log_document_approved(document.student, document, request, auto_approved=True)
+                elif document.status == 'rejected':
+                    audit_logger.log_document_rejected(
+                        document.student, document,
+                        reason=f"AI confidence too low: {confidence:.1%} or field validation failed",
+                        request=request, auto_rejected=True
+                    )
+                
+                logger.info(f"✅ Voter Certificate verification completed: {status_msg} (confidence: {confidence:.1%})")
                 return
             
             # ============================================================================
@@ -1099,9 +1348,12 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = GradeSubmission
-        fields = ['id', 'academic_year', 'semester', 'semester_display', 'total_units', 
-                 'general_weighted_average', 'semestral_weighted_average', 'grade_sheet',
-                 'has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects',
+        fields = ['id', 'academic_year', 'semester', 'semester_display', 
+                 # New per-subject fields
+                 'subject_code', 'subject_name', 'units', 'grade_received',
+                 # Legacy fields (backward compatibility)
+                 'total_units', 'general_weighted_average', 'semestral_weighted_average', 
+                 'grade_sheet', 'has_failing_grades', 'has_incomplete_grades', 'has_dropped_subjects',
                  'ai_evaluation_completed', 'ai_evaluation_notes', 'ai_confidence_score',
                  'ai_extracted_grades', 'ai_grade_validation', 'ai_recommendations',
                  'qualifies_for_basic_allowance', 'qualifies_for_merit_incentive', 
@@ -1402,6 +1654,73 @@ class AllowanceApplicationSerializer(serializers.ModelSerializer):
                  'student_id', 'processed_by_name', 'grade_details']
         read_only_fields = ['id', 'amount', 'status', 'admin_notes', 'applied_at', 'processed_at', 'processed_by']
 
+class VerificationAdjudicationSerializer(serializers.ModelSerializer):
+    """Serializer for VerificationAdjudication model"""
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    user_student_id = serializers.CharField(source='user.student_id', read_only=True)
+    application_type = serializers.CharField(source='application.application_type', read_only=True)
+    admin_reviewer_name = serializers.CharField(source='admin_reviewer.get_full_name', read_only=True)
+    school_id_image_path = serializers.SerializerMethodField()
+    selfie_image_path = serializers.SerializerMethodField()
+    grade_submission_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = VerificationAdjudication
+        fields = [
+            'id',
+            'user',
+            'user_name',
+            'user_student_id',
+            'application',
+            'application_type',
+            'document_submission',
+            'school_id_image_path',
+            'selfie_image_path',
+            'automated_similarity_score',
+            'automated_liveness_score',
+            'automated_confidence_level',
+            'automated_match_result',
+            'status',
+            'admin_decision',
+            'admin_reviewer',
+            'admin_reviewer_name',
+            'admin_notes',
+            'admin_ip_address',
+            'admin_device_info',
+            'created_at',
+            'reviewed_at',
+            'grade_submission_info'
+        ]
+        read_only_fields = ['id', 'created_at', 'reviewed_at', 'user_name', 'user_student_id', 
+                          'admin_reviewer_name', 'school_id_image_path', 'selfie_image_path', 'grade_submission_info']
+    
+    def get_school_id_image_path(self, obj):
+        """Get school ID image URL"""
+        if obj.document_submission and obj.document_submission.document_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.document_submission.document_file.url)
+            return obj.document_submission.document_file.url
+        return None
+    
+    def get_selfie_image_path(self, obj):
+        """Get selfie image path (placeholder for now)"""
+        # In a real implementation, this would reference the liveness video/image
+        return None
+    
+    def get_grade_submission_info(self, obj):
+        """Get grade submission information"""
+        if obj.application and hasattr(obj.application, 'grade_submission'):
+            grade_sub = obj.application.grade_submission
+            if grade_sub:
+                return {
+                    'academic_year': grade_sub.academic_year,
+                    'semester': grade_sub.get_semester_display(),
+                    'gwa': str(grade_sub.general_weighted_average)
+                }
+        return None
+
+
 class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AllowanceApplication
@@ -1410,9 +1729,11 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         grade_submission = data['grade_submission']
         application_type = data['application_type']
+        request = self.context.get('request')
+        user = request.user if request else None
         
         # Check if student owns the grade submission
-        if grade_submission.student != self.context['request'].user:
+        if grade_submission.student != user:
             raise serializers.ValidationError('You can only apply for allowance based on your own grades.')
         
         # Check if grade submission is approved
@@ -1433,6 +1754,9 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
         return data
         
     def create(self, validated_data):
+        from django.utils import timezone
+        from datetime import timedelta
+        
         validated_data['student'] = self.context['request'].user
         grade_submission = validated_data['grade_submission']
         application_type = validated_data['application_type']
@@ -1447,10 +1771,20 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
             amount = 10000
             
         validated_data['amount'] = amount
+        
+        # Initialize face verification fields for NEW application
+        # Face verification happens BEFORE this serializer is called
+        # The frontend should have already verified the face
+        # If submitted via API without verification, it should be caught by validation
+        validated_data['face_verification_required'] = True
+        validated_data['face_verification_completed'] = False  # Will be updated after verification
+        validated_data['verification_attempt_count'] = 0
+        
         application = super().create(validated_data)
         
         # Log application submission
         request = self.context.get('request')
+        from .audit_logger import audit_logger
         audit_logger.log_application_submitted(validated_data['student'], application, request)
         
         return application
