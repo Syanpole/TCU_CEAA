@@ -791,6 +791,191 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(grade_submission)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def grouped_by_semester(self, request):
+        """
+        Get grades grouped by (academic_year, semester) with GWA calculation.
+        Admins can get grouped grades for all students or specific students.
+        Students can only get their own grouped grades.
+        
+        Query parameters:
+        - student_id: (Admin only) Filter by specific student
+        - academic_year: Filter by academic year
+        - semester: Filter by semester
+        - status: Filter by status (pending, approved, rejected)
+        
+        Returns:
+            List of semester groups with:
+            - academic_year, semester, semester_label
+            - subjects: List of grades in group
+            - gwa: Calculated GWA
+            - subject_count: Number of subjects
+            - total_units: Total units for semester
+            - merit_level: Merit classification
+            - qualifies_basic: Basic allowance eligibility
+            - qualifies_merit: Merit allowance eligibility
+        """
+        from .semester_grouping_service import get_semester_grouping_service
+        
+        grouping_service = get_semester_grouping_service()
+        
+        try:
+            if request.user.is_admin():
+                # Admin can view grouped grades
+                student_id = request.query_params.get('student_id')
+                academic_year = request.query_params.get('academic_year')
+                semester = request.query_params.get('semester')
+                status_filter = request.query_params.get('status')
+                
+                if student_id:
+                    # Get grouped grades for specific student
+                    try:
+                        student = CustomUser.objects.get(id=student_id, role='student')
+                    except CustomUser.DoesNotExist:
+                        return Response(
+                            {'error': f'Student with ID {student_id} not found'},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                    
+                    filters = {}
+                    if academic_year:
+                        filters['academic_year'] = academic_year
+                    if semester:
+                        filters['semester'] = semester
+                    if status_filter:
+                        filters['status'] = status_filter
+                    
+                    grouped_data = grouping_service.group_student_grades_by_semester(student, filters)
+                    return Response({
+                        'student_id': student.id,
+                        'student_name': f"{student.first_name} {student.last_name}",
+                        'semester_groups': grouped_data
+                    })
+                else:
+                    # Get grouped grades for all students
+                    grouped_all = grouping_service.get_grouped_grades_for_admin(
+                        academic_year=academic_year,
+                        semester=semester,
+                        status=status_filter
+                    )
+                    
+                    # Convert to list format for response
+                    response_data = []
+                    for student_id, groups in grouped_all.items():
+                        try:
+                            student = CustomUser.objects.get(id=student_id)
+                            response_data.append({
+                                'student_id': student_id,
+                                'student_name': f"{student.first_name} {student.last_name}",
+                                'semester_groups': groups
+                            })
+                        except CustomUser.DoesNotExist:
+                            pass
+                    
+                    return Response(response_data)
+            else:
+                # Students can only see their own grouped grades
+                academic_year = request.query_params.get('academic_year')
+                semester = request.query_params.get('semester')
+                
+                filters = {}
+                if academic_year:
+                    filters['academic_year'] = academic_year
+                if semester:
+                    filters['semester'] = semester
+                
+                grouped_data = grouping_service.group_student_grades_by_semester(
+                    request.user,
+                    filters
+                )
+                
+                return Response({
+                    'student_id': request.user.id,
+                    'student_name': f"{request.user.first_name} {request.user.last_name}",
+                    'semester_groups': grouped_data
+                })
+        
+        except Exception as e:
+            logger.error(f"Error getting grouped grades: {str(e)}")
+            return Response(
+                {'error': f'Error retrieving grouped grades: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve_semester_group(self, request):
+        """
+        Admin action to approve all grades in a semester group.
+        
+        Expected data:
+        - student_id: Student ID
+        - academic_year: Academic year
+        - semester: Semester
+        """
+        if not request.user.is_admin():
+            return Response(
+                {'error': 'Only admins can approve semester groups'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            student_id = request.data.get('student_id')
+            academic_year = request.data.get('academic_year')
+            semester = request.data.get('semester')
+            admin_notes = request.data.get('admin_notes', '')
+            
+            if not all([student_id, academic_year, semester]):
+                return Response(
+                    {'error': 'Missing required fields: student_id, academic_year, semester'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update all grades in this semester group
+            updated_count = GradeSubmission.objects.filter(
+                student_id=student_id,
+                academic_year=academic_year,
+                semester=semester
+            ).update(
+                status='approved',
+                reviewed_by=request.user,
+                reviewed_at=timezone.now(),
+                admin_notes=admin_notes
+            )
+            
+            if updated_count == 0:
+                return Response(
+                    {'error': f'No grades found for this semester group'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f"Admin {request.user.id} approved {updated_count} grades for semester group")
+            
+            # Get updated semester data
+            from .semester_grouping_service import get_semester_grouping_service
+            grouping_service = get_semester_grouping_service()
+            
+            try:
+                student = CustomUser.objects.get(id=student_id)
+                updated_group = grouping_service.get_semester_detail(student, academic_year, semester)
+                
+                return Response({
+                    'message': f'Successfully approved {updated_count} grade(s)',
+                    'updated_count': updated_count,
+                    'semester_group': updated_group
+                })
+            except CustomUser.DoesNotExist:
+                return Response({
+                    'message': f'Successfully approved {updated_count} grade(s)',
+                    'updated_count': updated_count
+                })
+        
+        except Exception as e:
+            logger.error(f"Error approving semester group: {str(e)}")
+            return Response(
+                {'error': f'Error approving semester group: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # New Grade Submission API Endpoints (Per-Subject Workflow)
@@ -1699,21 +1884,67 @@ def analytics_overview(request):
     grade_status_dist = GradeSubmission.objects.values('status').annotate(count=Count('id'))
     application_status_dist = AllowanceApplication.objects.values('status').annotate(count=Count('id'))
     
-    # Top performing students
-    top_students = GradeSubmission.objects.filter(
+    # Top performing students - grouped by semester with proper GWA calculation
+    from .semester_grouping_service import get_semester_grouping_service
+    
+    top_students_raw = GradeSubmission.objects.filter(
         status='approved',
         qualifies_for_merit_incentive=True
     ).order_by('-semestral_weighted_average')[:10]
     
+    semester_grouping_service = get_semester_grouping_service()
     top_students_data = []
-    for grade in top_students:
+    seen_students = set()
+    
+    for grade in top_students_raw:
+        student_id = grade.student.id
+        
+        # Only include each student once (their best semester)
+        if student_id in seen_students:
+            continue
+        seen_students.add(student_id)
+        
+        # Get semester grouping with proper GWA calculation
+        semester_detail = semester_grouping_service.get_semester_detail(
+            grade.student,
+            grade.academic_year,
+            grade.semester
+        )
+        
+        if not semester_detail:
+            continue
+        
+        # Get all approved documents for this student
+        approved_docs = DocumentSubmission.objects.filter(
+            student=grade.student,
+            status='approved'
+        ).count()
+        
+        # Get allowance applications
+        allowance_apps = AllowanceApplication.objects.filter(
+            student=grade.student,
+            status__in=['approved', 'disbursed']
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
         top_students_data.append({
             'student_name': f"{grade.student.first_name} {grade.student.last_name}",
             'student_id': grade.student.student_id,
-            'gwa': float(grade.general_weighted_average),
-            'swa': float(grade.semestral_weighted_average),
-            'academic_year': grade.academic_year,
-            'semester': grade.get_semester_display()
+            'academic_year': semester_detail['academic_year'],
+            'semester': semester_detail['semester_label'],
+            'gwa': semester_detail.get('gwa', 0.0) or 0.0,  # Use calculated GWA from service
+            'swa': float(grade.semestral_weighted_average) if grade.semestral_weighted_average is not None else 0.0,
+            'total_units': semester_detail.get('total_units', 0),
+            'subject_count': semester_detail.get('subject_count', 0),
+            'approved_documents': approved_docs,
+            'allowance_amount': float(allowance_apps),
+            'applications_pending': AllowanceApplication.objects.filter(
+                student=grade.student,
+                status='pending'
+            ).count(),
+            'qualifies_basic': semester_detail.get('qualifies_basic', False),
+            'qualifies_merit': semester_detail.get('qualifies_merit', False),
+            'merit_level': semester_detail.get('merit_level', 'BELOW_PASSING'),
+            'all_approved': semester_detail.get('all_approved', False)
         })
     
     # Financial summary

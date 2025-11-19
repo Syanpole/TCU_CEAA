@@ -683,8 +683,86 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
             return self.readonly_fields + ['student', 'academic_year', 'semester', 'subject_code', 'subject_name']
         return self.readonly_fields
     
+    def semester_grouping_summary(self, obj):
+        """Display a hierarchical summary of all grades grouped by semester"""
+        from django.utils.html import format_html
+        from myapp.semester_grouping_service import get_semester_grouping_service
+        
+        grouping_service = get_semester_grouping_service()
+        
+        try:
+            # Get all semester groups for this student
+            semester_groups = grouping_service.group_student_grades_by_semester(obj.student)
+            
+            if not semester_groups:
+                return format_html('<span style="color: #999;">No grades found</span>')
+            
+            rows = []
+            rows.append('<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">')
+            rows.append('<h4 style="margin: 0 0 15px 0; color: #007bff;">📅 Semester Groups Overview</h4>')
+            
+            for group in semester_groups:
+                academic_year = group['academic_year']
+                semester_label = group['semester_label']
+                gwa = group['gwa']
+                subject_count = group['subject_count']
+                total_units = group['total_units']
+                merit_level = group.get('merit_level', 'BELOW_PASSING')
+                all_approved = group['all_approved']
+                pending_count = group.get('pending_count', 0)
+                approved_count = group.get('approved_count', 0)
+                
+                # Determine color based on merit level
+                color_map = {
+                    'HIGH_HONORS': '#d4af37',
+                    'HONORS': '#007bff',
+                    'MERIT': '#28a745',
+                    'REGULAR': '#6c757d',
+                    'BELOW_PASSING': '#dc3545'
+                }
+                merit_color = color_map.get(merit_level, '#6c757d')
+                
+                # Emoji map
+                emoji_map = {
+                    'HIGH_HONORS': '🥇',
+                    'HONORS': '🥈',
+                    'MERIT': '🥉',
+                    'REGULAR': '📋',
+                    'BELOW_PASSING': '⚠️'
+                }
+                emoji = emoji_map.get(merit_level, '📊')
+                
+                # Completion status
+                completion_color = '#28a745' if all_approved else '#ffc107'
+                completion_text = '✅ All Approved' if all_approved else f'⏳ {pending_count} Pending'
+                
+                rows.append('<div style="background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border-left: 3px solid ' + merit_color + ';">')
+                rows.append(f'<div style="display: flex; justify-content: space-between; align-items: center;">')
+                rows.append(f'<div style="flex: 2;">')
+                rows.append(f'<div style="font-weight: bold; font-size: 14px;">{semester_label}</div>')
+                rows.append(f'<div style="font-size: 12px; color: #666; margin-top: 4px;">{subject_count} subjects • {total_units} units</div>')
+                rows.append(f'</div>')
+                rows.append(f'<div style="flex: 1; text-align: right;">')
+                rows.append(f'<div style="font-size: 20px; font-weight: bold; color: {merit_color};">{gwa:.2f}</div>')
+                rows.append(f'<div style="font-size: 11px; color: {merit_color};">{emoji} {merit_level.replace("_", " ")}</div>')
+                rows.append(f'</div>')
+                rows.append(f'<div style="flex: 0.5; text-align: right;">')
+                rows.append(f'<span style="background: {completion_color}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">{completion_text}</span>')
+                rows.append(f'</div>')
+                rows.append(f'</div>')
+                rows.append('</div>')
+            
+            rows.append('</div>')
+            return format_html(''.join(rows))
+        
+        except Exception as e:
+            logger.error(f"Error generating semester grouping summary: {str(e)}")
+            return format_html(f'<span style="color: #999;">Error loading summary: {str(e)}</span>')
+    
+    semester_grouping_summary.short_description = 'Semester Groups'
+    
     actions = ['approve_all_by_student', 'approve_selected', 'reject_selected', 'recalculate_gpa',
-               'run_detection_validation', 'auto_approve_with_services']
+               'run_detection_validation', 'auto_approve_with_services', 'bulk_approve_semester_groups']
     
     def approve_all_by_student(self, request, queryset):
         """Approve ALL grades for the students in the selection"""
@@ -921,6 +999,87 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
         for msg in messages:
             self.message_user(request, msg)
     auto_approve_with_services.short_description = '🚀 Auto-Approve with AI Services'
+    
+    def bulk_approve_semester_groups(self, request, queryset):
+        """
+        Bulk approve entire semester groups for selected grades.
+        Automatically groups by (student, academic_year, semester) and approves all grades in each group.
+        Then calculates GWA and merit level for each group.
+        """
+        from myapp.services import gwa_calculation_service
+        
+        # Get unique semester groups from selected grades
+        semester_groups = {}
+        for grade in queryset:
+            key = (grade.student_id, grade.academic_year, grade.semester)
+            if key not in semester_groups:
+                semester_groups[key] = grade.student
+        
+        total_approved = 0
+        messages_list = []
+        
+        for (student_id, academic_year, semester), student in semester_groups.items():
+            try:
+                # Get all grades in this semester group
+                semester_grades = GradeSubmission.objects.filter(
+                    student_id=student_id,
+                    academic_year=academic_year,
+                    semester=semester
+                )
+                
+                subject_count = semester_grades.count()
+                
+                # Approve all grades in this semester group
+                count = semester_grades.update(
+                    status='approved',
+                    reviewed_by=request.user
+                )
+                
+                total_approved += count
+                
+                # Trigger automated GWA calculation
+                gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(
+                    student, academic_year, semester
+                )
+                
+                if gwa_result:
+                    gwa = gwa_result['gwa']
+                    merit_level = gwa_result['merit_level']
+                    total_units = gwa_result['total_units']
+                    
+                    # Determine emoji and allowance amount
+                    if gwa <= 1.50:
+                        emoji = '🥇'
+                    elif gwa <= 2.00:
+                        emoji = '🥈'
+                    elif gwa <= 2.50:
+                        emoji = '🥉'
+                    else:
+                        emoji = '📋'
+                    
+                    allowance_amount = "₱5,000" if gwa < 2.00 else "₱10,000"
+                    
+                    msg = f"{emoji} {student.username} ({academic_year} {semester}): {subject_count} subjects ({total_units} units) approved | GWA: {gwa:.2f} ({merit_level.replace('_', ' ')}) | {allowance_amount}"
+                    messages_list.append(msg)
+                else:
+                    msg = f"⚠️ {student.username} ({academic_year} {semester}): {subject_count} subjects approved, but GWA calculation failed"
+                    messages_list.append(msg)
+            
+            except Exception as e:
+                msg = f"❌ Error processing {student.username}: {str(e)}"
+                messages_list.append(msg)
+        
+        # Send main message
+        self.message_user(
+            request,
+            f'✅ Bulk approved {total_approved} grades in {len(semester_groups)} semester group(s). Semester data grouped and GWA calculated.'
+        )
+        
+        # Send individual semester group messages
+        for msg in messages_list:
+            self.message_user(request, msg)
+    
+    bulk_approve_semester_groups.short_description = '📅 Bulk Approve Semester Groups (with GWA)'
 
 @admin.register(AllowanceApplication)
 class AllowanceApplicationAdmin(admin.ModelAdmin):

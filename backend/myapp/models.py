@@ -651,6 +651,11 @@ class AllowanceApplication(models.Model):
     face_verification_attempted_at = models.DateTimeField(null=True, blank=True, help_text="When face verification was last attempted")
     face_verification_notes = models.TextField(blank=True, null=True, help_text="Notes from face verification process")
     
+    # Face verification attempt tracking (for retry logic and cooldown)
+    verification_attempt_count = models.IntegerField(default=0, help_text="Number of failed verification attempts")
+    last_verification_attempt_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of last verification attempt")
+    verification_cooldown_until = models.DateTimeField(null=True, blank=True, help_text="When the user can try verification again (after 3 failed attempts, cooldown 24 hours)")
+    
     
     class Meta:
         ordering = ['-applied_at']
@@ -1184,6 +1189,117 @@ class FullApplication(models.Model):
     
     def __str__(self):
         return f"Application for {self.user.username} - {self.school_year} {self.semester}"
+
+
+class VerificationAdjudication(models.Model):
+    """
+    Model to track face verification attempts and admin adjudication decisions.
+    All face verifications are reviewed by an administrator for final approval/rejection.
+    This implements the human-in-the-loop security model.
+    """
+    
+    ADMIN_DECISION_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('escalated', 'Escalated for Investigation'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending_review', 'Pending Admin Review'),
+        ('under_review', 'Currently Under Review'),
+        ('completed', 'Review Completed'),
+        ('error', 'Processing Error'),
+    ]
+    
+    VERIFICATION_BACKEND_CHOICES = [
+        ('rekognition', 'AWS Rekognition'),
+        ('yolo_insightface', 'YOLO + InsightFace'),
+    ]
+    
+    # User and application references
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='face_verifications')
+    application = models.ForeignKey(AllowanceApplication, on_delete=models.CASCADE, null=True, blank=True, related_name='face_verifications')
+    document_submission = models.ForeignKey('DocumentSubmission', on_delete=models.SET_NULL, null=True, blank=True, related_name='face_verifications')
+    
+    # Image paths/references
+    school_id_image_path = models.CharField(max_length=500, help_text="Path to the submitted School ID image")
+    selfie_image_path = models.CharField(max_length=500, help_text="Path to the live captured selfie")
+    
+    # Automated verification results (from AWS Rekognition or YOLO/InsightFace)
+    verification_backend = models.CharField(max_length=20, choices=VERIFICATION_BACKEND_CHOICES, default='yolo_insightface')
+    automated_liveness_score = models.FloatField(default=0.0, help_text="Liveness detection score (0.0-1.0, higher = more confident)")
+    automated_match_result = models.BooleanField(default=False, help_text="Whether automated verification passed")
+    automated_similarity_score = models.FloatField(null=True, blank=True, help_text="Face similarity score (0.0-1.0, >0.99 = very high confidence)")
+    automated_confidence_level = models.CharField(
+        max_length=20, 
+        choices=[
+            ('very_high', 'Very High (≥99%)'),
+            ('high', 'High (≥95%)'),
+            ('medium', 'Medium (≥90%)'),
+            ('low', 'Low (≥85%)'),
+            ('very_low', 'Very Low (<85%)'),
+        ],
+        default='very_low',
+        help_text="Automated verification confidence level"
+    )
+    automated_verification_data = models.JSONField(default=dict, blank=True, help_text="Detailed automated verification results")
+    liveness_data = models.JSONField(default=dict, blank=True, help_text="Liveness detection challenge results")
+    
+    # Admin review fields
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_review', db_index=True)
+    admin_decision = models.CharField(max_length=20, choices=ADMIN_DECISION_CHOICES, default='pending', db_index=True)
+    admin_decision_score = models.FloatField(null=True, blank=True, help_text="Optional admin override confidence score")
+    admin_notes = models.TextField(blank=True, null=True, help_text="Admin notes/comments on the verification")
+    admin_reviewer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='face_verifications_reviewed',
+        limit_choices_to={'role': 'admin'},
+        help_text="Admin who reviewed this verification"
+    )
+    
+    # Admin context information
+    admin_device_info = models.CharField(max_length=500, blank=True, null=True, help_text="Device info of admin reviewer")
+    admin_ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of admin reviewer")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True, help_text="When admin completed the review")
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['admin_decision', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['application', '-created_at']),
+        ]
+        verbose_name = "Face Verification Adjudication"
+        verbose_name_plural = "Face Verification Adjudications"
+    
+    def __str__(self):
+        return f"Face Verification - {self.user.username} - {self.get_admin_decision_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    
+    def is_pending_review(self):
+        """Check if this verification is still awaiting admin review"""
+        return self.admin_decision == 'pending'
+    
+    def mark_as_reviewed(self, admin_user, decision, score=None, notes=''):
+        """Mark this verification as reviewed by an admin"""
+        self.admin_reviewer = admin_user
+        self.admin_decision = decision
+        self.admin_decision_score = score
+        self.admin_notes = notes
+        self.status = 'completed'
+        self.reviewed_at = timezone.now()
+        self.save()
+    
+    def is_approved(self):
+        """Check if admin approved this verification"""
+        return self.admin_decision == 'approved'
 
 
 # Import fraud detection models at the end to avoid circular import

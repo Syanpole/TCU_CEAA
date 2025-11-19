@@ -16,8 +16,11 @@ from .views import (
 # Face verification views
 from .face_verification_views import (
     verify_face_with_id, extract_id_face, verify_liveness_only,
-    verify_grade_submission_identity
+    verify_grade_submission_identity, verify_allowance_application_identity
 )
+
+# Face adjudication views
+from .face_adjudication_views import VerificationAdjudicationViewSet
 
 # Fraud management views
 from .fraud_management_views import (
@@ -34,6 +37,7 @@ router.register(r'grades', GradeSubmissionViewSet, basename='grades')
 router.register(r'applications', AllowanceApplicationViewSet, basename='applications')
 router.register(r'basic-qualification', BasicQualificationViewSet, basename='basic-qualification')
 router.register(r'full-application', FullApplicationViewSet, basename='full-application')
+router.register(r'admin/face-adjudications', VerificationAdjudicationViewSet, basename='face-adjudications')
 
 urlpatterns = [
     path('api/', include(router.urls)),
@@ -69,6 +73,7 @@ urlpatterns = [
     path('api/face-verification/extract-face/', extract_id_face, name='extract-id-face'),
     path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
     path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
+    path('api/face-verification/allowance-application/', verify_allowance_application_identity, name='verify-allowance-application-identity'),
     
     # 📚 New Grade Submission Workflow Endpoints (Per-Subject)
     path('api/grade-workflow/check-eligibility/', check_grade_submission_eligibility, name='check-grade-submission-eligibility'),

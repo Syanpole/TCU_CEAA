@@ -75,6 +75,8 @@ class GWACalculationService:
         Check basic and merit eligibility based on updated rules:
         - GWA < 2.00: Basic allowance only (₱5,000)
         - GWA ≥ 2.00: Both basic and merit allowances (₱10,000 total)
+        
+        Also considers subject count as part of eligibility validation.
         """
         # Updated eligibility logic: GWA threshold is now 2.00
         basic_eligible = gwa <= 2.5 and total_units >= 15  # Basic eligibility still requires GWA ≤ 2.5
@@ -83,7 +85,80 @@ class GWACalculationService:
         return {
             'basic_eligible': basic_eligible,
             'merit_eligible': merit_eligible
-        }    def calculate_semester_gwa(self, student: CustomUser, academic_year: str,
+        }
+    
+    def calculate_semester_gwa_with_subject_count(self, student: CustomUser, academic_year: str,
+                                                   semester: str) -> Optional[Dict]:
+        """
+        Calculate GWA for a specific student, academic year, and semester.
+        Emphasizes subject count in the calculation and ensures proper weighting.
+        
+        Formula: GWA = Sum(grade * units) / Total Units
+        Subject count is included in the response for grouping operations.
+        """
+        try:
+            # Get all approved grades for this semester
+            approved_grades = GradeSubmission.objects.filter(
+                student=student,
+                academic_year=academic_year,
+                semester=semester,
+                status='approved',
+                subject_code__isnull=False,
+                grade_received__isnull=False,
+                units__isnull=False
+            )
+
+            if not approved_grades.exists():
+                return None
+
+            # Calculate weighted GPA with explicit subject count
+            total_grade_points = Decimal('0')
+            total_units = 0
+            grades_list = []
+            subject_count = 0
+
+            for grade in approved_grades:
+                grade_value = Decimal(str(grade.grade_received))
+                units = int(grade.units)
+                grade_points = grade_value * units
+
+                total_grade_points += grade_points
+                total_units += units
+                subject_count += 1
+
+                grades_list.append({
+                    'subject_code': grade.subject_code,
+                    'subject_name': grade.subject_name,
+                    'grade': float(grade_value),
+                    'units': units
+                })
+
+            if total_units == 0:
+                return None
+
+            gwa = float(total_grade_points / total_units)
+            merit_level = self.determine_merit_level(gwa)
+            eligibility = self.check_eligibility(gwa, total_units)
+
+            return {
+                'student_id': student.id,
+                'student_name': f"{student.first_name} {student.last_name}",
+                'academic_year': academic_year,
+                'semester': semester,
+                'gwa': round(gwa, 2),
+                'total_units': total_units,
+                'total_subjects': subject_count,  # Explicitly included
+                'merit_level': merit_level,
+                'basic_eligible': eligibility['basic_eligible'],
+                'merit_eligible': eligibility['merit_eligible'],
+                'grades': grades_list
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculating semester GWA with subject count for {student.id}: {str(e)}")
+            return None
+
+    def calculate_semester_gwa(self, student: CustomUser, academic_year: str,
                               semester: str) -> Optional[Dict]:
         """
         Calculate GWA for a specific student, academic year, and semester.

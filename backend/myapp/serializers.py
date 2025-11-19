@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication
+from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication, VerificationAdjudication
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
 import json
@@ -1654,6 +1654,73 @@ class AllowanceApplicationSerializer(serializers.ModelSerializer):
                  'student_id', 'processed_by_name', 'grade_details']
         read_only_fields = ['id', 'amount', 'status', 'admin_notes', 'applied_at', 'processed_at', 'processed_by']
 
+class VerificationAdjudicationSerializer(serializers.ModelSerializer):
+    """Serializer for VerificationAdjudication model"""
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    user_student_id = serializers.CharField(source='user.student_id', read_only=True)
+    application_type = serializers.CharField(source='application.application_type', read_only=True)
+    admin_reviewer_name = serializers.CharField(source='admin_reviewer.get_full_name', read_only=True)
+    school_id_image_path = serializers.SerializerMethodField()
+    selfie_image_path = serializers.SerializerMethodField()
+    grade_submission_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = VerificationAdjudication
+        fields = [
+            'id',
+            'user',
+            'user_name',
+            'user_student_id',
+            'application',
+            'application_type',
+            'document_submission',
+            'school_id_image_path',
+            'selfie_image_path',
+            'automated_similarity_score',
+            'automated_liveness_score',
+            'automated_confidence_level',
+            'automated_match_result',
+            'status',
+            'admin_decision',
+            'admin_reviewer',
+            'admin_reviewer_name',
+            'admin_notes',
+            'admin_ip_address',
+            'admin_device_info',
+            'created_at',
+            'reviewed_at',
+            'grade_submission_info'
+        ]
+        read_only_fields = ['id', 'created_at', 'reviewed_at', 'user_name', 'user_student_id', 
+                          'admin_reviewer_name', 'school_id_image_path', 'selfie_image_path', 'grade_submission_info']
+    
+    def get_school_id_image_path(self, obj):
+        """Get school ID image URL"""
+        if obj.document_submission and obj.document_submission.document_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.document_submission.document_file.url)
+            return obj.document_submission.document_file.url
+        return None
+    
+    def get_selfie_image_path(self, obj):
+        """Get selfie image path (placeholder for now)"""
+        # In a real implementation, this would reference the liveness video/image
+        return None
+    
+    def get_grade_submission_info(self, obj):
+        """Get grade submission information"""
+        if obj.application and hasattr(obj.application, 'grade_submission'):
+            grade_sub = obj.application.grade_submission
+            if grade_sub:
+                return {
+                    'academic_year': grade_sub.academic_year,
+                    'semester': grade_sub.get_semester_display(),
+                    'gwa': str(grade_sub.general_weighted_average)
+                }
+        return None
+
+
 class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AllowanceApplication
@@ -1662,9 +1729,11 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         grade_submission = data['grade_submission']
         application_type = data['application_type']
+        request = self.context.get('request')
+        user = request.user if request else None
         
         # Check if student owns the grade submission
-        if grade_submission.student != self.context['request'].user:
+        if grade_submission.student != user:
             raise serializers.ValidationError('You can only apply for allowance based on your own grades.')
         
         # Check if grade submission is approved
@@ -1685,6 +1754,9 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
         return data
         
     def create(self, validated_data):
+        from django.utils import timezone
+        from datetime import timedelta
+        
         validated_data['student'] = self.context['request'].user
         grade_submission = validated_data['grade_submission']
         application_type = validated_data['application_type']
@@ -1699,10 +1771,20 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
             amount = 10000
             
         validated_data['amount'] = amount
+        
+        # Initialize face verification fields for NEW application
+        # Face verification happens BEFORE this serializer is called
+        # The frontend should have already verified the face
+        # If submitted via API without verification, it should be caught by validation
+        validated_data['face_verification_required'] = True
+        validated_data['face_verification_completed'] = False  # Will be updated after verification
+        validated_data['verification_attempt_count'] = 0
+        
         application = super().create(validated_data)
         
         # Log application submission
         request = self.context.get('request')
+        from .audit_logger import audit_logger
         audit_logger.log_application_submitted(validated_data['student'], application, request)
         
         return application

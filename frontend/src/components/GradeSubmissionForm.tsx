@@ -45,11 +45,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [gradeStatus, setGradeStatus] = useState<GradeSubmissionStatus | null>(null);
   
-  // Liveness verification
-  const [showLivenessVerification, setShowLivenessVerification] = useState(false);
-  const [showDisclaimerScreen, setShowDisclaimerScreen] = useState(false);
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const [submittedIdImage, setSubmittedIdImage] = useState<string | null>(null);
+
 
   const semesters = [
     { value: '1st', label: '1st Semester' },
@@ -101,10 +97,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         // Check eligibility
         const eligibilityData = await documentService.checkGradeSubmissionEligibility();
         setEligibility(eligibilityData);
-
-        // Fetch submitted ID for facial comparison
-        const idImage = await documentService.getSubmittedIdImage();
-        setSubmittedIdImage(idImage);
 
         if (eligibilityData.canSubmit) {
           // Fetch COE subjects
@@ -277,178 +269,10 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     }
   };
 
-  // Handle liveness capture
-  const handleLivenessCapture = async (imageBlob: Blob, imageUrl: string, livenessData?: any) => {
-    try {
-      setLoading(true);
-
-      const file = new File([imageBlob], 'face_verification.jpg', { type: 'image/jpeg' });
-
-      // Submit face verification
-      const faceFormData = new FormData();
-      faceFormData.append('photo', file);
-      faceFormData.append('liveness_data', JSON.stringify(livenessData));
-
-      await apiClient.post('/face-verification/grade-submission/', faceFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      // Success!
-      setShowLivenessVerification(false);
-      setShowDisclaimerScreen(false);
-      
-      setNotificationType('success');
-      setNotificationMessage('🎉 SUCCESS! Your grades have been submitted and your identity has been VERIFIED!\n\n✅ All grade sheets processed\n✅ Liveness detection passed\n✅ Facial identity verified\n\nYour application is now complete and ready for final admin approval!');
-      setShowNotification(true);
-
-      setTimeout(() => {
-        if (onSubmissionSuccess) {
-          onSubmissionSuccess();
-        }
-      }, 5000);
-    } catch (error: any) {
-      console.error('Face verification error:', error);
-      setShowLivenessVerification(false);
-      
-      let errorMessage = 'Face verification failed. ';
-      if (error.response?.data) {
-        if (error.response.data.detail) {
-          errorMessage += error.response.data.detail;
-        } else if (error.response.data.error) {
-          errorMessage += error.response.data.error;
-        } else {
-          errorMessage += 'Please ensure your face is clearly visible and try again.';
-        }
-      } else {
-        errorMessage += 'Please try again.';
-      }
-      
-      setNotificationType('error');
-      setNotificationMessage(errorMessage);
-      setShowNotification(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLivenessCancel = () => {
-    setShowLivenessVerification(false);
-    setShowDisclaimerScreen(false);
-    setNotificationType('warning');
-    setNotificationMessage('Identity verification cancelled.');
-    setShowNotification(true);
-  };
-
-  // Proceed to liveness (via disclaimer)
-  const handleProceedToLiveness = () => {
-    if (gradeStatus?.can_proceed_to_liveness) {
-      setShowDisclaimerScreen(true);
-    }
-  };
-
-  const handleDisclaimerAccept = () => {
-    setDisclaimerAccepted(true);
-    setShowDisclaimerScreen(false);
-    setShowLivenessVerification(true);
-  };
-
   // Calculate progress
   const submittedCount = subjectStates.filter(s => s.status !== 'not-submitted').length;
   const totalSubjects = subjectStates.length;
   const allSubmitted = submittedCount === totalSubjects && totalSubjects > 0;
-
-  // Show disclaimer screen before liveness
-  if (showDisclaimerScreen) {
-    return (
-      <div className="grade-submission-form-compact">
-        <div className="disclaimer-container">
-          <div className="disclaimer-header">
-            <h2>🔒 Identity Verification Required</h2>
-            <p className="disclaimer-subtitle">
-              Your grades have been submitted! One final step to complete your application.
-            </p>
-          </div>
-          
-          <div className="disclaimer-content">
-            <h3>📋 What Happens Next:</h3>
-            <ul>
-              <li>🎥 <strong>Live Camera Verification:</strong> We'll use your device camera to verify your identity</li>
-              <li>🎨 <strong>Liveness Detection:</strong> You'll see color flashes and be asked to blink naturally</li>
-              <li>📱 <strong>Movement Check:</strong> Small head movements will be detected to confirm you're present</li>
-              <li>⚡ <strong>Quick Process:</strong> Takes only 10-15 seconds to complete</li>
-            </ul>
-
-            <div className="privacy-notice">
-              <h4>🔐 Privacy & Security:</h4>
-              <p>
-                • Your facial data is encrypted and used only for identity verification<br />
-                • Images are securely stored and never shared with third parties<br />
-                • You can review our privacy policy for complete details
-              </p>
-            </div>
-
-            <div className="disclaimer-checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={disclaimerAccepted}
-                  onChange={(e) => setDisclaimerAccepted(e.target.checked)}
-                />
-                <span>
-                  I understand and consent to the liveness detection process. I confirm that I am the person 
-                  submitting this application and authorize TCU to verify my identity using facial recognition.
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="disclaimer-actions">
-            <button
-              type="button"
-              onClick={() => setShowDisclaimerScreen(false)}
-              className="btn-compact btn-cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDisclaimerAccept}
-              className="btn-compact btn-submit"
-              disabled={!disclaimerAccepted}
-            >
-              Proceed to Verification
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show liveness verification screen
-  if (showLivenessVerification) {
-    return (
-      <div className="grade-submission-form-compact">
-        <div className="liveness-verification-container">
-          <div className="liveness-header">
-            <h2>🔒 Live Identity Verification</h2>
-            <p className="liveness-subtitle">
-              Follow the on-screen instructions. This will only take a moment.
-            </p>
-          </div>
-
-          <LiveCameraCapture
-            documentType="Face Verification"
-            onCapture={handleLivenessCapture}
-            onCancel={handleLivenessCancel}
-            requireLiveness={true}
-            submittedIdImage={submittedIdImage || undefined}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="grade-submission-form-compact">
@@ -648,17 +472,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
                 disabled={loading}
               >
                 Validate All
-              </button>
-            )}
-
-            {gradeStatus?.can_proceed_to_liveness && (
-              <button
-                type="button"
-                onClick={handleProceedToLiveness}
-                className="btn-compact btn-submit"
-                disabled={loading}
-              >
-                Proceed to Verification
               </button>
             )}
           </div>
