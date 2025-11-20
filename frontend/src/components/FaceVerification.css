@@ -1,0 +1,387 @@
+/* Face Verification Component Styles */
+
+.face-verification {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.verification-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.verification-header h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.verification-header p {
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.verification-interface {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+
+/* Camera Section */
+.camera-section {
+  text-align: center;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.video-container video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.face-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.face-guide {
+  width: 200px;
+  height: 250px;
+  border: 3px solid rgba(52, 211, 153, 0.8);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.camera-controls {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.camera-controls button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.capture-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.capture-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.cancel-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+/* Captured Section */
+.captured-section {
+  text-align: center;
+}
+
+.captured-image {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 20px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.captured-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.capture-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.verify-btn {
+  background: #10b981;
+  color: white;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.verify-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+}
+
+.retake-btn {
+  background: #6b7280;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retake-btn:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+/* Verification Progress */
+.verification-progress {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.progress-spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 20px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.verification-progress p {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Verification Results */
+.verification-results {
+  text-align: center;
+  padding: 20px;
+}
+
+.result-status {
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.result-status.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.result-status.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-icon {
+  font-size: 24px;
+}
+
+.verification-metrics {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.metric {
+  text-align: center;
+}
+
+.metric label {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.metric span {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.metric span.good {
+  color: #059669;
+}
+
+.metric span.fair {
+  color: #f59e0b;
+}
+
+.metric span.high {
+  color: #059669;
+}
+
+.metric span.medium {
+  color: #f59e0b;
+}
+
+.try-again-btn {
+  background: #6b7280;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.try-again-btn:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+/* Start Section */
+.start-section {
+  text-align: center;
+}
+
+.verification-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 300px;
+  margin: 0 auto 30px;
+}
+
+.camera-btn,
+.upload-btn {
+  padding: 16px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #3b82f6;
+  color: white;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.camera-btn:hover,
+.upload-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.upload-option {
+  width: 100%;
+}
+
+.hidden-input {
+  display: none;
+}
+
+/* Reference Section */
+.reference-section {
+  margin-top: 30px;
+  padding-top: 30px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.reference-section h3 {
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+}
+
+.reference-image {
+  width: 200px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reference-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .face-verification {
+    padding: 10px;
+  }
+
+  .verification-interface {
+    padding: 20px;
+  }
+
+  .verification-metrics {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .camera-controls,
+  .capture-actions {
+    flex-direction: column;
+  }
+
+  .camera-controls button,
+  .capture-actions button {
+    width: 100%;
+  }
+}
