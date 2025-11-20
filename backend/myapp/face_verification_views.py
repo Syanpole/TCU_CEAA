@@ -1,5 +1,6 @@
 """
 Views for face verification and liveness detection
+Production implementation with AWS Rekognition integration
 """
 
 import json
@@ -13,10 +14,12 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from .face_comparison_service import FaceComparisonService
-from .models import GradeSubmission, DocumentSubmission, AllowanceApplication
+from .rekognition_service import get_verification_service
+from .models import GradeSubmission, DocumentSubmission, AllowanceApplication, VerificationAdjudication
 
 logger = logging.getLogger(__name__)
 
+# Fallback to FaceComparisonService for non-AWS workflows
 face_service = FaceComparisonService()
 
 
@@ -633,6 +636,195 @@ def verify_allowance_application_identity(request):
             {
                 'error': 'Identity verification failed',
                 'detail': str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_liveness_session(request):
+    """
+    Create an AWS Rekognition Face Liveness session
+    
+    This initiates the 3D liveness challenge flow:
+    1. Backend creates session with AWS
+    2. Frontend uses session_id for liveness UI
+    3. User completes 3D video challenge
+    4. Frontend calls verify_with_liveness endpoint
+    
+    Returns:
+    - success: Boolean
+    - session_id: String (AWS session ID for frontend)
+    - error: String (if failed)
+    """
+    try:
+        logger.info(f"Creating liveness session for user {request.user.id}")
+        
+        # Get verification service (AWS Rekognition or fallback)
+        verification_service = get_verification_service()
+        
+        # Create liveness session
+        result = verification_service.create_liveness_session()
+        
+        if result.get('success'):
+            logger.info(f"Liveness session created: {result.get('session_id')}")
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Failed to create liveness session: {result.get('error')}")
+            return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        logger.error(f"Error creating liveness session: {str(e)}")
+        return Response(
+            {
+                'success': False,
+                'error': f'Failed to create liveness session: {str(e)}'
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_with_liveness(request):
+    """
+    Complete biometric verification: Liveness + Identity Match + Admin Review
+    
+    Security Flow:
+    1. User completes AWS Rekognition 3D liveness challenge (frontend)
+    2. Backend retrieves liveness results (3D video analysis)
+    3. Backend compares reference image vs School ID (>99% threshold)
+    4. Creates VerificationAdjudication record for mandatory admin review
+    5. Returns result to frontend (ALWAYS pending admin approval)
+    
+    Expected POST data:
+    - session_id: String (from create_liveness_session)
+    - school_id_image: File (School ID image for comparison)
+    - application_id: Integer (optional, link to AllowanceApplication)
+    
+    Returns:
+    - success: Boolean
+    - liveness_passed: Boolean
+    - face_match: Boolean
+    - similarity_score: Float (0.0-1.0)
+    - requires_admin_review: Boolean (ALWAYS True)
+    - adjudication_id: Integer (VerificationAdjudication record ID)
+    - message: String
+    """
+    try:
+        session_id = request.POST.get('session_id')
+        school_id_image = request.FILES.get('school_id_image')
+        application_id = request.POST.get('application_id')
+        
+        # Validate inputs
+        if not session_id:
+            return Response(
+                {'error': 'session_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not school_id_image:
+            return Response(
+                {'error': 'school_id_image is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        logger.info(f"Starting liveness verification for user {request.user.id}, session {session_id}")
+        
+        # Get verification service
+        verification_service = get_verification_service()
+        
+        # Read school ID image bytes
+        school_id_bytes = school_id_image.read()
+        
+        # Perform complete verification (liveness + face comparison)
+        verification_result = verification_service.verify_identity_with_liveness(
+            session_id=session_id,
+            school_id_image_bytes=school_id_bytes
+        )
+        
+        # Extract results
+        liveness_passed = verification_result.get('liveness_passed', False)
+        face_match = verification_result.get('face_match', False)
+        similarity_score = verification_result.get('similarity_score', 0.0)
+        similarity_percentage = verification_result.get('similarity_percentage', 0.0)
+        confidence = verification_result.get('confidence', 'very_low')
+        liveness_confidence = verification_result.get('liveness_confidence', 0.0)
+        
+        # Save school ID image for admin review
+        school_id_path = default_storage.save(
+            f'verification/{request.user.id}/school_id_{session_id}.jpg',
+            ContentFile(school_id_bytes)
+        )
+        
+        # Get or create AllowanceApplication if application_id provided
+        application = None
+        if application_id:
+            try:
+                application = AllowanceApplication.objects.get(
+                    id=application_id,
+                    student=request.user
+                )
+            except AllowanceApplication.DoesNotExist:
+                logger.warning(f"AllowanceApplication {application_id} not found for user {request.user.id}")
+        
+        # Create VerificationAdjudication record for MANDATORY admin review
+        adjudication = VerificationAdjudication.objects.create(
+            user=request.user,
+            application=application,
+            school_id_image_path=school_id_path,
+            selfie_image_path=f'liveness-sessions/{session_id}/reference_image.jpg',  # S3 path from liveness
+            verification_backend='rekognition',
+            automated_liveness_score=liveness_confidence,
+            automated_similarity_score=similarity_score,
+            automated_confidence_level=confidence,
+            automated_verification_data=verification_result,
+            liveness_data=verification_result.get('liveness_data', {}),
+            admin_decision='pending'  # ALWAYS starts as pending
+        )
+        
+        logger.info(
+            f"Verification adjudication created: ID={adjudication.id}, "
+            f"User={request.user.id}, Liveness={liveness_passed}, "
+            f"Match={face_match}, Similarity={similarity_percentage}%"
+        )
+        
+        # Prepare response message
+        if not verification_result.get('success'):
+            message = verification_result.get('error', 'Verification failed')
+        elif not liveness_passed:
+            message = 'Liveness check failed. Please try again in good lighting.'
+        elif face_match:
+            message = (
+                f'Automated verification suggests a match (Similarity: {similarity_percentage:.1f}%). '
+                f'Your verification is now pending administrative review for final approval.'
+            )
+        else:
+            message = (
+                f'Automated verification indicates no match (Similarity: {similarity_percentage:.1f}%). '
+                f'This will be reviewed by an administrator.'
+            )
+        
+        return Response({
+            'success': verification_result.get('success', False),
+            'liveness_passed': liveness_passed,
+            'face_match': face_match,
+            'similarity_score': similarity_score,
+            'similarity_percentage': similarity_percentage,
+            'confidence': confidence,
+            'requires_admin_review': True,  # ALWAYS True
+            'adjudication_id': adjudication.id,
+            'adjudication_status': 'pending',
+            'message': message
+        }, status=status.HTTP_200_OK if verification_result.get('success') else status.HTTP_400_BAD_REQUEST)
+        
+    except Exception as e:
+        logger.error(f"Error in verify_with_liveness: {str(e)}", exc_info=True)
+        return Response(
+            {
+                'success': False,
+                'error': f'Verification failed: {str(e)}'
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

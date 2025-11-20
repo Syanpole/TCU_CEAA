@@ -16,7 +16,8 @@ from .views import (
 # Face verification views
 from .face_verification_views import (
     verify_face_with_id, extract_id_face, verify_liveness_only,
-    verify_grade_submission_identity, verify_allowance_application_identity
+    verify_grade_submission_identity, verify_allowance_application_identity,
+    create_liveness_session, verify_with_liveness
 )
 
 # Face adjudication views
@@ -74,6 +75,9 @@ urlpatterns = [
     path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
     path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
     path('api/face-verification/allowance-application/', verify_allowance_application_identity, name='verify-allowance-application-identity'),
+    # AWS Rekognition liveness endpoints
+    path('api/face-verification/create-liveness-session/', create_liveness_session, name='create-liveness-session'),
+    path('api/face-verification/verify-with-liveness/', verify_with_liveness, name='verify-with-liveness'),
     
     # 📚 New Grade Submission Workflow Endpoints (Per-Subject)
     path('api/grade-workflow/check-eligibility/', check_grade_submission_eligibility, name='check-grade-submission-eligibility'),
