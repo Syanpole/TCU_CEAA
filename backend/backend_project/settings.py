@@ -202,7 +202,7 @@ if USE_CLOUD_STORAGE:
     AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL', 'private')
     
     # Use S3 for media files
-    DEFAULT_FILE_STORAGE = 'myapp.storage_backends.MediaStorage'
+    DEFAULT_FILE_STORAGE = 'myapp.storage_backends.PrivateMediaStorage'
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
 
 # ============================================================================

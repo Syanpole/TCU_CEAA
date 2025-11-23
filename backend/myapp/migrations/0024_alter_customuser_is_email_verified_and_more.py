@@ -3,6 +3,25 @@
 from django.db import migrations, models
 
 
+def check_and_delete_emailverification(apps, schema_editor):
+    """Only delete EmailVerification table if it exists"""
+    db_alias = schema_editor.connection.alias
+    with schema_editor.connection.cursor() as cursor:
+        # Check if table exists
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'myapp_emailverification'
+            );
+        """)
+        table_exists = cursor.fetchone()[0]
+        
+        if table_exists:
+            # Table exists, delete it
+            cursor.execute("DROP TABLE myapp_emailverification CASCADE;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,7 +34,5 @@ class Migration(migrations.Migration):
             name='is_email_verified',
             field=models.BooleanField(default=False, help_text='Email address has been verified'),
         ),
-        migrations.DeleteModel(
-            name='EmailVerification',
-        ),
+        migrations.RunPython(check_and_delete_emailverification, migrations.RunPython.noop),
     ]
