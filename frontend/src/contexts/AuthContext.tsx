@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, User, RegisterResponse } from '../services/authService';
+import { resetAmplifyConfiguration } from '../services/amplifyService';
 
 interface AuthContextType {
   user: User | null;
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     authService.logout();
     localStorage.removeItem('token');
+    resetAmplifyConfiguration(); // Clear Amplify configuration on logout
     setUser(null);
   };
 

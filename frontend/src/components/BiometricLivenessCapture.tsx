@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
-import { Amplify } from 'aws-amplify';
 import { apiClient } from '../services/authService';
+import { initializeAmplify, isAmplifyConfigured } from '../services/amplifyService';
+import '@aws-amplify/ui-react/styles.css';
 import './BiometricLivenessCapture.css';
-
-// Configure Amplify (minimal config - we're using custom backend)
-// Note: We're using our own apiClient, so Amplify config is minimal
-try {
-  Amplify.configure({});
-} catch (error) {
-  console.warn('Amplify configuration skipped:', error);
-}
 
 interface BiometricLivenessCaptureProps {
   onComplete: (result: LivenessResult) => void;
@@ -39,11 +32,67 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Generate device fingerprint on mount
+  // Initialize: configure Amplify and generate device fingerprint on mount
   useEffect(() => {
-    generateDeviceFingerprint().then(() => {
-      setIsInitialized(true);
-    });
+    let retryCount = 0;
+    const maxRetries = 10; // Maximum 5 seconds (10 * 500ms)
+    
+    const initialize = async () => {
+      try {
+        // Check if user is authenticated (use 'token' key to match authService)
+        const token = localStorage.getItem('token');
+        if (!token) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error('❌ Authentication timeout: No auth token found after', maxRetries * 500, 'ms');
+            const errorMsg = '🔐 Please log in to use face verification.';
+            setErrorMessage(errorMsg);
+            setIsInitialized(false);
+            if (onError) onError(errorMsg);
+            return;
+          }
+          
+          console.warn(`⚠️ No auth token found, retry ${retryCount}/${maxRetries}...`);
+          // Retry after a short delay
+          setTimeout(initialize, 500);
+          return;
+        }
+
+        // Initialize Amplify using the centralized service
+        const amplifyReady = await initializeAmplify();
+        
+        if (!amplifyReady) {
+          setErrorMessage('⚙️ AWS Rekognition is not configured. Please check backend settings.');
+          setIsInitialized(false);
+          if (onError) onError('AWS Rekognition is not configured');
+          return;
+        }
+
+        // Generate device fingerprint
+        await generateDeviceFingerprint();
+        setIsInitialized(true);
+      } catch (error: any) {
+        console.error('Failed to initialize biometric capture:', error);
+        
+        let errorMsg = 'Failed to initialize face verification.';
+        
+        if (error.response?.status === 401) {
+          errorMsg = '🔐 Authentication required. Please log in and try again.';
+        } else if (error.response?.status === 403) {
+          errorMsg = '🔐 Access denied. Please check your permissions.';
+        } else if (error.response?.data?.error) {
+          errorMsg = error.response.data.error;
+        } else if (error.message) {
+          errorMsg = error.message;
+        }
+        
+        setErrorMessage(errorMsg);
+        setIsInitialized(false);
+        onError(errorMsg);
+      }
+    };
+
+    initialize();
   }, []);
 
   const generateDeviceFingerprint = async (): Promise<void> => {
@@ -90,6 +139,17 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     setErrorMessage('');
 
     try {
+      // Check if Amplify is configured
+      if (!isAmplifyConfigured()) {
+        const errorMsg = '⚙️ AWS Rekognition is not initialized. Please refresh the page.';
+        setErrorMessage(errorMsg);
+        setLoading(false);
+        if (onError) onError(errorMsg);
+        return;
+      }
+
+      // Amplify is configured, proceed with session creation
+
       // DEV MODE: Rate limiting disabled for development
       // if (attemptCount >= 3) {
       //   setErrorMessage('Maximum verification attempts reached. Please try again later.');

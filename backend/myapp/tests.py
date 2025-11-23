@@ -57,7 +57,7 @@ class AuthenticationTestCase(TestCase):
             **self.user_data,
             'password_confirm': 'testpass123',
             'verification_code': '123456'  # Include verification code
-        })
+        }, format='json')
         
         # Registration should succeed (returns 201)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -81,7 +81,7 @@ class AuthenticationTestCase(TestCase):
         response = self.client.post('/api/auth/login/', {
             'username': 'testuser',
             'password': 'testpass123'
-        })
+        }, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)
 
