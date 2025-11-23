@@ -75,11 +75,29 @@ const FaceAdjudicationDashboard: React.FC = () => {
       const response = await apiClient.get('/admin/face-adjudications/dashboard/');
       const data = response.data as DashboardResponse;
       
+      console.log('Face Adjudication Dashboard Data:', data);
+      
       setStats(data.stats);
-      setPendingVerifications(data.recent_pending);
-      setLowConfidenceVerifications(data.low_confidence);
+      setPendingVerifications(data.recent_pending || []);
+      setLowConfidenceVerifications(data.low_confidence || []);
     } catch (error: any) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Error fetching face adjudication dashboard:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      
+      // Set empty data on error
+      setStats({
+        total_pending: 0,
+        total_under_review: 0,
+        total_completed: 0,
+        total_errors: 0,
+        total_approved: 0,
+        total_rejected: 0,
+        total_escalated: 0,
+        low_confidence_count: 0,
+        high_confidence_count: 0
+      });
+      setPendingVerifications([]);
+      setLowConfidenceVerifications([]);
     } finally {
       setLoading(false);
     }

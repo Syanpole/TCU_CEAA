@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
+import { LiveCameraCapture } from './LiveCameraCapture';
 import './FullApplicationForm.css';
 
 interface FullApplicationFormProps {
@@ -89,6 +93,7 @@ interface ApplicationData {
 }
 
 const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType, onComplete, onCancel }) => {
+  const { notification, confirm: showConfirm } = useNotification();
   const [currentStep, setCurrentStep] = useState(1);
   const [showReview, setShowReview] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -97,8 +102,11 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   const [draftFadingOut, setDraftFadingOut] = useState(false);
   const [checkingExisting, setCheckingExisting] = useState(true);
   const [hasExistingApplication, setHasExistingApplication] = useState(false);
-  const totalSteps = 5;
+  const totalSteps = 5; // Back to 5 steps - no face verification here
   const hasCheckedExistingRef = useRef(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('');
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<ApplicationData>({
     facebook_link: '',
@@ -505,8 +513,19 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       if (error.response?.data) {
         const data = error.response.data;
         
+        // Handle duplicate application error specifically
+        if (data.detail && typeof data.detail === 'string' && data.detail.includes('already submitted')) {
+          errorMessage = '⚠️ You have already submitted an application for this grade submission.\n\n';
+          if (data.existing_application_id) {
+            errorMessage += `Application ID: ${data.existing_application_id}\n`;
+          }
+          if (data.status) {
+            errorMessage += `Status: ${data.status.toUpperCase()}\n`;
+          }
+          errorMessage += '\nPlease check your applications page to view your existing application.';
+        }
         // Handle the case where backend returns {success: false, errors: {...}}
-        if (data.success === false && data.errors) {
+        else if (data.success === false && data.errors) {
           const errorObj = data.errors;
           errorMessage = Object.entries(errorObj).map(([field, messages]) => {
             const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -544,8 +563,10 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
         errorMessage = error.message || 'Network error - please check your connection';
       }
       
-      // Show error dialog with formatted message
-      alert('Failed to submit application. Please check the following:\n\n' + (errorMessage || 'Unknown error occurred. Please try again.'));
+      // Show error modal with formatted message
+      setErrorTitle('Failed to Submit Application');
+      setErrorMessages(errorMessage.split('\n').filter(msg => msg.trim()));
+      setShowErrorModal(true);
     }
   };
 
@@ -1555,14 +1576,42 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
   }
 
   return (
-    <div className="faf-overlay">
-      <div className="faf-container">
-        {isSubmitting && (
-          <div className="loading-overlay">
-            <div className="loading-spinner"></div>
-            <p>Submitting your application...</p>
+    <>
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div className="error-modal-overlay" onClick={() => setShowErrorModal(false)}>
+          <div className="error-modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="error-modal-header">
+              <h3>⚠️ {errorTitle}</h3>
+              <button className="error-modal-close" onClick={() => setShowErrorModal(false)}>×</button>
+            </div>
+            <div className="error-modal-body">
+              <p className="error-modal-description">
+                Please review and fix the following issues before submitting:
+              </p>
+              <ul className="error-modal-list">
+                {errorMessages.map((msg, index) => (
+                  <li key={index}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="error-modal-footer">
+              <button className="error-modal-btn" onClick={() => setShowErrorModal(false)}>
+                OK
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="faf-overlay">
+        <div className="faf-container">
+          {isSubmitting && (
+            <div className="loading-overlay">
+              <div className="loading-spinner"></div>
+              <p>Submitting your application...</p>
+            </div>
+          )}
 
         <div className="faf-header">
           <div className="faf-header-content">
@@ -1583,8 +1632,15 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
                 </span>
                 <button
                   className="faf-draft-clear-btn"
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to clear your saved draft? This cannot be undone.')) {
+                  onClick={async () => {
+                    const confirmed = await showConfirm({
+                      message: 'Are you sure you want to clear your saved draft? This cannot be undone.',
+                      type: 'warning',
+                      confirmText: 'Clear Draft',
+                      cancelText: 'Cancel'
+                    });
+                    
+                    if (confirmed) {
                       localStorage.removeItem('fullApplicationDraft');
                       window.location.reload();
                     }
@@ -1667,7 +1723,10 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
           </div>
         )}
       </div>
+      
+      <NotificationDialog {...notification} />
     </div>
+    </>
   );
 };
 

@@ -1161,6 +1161,148 @@
   background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
 }
 
+/* Face Verification Section (in-form) */
+.face-verification-section {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  grid-column: 1 / -1;
+}
+
+.face-verification-section h4 {
+  margin: 0 0 16px 0;
+  color: #1e40af;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.face-verification-section .verification-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.face-verification-section .verification-info > p {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.face-verification-section .verification-requirements {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.face-verification-section .verification-requirements h5 {
+  margin: 0 0 12px 0;
+  color: #1e40af;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.face-verification-section .verification-requirements ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.face-verification-section .verification-requirements li {
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.face-verification-section .verification-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.face-verification-section .verification-btn {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.face-verification-section .verification-btn.start-verification {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.face-verification-section .verification-btn.start-verification:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
+.face-verification-section .verification-btn.retake {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 2px solid rgba(245, 158, 11, 0.4);
+}
+
+.face-verification-section .verification-btn.retake:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.face-verification-section .verification-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.face-verification-section .success-message {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(187, 247, 208, 0.2) 100%);
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #166534;
+  font-weight: 600;
+  font-size: 15px;
+  text-align: center;
+  width: 100%;
+}
+
+.face-verification-section .selfie-preview {
+  max-width: 300px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 3px solid rgba(34, 197, 94, 0.3);
+}
+
+.face-verification-section .selfie-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.face-verification-section .camera-capture-container {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 /* Responsive Design for Modals */
 @media (max-width: 640px) {
   .liveness-verification-modal,
@@ -1214,4 +1356,375 @@
     width: 100%;
     justify-content: center;
   }
+
+  .face-verification-section {
+    padding: 20px;
+  }
+
+  .face-verification-section .selfie-preview {
+    max-width: 100%;
+  }
+}
+
+/* Pre-Verification Instructions Modal */
+.verification-instructions-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.verification-instructions-modal {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.4s ease;
+}
+
+.instructions-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 24px 28px;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.instructions-header h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.close-instructions {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-instructions:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.instructions-content {
+  padding: 28px;
+}
+
+.instructions-section {
+  margin-bottom: 28px;
+}
+
+.instructions-section:last-child {
+  margin-bottom: 0;
+}
+
+.instructions-section h4 {
+  color: #1e40af;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+}
+
+.instructions-section ol {
+  margin: 0;
+  padding-left: 24px;
+  color: #334155;
+}
+
+.instructions-section ol li {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.instructions-section ol li strong {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.requirements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.requirement-item {
+  display: flex;
+  gap: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.req-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.req-text {
+  flex: 1;
+}
+
+.req-text strong {
+  display: block;
+  color: #1e40af;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.req-text p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.verification-tips {
+  margin: 0;
+  padding-left: 24px;
+  color: #334155;
+}
+
+.verification-tips li {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.instructions-section.security-note {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(187, 247, 208, 0.1) 100%);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.instructions-section.security-note h4 {
+  color: #166534;
+  margin-bottom: 12px;
+}
+
+.instructions-section.security-note p {
+  margin: 0;
+  color: #166534;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.instructions-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px 28px;
+  background: #f8fafc;
+  border-radius: 0 0 20px 20px;
+  border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+}
+
+.instructions-footer button {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.instructions-footer .btn-secondary {
+  background: white;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+}
+
+.instructions-footer .btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.instructions-footer .btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.instructions-footer .btn-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .verification-instructions-modal {
+    margin: 10px;
+  }
+
+  .instructions-header {
+    padding: 20px;
+  }
+
+  .instructions-header h3 {
+    font-size: 18px;
+  }
+
+  .instructions-content {
+    padding: 20px;
+  }
+
+  .requirements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .instructions-footer {
+    flex-direction: column-reverse;
+    padding: 16px 20px;
+  }
+
+  .instructions-footer button {
+    width: 100%;
+  }
+}
+
+/* Dark Theme Support for Face Verification Section */
+.dark-theme .face-verification-section {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.12) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.dark-theme .face-verification-section h4 {
+  color: #93c5fd;
+}
+
+.dark-theme .face-verification-section .verification-info > p {
+  color: #cbd5e1;
+}
+
+.dark-theme .face-verification-section .verification-requirements {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark-theme .face-verification-section .verification-requirements h5 {
+  color: #93c5fd;
+}
+
+.dark-theme .face-verification-section .verification-requirements li {
+  color: #cbd5e1;
+}
+
+.dark-theme .face-verification-section .success-message {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(187, 247, 208, 0.1) 100%);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #86efac;
+}
+
+.dark-theme .face-verification-section .camera-capture-container {
+  background: #1e293b;
+}
+
+.dark-theme .face-verification-section .selfie-preview {
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+/* Dark Theme for Instructions Modal */
+.dark-theme .verification-instructions-modal {
+  background: #1e293b;
+}
+
+.dark-theme .instructions-content {
+  color: #cbd5e1;
+}
+
+.dark-theme .instructions-section h4 {
+  color: #93c5fd;
+}
+
+.dark-theme .instructions-section ol,
+.dark-theme .verification-tips {
+  color: #cbd5e1;
+}
+
+.dark-theme .instructions-section ol li strong {
+  color: #93c5fd;
+}
+
+.dark-theme .requirement-item {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.dark-theme .req-text strong {
+  color: #93c5fd;
+}
+
+.dark-theme .req-text p {
+  color: #94a3b8;
+}
+
+.dark-theme .instructions-section.security-note {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.dark-theme .instructions-section.security-note h4,
+.dark-theme .instructions-section.security-note p {
+  color: #86efac;
+}
+
+.dark-theme .instructions-footer {
+  background: #0f172a;
+  border-top-color: #334155;
+}
+
+.dark-theme .instructions-footer .btn-secondary {
+  background: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.dark-theme .instructions-footer .btn-secondary:hover {
+  background: #475569;
+  border-color: #64748b;
 }

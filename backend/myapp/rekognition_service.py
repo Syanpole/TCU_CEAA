@@ -14,7 +14,6 @@ Security Flow:
 3. Identity Match: Compare live reference image vs School ID (>99% threshold)
 4. Admin Review: All verifications routed to admin queue regardless of AI score
 """
-import boto3
 import logging
 import json
 import uuid
@@ -22,7 +21,16 @@ from typing import Dict, Tuple, Optional
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
-from botocore.config import Config
+
+# Try to import boto3, but make it optional
+try:
+    import boto3
+    from botocore.config import Config
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("boto3 not installed. AWS Rekognition features will be unavailable.")
 
 logger = logging.getLogger(__name__)
 
@@ -36,24 +44,32 @@ class BiometricVerificationService:
     def __init__(self):
         """Initialize biometric verification service with extended timeout configuration"""
         self.region = getattr(settings, 'VERIFICATION_SERVICE_REGION', 'us-east-1')
-        
-        # Configure boto3 with generous timeouts for cross-cloud latency
-        config = Config(
-            region_name=self.region,
-            connect_timeout=30,  # 30 seconds for connection
-            read_timeout=60,     # 60 seconds for read (handles slow mobile networks)
-            retries={'max_attempts': 3, 'mode': 'standard'}
-        )
-        
-        self.client = boto3.client('rekognition', region_name=self.region, config=config)
         self.min_confidence = float(getattr(settings, 'VERIFICATION_SERVICE_MIN_CONFIDENCE', 80))
         self.service_id = getattr(settings, 'VERIFICATION_SERVICE_ID', 'tcu-ceaa-verification')
-        self.enabled = getattr(settings, 'VERIFICATION_SERVICE_ENABLED', False)
+        self.enabled = getattr(settings, 'VERIFICATION_SERVICE_ENABLED', False) and BOTO3_AVAILABLE
         
         # Strict threshold: >99% for auto-tagging (but always requires admin review)
         self.similarity_threshold = 99.0
         
-        logger.info(f"BiometricVerificationService initialized (Enabled: {self.enabled}, Threshold: {self.similarity_threshold}%)")
+        if BOTO3_AVAILABLE and self.enabled:
+            # Configure boto3 with generous timeouts for cross-cloud latency
+            config = Config(
+                region_name=self.region,
+                connect_timeout=30,  # 30 seconds for connection
+                read_timeout=60,     # 60 seconds for read (handles slow mobile networks)
+                retries={'max_attempts': 3, 'mode': 'standard'}
+            )
+            
+            try:
+                self.client = boto3.client('rekognition', region_name=self.region, config=config)
+                logger.info(f"BiometricVerificationService initialized with AWS (Enabled: {self.enabled}, Threshold: {self.similarity_threshold}%)")
+            except Exception as e:
+                logger.error(f"Failed to initialize AWS Rekognition client: {e}")
+                self.client = None
+                self.enabled = False
+        else:
+            self.client = None
+            logger.warning(f"BiometricVerificationService initialized WITHOUT AWS (boto3 available: {BOTO3_AVAILABLE}, enabled: {self.enabled})")
         
     def create_liveness_session(self) -> Dict:
         """

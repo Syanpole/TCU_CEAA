@@ -9,7 +9,7 @@
  * Security: All verifications require mandatory admin review
  */
 
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 // Extended timeout for cross-cloud processing (Google Cloud → AWS)
 const LIVENESS_TIMEOUT = 60000; // 60 seconds
@@ -53,14 +53,13 @@ export const startLivenessSession = async (): Promise<LivenessSessionResponse> =
     );
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to create liveness session:', error);
     
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<LivenessSessionResponse>;
+    if (error.response) {
       return {
         success: false,
-        error: axiosError.response?.data?.error || 'Failed to create liveness session',
+        error: error.response.data?.error || 'Failed to create liveness session',
       };
     }
 
@@ -109,15 +108,13 @@ export const completeLivenessChallenge = async (
     );
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Liveness verification failed:', error);
     
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<LivenessVerificationResponse>;
-      
+    if (error.response) {
       // Return error response from backend if available
-      if (axiosError.response?.data) {
-        return axiosError.response.data;
+      if (error.response.data) {
+        return error.response.data;
       }
       
       return {
@@ -131,7 +128,7 @@ export const completeLivenessChallenge = async (
         adjudication_id: 0,
         adjudication_status: 'error',
         message: 'Verification failed',
-        error: axiosError.response?.data?.error || axiosError.message || 'Verification request failed',
+        error: error.response.data?.error || error.message || 'Verification request failed',
       };
     }
 
@@ -160,7 +157,7 @@ export const isLivenessEnabled = async (): Promise<boolean> => {
   try {
     // Try to create a test session (will fail gracefully if not enabled)
     const result = await startLivenessSession();
-    return result.success || (result.error && !result.error.includes('not enabled'));
+    return !!result.success || (!!result.error && !result.error.includes('not enabled'));
   } catch {
     return false;
   }

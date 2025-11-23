@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import { sendApplicationConfirmationEmail } from '../services/email/emailService';
 import { useAuth } from '../contexts/AuthContext';
+import { BiometricLivenessCapture, LivenessResult } from './BiometricLivenessCapture';
 import './AllowanceApplicationForm.css';
 
 interface GradeSubmission {
@@ -58,6 +59,13 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   const [error, setError] = useState('');
   const [loadingGrades, setLoadingGrades] = useState(true);
   const [emailStatus, setEmailStatus] = useState('');
+  
+  // Face verification state
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [faceVerificationComplete, setFaceVerificationComplete] = useState(false);
+  const [selfieImage, setSelfieImage] = useState<string | null>(null);
+  const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null);
+  const [showVerificationInstructions, setShowVerificationInstructions] = useState(false);
 
   useEffect(() => {
     fetchApprovedGrades();
@@ -240,11 +248,35 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     return selectedType ? selectedType.amount : '₱0';
   };
 
+  const handleLivenessComplete = (result: LivenessResult) => {
+    // Store the verification result
+    setSelfieImage(result.referenceImageUrl || '');
+    setFaceVerificationComplete(true);
+    setShowFaceVerification(false);
+    console.log('✅ Biometric liveness verification completed!', result);
+    
+    // You can store the full result for later use
+    // For example, store sessionId and confidence scores
+    localStorage.setItem('livenessVerificationResult', JSON.stringify(result));
+  };
+
+  const handleLivenessError = (error: string) => {
+    console.error('❌ Biometric liveness verification error:', error);
+    setError(`Face verification failed: ${error}`);
+    setShowFaceVerification(false);
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
     if (!selectedGradeSubmission || !applicationType) {
       setError('Please select a grade submission and application type.');
+      return;
+    }
+
+    // Check if face verification is complete
+    if (!faceVerificationComplete || !selfieBlob) {
+      setError('Please complete face verification before submitting your application.');
       return;
     }
 
@@ -261,6 +293,25 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
       // Submit the application
       const response = await apiClient.post('/applications/', applicationData);
       const submittedApplication: any = response.data;
+      
+      // Upload face verification selfie
+      try {
+        console.log('📸 Uploading face verification selfie...');
+        const uploadFormData = new FormData();
+        uploadFormData.append('selfie', selfieBlob, 'selfie.jpg');
+        const applicationId = submittedApplication?.id || submittedApplication?.application_id;
+        uploadFormData.append('application_id', String(applicationId));
+        
+        await apiClient.post('/face-verification/upload/', uploadFormData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        console.log('✅ Face verification selfie uploaded successfully!');
+      } catch (faceError) {
+        console.error('❌ Error uploading face verification:', faceError);
+        // Don't fail the entire submission if face upload fails
+      }
       
       // Send confirmation email to student
       if (user?.email && user?.first_name && user?.last_name) {
@@ -514,6 +565,175 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             </div>
           )}
 
+          {selectedGradeSubmission && applicationType && (
+            <div className="face-verification-section">
+              <h4>📸 Face Verification Required</h4>
+              <div className="verification-info">
+                <p>Please complete face verification before submitting your application. This helps us verify your identity and prevent fraud.</p>
+                
+                {!showFaceVerification && !faceVerificationComplete && (
+                  <div className="verification-requirements">
+                    <h5>Requirements:</h5>
+                    <ul>
+                      <li>✓ Good lighting</li>
+                      <li>✓ Face clearly visible</li>
+                      <li>✓ Remove glasses if possible</li>
+                      <li>✓ Look directly at camera</li>
+                    </ul>
+                  </div>
+                )}
+
+                <div className="verification-actions">
+                  {!showFaceVerification && !faceVerificationComplete && (
+                    <button
+                      type="button"
+                      className="verification-btn start-verification"
+                      onClick={() => setShowVerificationInstructions(true)}
+                    >
+                      📸 Start Face Verification
+                    </button>
+                  )}
+
+                  {faceVerificationComplete && selfieImage && (
+                    <div className="verification-complete">
+                      <div className="success-message">
+                        ✅ Face verification completed successfully!
+                      </div>
+                      <div className="selfie-preview">
+                        <img src={selfieImage} alt="Your selfie" />
+                      </div>
+                      <button
+                        type="button"
+                        className="verification-btn retake"
+                        onClick={() => {
+                          setFaceVerificationComplete(false);
+                          setSelfieImage(null);
+                          setSelfieBlob(null);
+                          setShowFaceVerification(true);
+                        }}
+                      >
+                        🔄 Retake Photo
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {showFaceVerification && (
+                  <div className="camera-capture-container">
+                    <BiometricLivenessCapture
+                      onComplete={handleLivenessComplete}
+                      onError={handleLivenessError}
+                      studentId={selectedGradeSubmission?.toString()}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Pre-Verification Instructions Modal */}
+          {showVerificationInstructions && (
+            <div className="verification-instructions-overlay">
+              <div className="verification-instructions-modal">
+                <div className="instructions-header">
+                  <h3>🔐 Face Verification Process</h3>
+                  <button 
+                    className="close-instructions"
+                    onClick={() => setShowVerificationInstructions(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="instructions-content">
+                  <div className="instructions-section">
+                    <h4>📋 What Will Happen Next</h4>
+                    <ol>
+                      <li><strong>Camera Access:</strong> We'll request permission to use your camera</li>
+                      <li><strong>Position Yourself:</strong> Center your face within the camera frame</li>
+                      <li><strong>Liveness Detection:</strong> Follow simple prompts to verify you're a real person (not a photo)</li>
+                      <li><strong>Capture Photo:</strong> A selfie will be taken automatically after verification</li>
+                      <li><strong>Review & Submit:</strong> You can retake if needed before final submission</li>
+                    </ol>
+                  </div>
+
+                  <div className="instructions-section">
+                    <h4>✅ Before You Begin</h4>
+                    <div className="requirements-grid">
+                      <div className="requirement-item">
+                        <span className="req-icon">💡</span>
+                        <div className="req-text">
+                          <strong>Good Lighting</strong>
+                          <p>Ensure your face is well-lit and clearly visible</p>
+                        </div>
+                      </div>
+                      <div className="requirement-item">
+                        <span className="req-icon">👤</span>
+                        <div className="req-text">
+                          <strong>Face Clearly Visible</strong>
+                          <p>Remove hats, masks, or anything covering your face</p>
+                        </div>
+                      </div>
+                      <div className="requirement-item">
+                        <span className="req-icon">👓</span>
+                        <div className="req-text">
+                          <strong>Remove Glasses</strong>
+                          <p>If possible, remove glasses for better detection</p>
+                        </div>
+                      </div>
+                      <div className="requirement-item">
+                        <span className="req-icon">📱</span>
+                        <div className="req-text">
+                          <strong>Steady Device</strong>
+                          <p>Hold your device steady or place it on a stable surface</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="instructions-section">
+                    <h4>🎯 During Verification</h4>
+                    <ul className="verification-tips">
+                      <li>Look directly at the camera</li>
+                      <li>Keep your head centered in the frame</li>
+                      <li>Follow the on-screen prompts carefully</li>
+                      <li>Stay still when the photo is being captured</li>
+                      <li>The process typically takes 10-20 seconds</li>
+                    </ul>
+                  </div>
+
+                  <div className="instructions-section security-note">
+                    <h4>🔒 Privacy & Security</h4>
+                    <p>
+                      Your photo is encrypted and securely stored. It will only be used to verify your identity 
+                      for this application and will be reviewed by authorized administrators only.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="instructions-footer">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowVerificationInstructions(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => {
+                      setShowVerificationInstructions(false);
+                      setShowFaceVerification(true);
+                    }}
+                  >
+                    ✓ I'm Ready - Start Verification
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="form-actions">
             <button
               type="button"
@@ -526,13 +746,16 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
             <button
               type="submit"
               className="submit-button"
-              disabled={loading || !selectedGradeSubmission || !applicationType}
+              disabled={loading || !selectedGradeSubmission || !applicationType || !faceVerificationComplete}
+              title={!faceVerificationComplete ? 'Please complete face verification first' : ''}
             >
               {loading ? (
                 <>
                   <span className="loading-spinner-small"></span>
                   Submitting Application...
                 </>
+              ) : !faceVerificationComplete ? (
+                '🔒 Complete Face Verification to Submit'
               ) : (
                 `Submit Application for ${calculateAmount()}`
               )}

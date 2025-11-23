@@ -105,7 +105,14 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
       const token = localStorage.getItem('token');
       
       // Call backend API
-      const apiResponse = await axios.post(
+      const apiResponse = await axios.post<{
+        id_face_detected: boolean;
+        selfie_face_detected: boolean;
+        similarity_score: number;
+        match: boolean;
+        confidence: string;
+        error?: string;
+      }>(
         'http://localhost:8000/api/face-verification/verify/',
         formData,
         {

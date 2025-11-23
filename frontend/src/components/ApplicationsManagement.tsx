@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import { formatCurrency } from '../utils/numberUtils';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
 import './ApplicationsManagement.css';
 
 interface Application {
@@ -21,6 +23,7 @@ interface ApplicationsManagementProps {
 }
 
 const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewChange }) => {
+  const { notification, confirm: showConfirm, alert: showAlert } = useNotification();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +99,11 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
       
     } catch (error) {
       console.error(`Error ${action}ing application:`, error);
-      alert(`Failed to ${action} application. Please try again.`);
+      await showAlert({
+        message: `Failed to ${action} application. Please try again.`,
+        type: 'error',
+        confirmText: 'OK'
+      });
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
@@ -105,14 +112,14 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
   // Handle delete application
   const handleDeleteApplication = async (applicationId: number, applicationName: string) => {
     // Confirm deletion
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete this application?\n\n` +
-      `Application: ${applicationName}\n` +
-      `ID: #${applicationId}\n\n` +
-      `This action cannot be undone!`
-    );
+    const confirmed = await showConfirm({
+      message: `Are you sure you want to delete this application?\n\nApplication: ${applicationName}\nID: #${applicationId}\n\nThis action cannot be undone!`,
+      type: 'warning',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
     
-    if (!confirmDelete) return;
+    if (!confirmed) return;
 
     const actionKey = `delete_${applicationId}`;
     
@@ -129,12 +136,20 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
         closeApplicationModal();
       }
       
-      alert('Application deleted successfully!');
+      await showAlert({
+        message: 'Application deleted successfully!',
+        type: 'success',
+        confirmText: 'OK'
+      });
       
     } catch (error: any) {
       console.error('Error deleting application:', error);
       const errorMessage = error.response?.data?.detail || error.response?.data?.error || 'Failed to delete application. Please try again.';
-      alert(`Error: ${errorMessage}`);
+      await showAlert({
+        message: `Error: ${errorMessage}`,
+        type: 'error',
+        confirmText: 'OK'
+      });
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
@@ -520,6 +535,8 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
           </div>
         )}
       </div>
+      
+      <NotificationDialog {...notification} />
     </div>
   );
 };

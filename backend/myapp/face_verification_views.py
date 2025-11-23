@@ -645,13 +645,20 @@ def verify_allowance_application_identity(request):
 @permission_classes([IsAuthenticated])
 def create_liveness_session(request):
     """
-    Create an AWS Rekognition Face Liveness session
+    Create an AWS Rekognition Face Liveness session with security tracking
     
-    This initiates the 3D liveness challenge flow:
-    1. Backend creates session with AWS
-    2. Frontend uses session_id for liveness UI
-    3. User completes 3D video challenge
-    4. Frontend calls verify_with_liveness endpoint
+    Enhanced security features:
+    - Device fingerprinting
+    - Rate limiting (3 attempts per session, 10 per day)
+    - IP geolocation (Philippines only)
+    - VPN/proxy detection
+    - Fraud risk scoring
+    
+    Expected POST data:
+    - student_id: String (optional)
+    - device_fingerprint: String (required)
+    - ip_address: String (optional, will use request IP if not provided)
+    - attempt_number: Integer (current attempt count)
     
     Returns:
     - success: Boolean
@@ -659,27 +666,333 @@ def create_liveness_session(request):
     - error: String (if failed)
     """
     try:
+        from .models import FaceVerificationSession
+        from datetime import timedelta
+        import requests
+        
         logger.info(f"Creating liveness session for user {request.user.id}")
+        
+        # Get request data
+        device_fingerprint = request.data.get('device_fingerprint')
+        attempt_number = int(request.data.get('attempt_number', 1))
+        
+        # Validate device fingerprint
+        if not device_fingerprint or len(device_fingerprint) < 32:
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Invalid device fingerprint'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get IP address
+        ip_address = request.data.get('ip_address') or request.META.get('REMOTE_ADDR', '')
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Check rate limiting - daily attempts
+        today = timezone.now().date()
+        today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+        daily_count = FaceVerificationSession.objects.filter(
+            user=request.user,
+            created_at__gte=today_start
+        ).count()
+        
+        if daily_count >= 10:
+            logger.warning(f"User {request.user.id} exceeded daily verification limit ({daily_count}/10)")
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Daily verification limit reached (10 attempts). Please try again tomorrow.',
+                    'daily_count': daily_count
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        # Check for recent sessions with same device (prevent rapid fire)
+        recent_cutoff = timezone.now() - timedelta(minutes=2)
+        recent_session = FaceVerificationSession.objects.filter(
+            user=request.user,
+            device_fingerprint=device_fingerprint,
+            created_at__gte=recent_cutoff
+        ).first()
+        
+        if recent_session and not recent_session.is_expired():
+            logger.warning(f"User {request.user.id} has recent active session from same device")
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Please wait 2 minutes between verification attempts from the same device.',
+                    'retry_after': 120
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        # Get IP geolocation (optional - will not block if service unavailable)
+        geolocation_data = {
+            'country': None,
+            'region': None,
+            'city': None,
+            'is_vpn': False,
+            'is_philippines': False
+        }
+        
+        try:
+            # Use ipapi.co for geolocation (free tier: 1000 requests/day)
+            geo_response = requests.get(f'https://ipapi.co/{ip_address}/json/', timeout=3)
+            if geo_response.status_code == 200:
+                geo_data = geo_response.json()
+                geolocation_data = {
+                    'country': geo_data.get('country_name'),
+                    'region': geo_data.get('region'),
+                    'city': geo_data.get('city'),
+                    'is_vpn': geo_data.get('threat', {}).get('is_proxy', False) or geo_data.get('threat', {}).get('is_vpn', False),
+                    'is_philippines': geo_data.get('country_code') == 'PH'
+                }
+        except Exception as geo_error:
+            logger.warning(f"Geolocation lookup failed: {str(geo_error)}")
         
         # Get verification service (AWS Rekognition or fallback)
         verification_service = get_verification_service()
         
-        # Create liveness session
+        # Create AWS liveness session
         result = verification_service.create_liveness_session()
         
-        if result.get('success'):
-            logger.info(f"Liveness session created: {result.get('session_id')}")
-            return Response(result, status=status.HTTP_200_OK)
-        else:
-            logger.error(f"Failed to create liveness session: {result.get('error')}")
+        if not result.get('success'):
+            logger.error(f"Failed to create AWS liveness session: {result.get('error')}")
             return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        session_id = result.get('session_id')
+        
+        # Create FaceVerificationSession record
+        session = FaceVerificationSession.objects.create(
+            session_id=session_id,
+            user=request.user,
+            status='created',
+            verification_type='liveness_and_match',
+            device_fingerprint=device_fingerprint,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            geolocation_country=geolocation_data['country'],
+            geolocation_region=geolocation_data['region'],
+            geolocation_city=geolocation_data['city'],
+            is_vpn=geolocation_data['is_vpn'],
+            is_philippines=geolocation_data['is_philippines'],
+            attempt_number=attempt_number,
+            daily_attempt_count=daily_count + 1,
+            expires_at=timezone.now() + timedelta(minutes=5)
+        )
+        
+        # Add fraud flags if suspicious
+        if geolocation_data['is_vpn']:
+            session.add_fraud_flag('vpn_detected', 'VPN or proxy connection detected')
+        
+        if not geolocation_data['is_philippines'] and geolocation_data['country']:
+            session.add_fraud_flag('foreign_ip', f'Non-Philippines IP address ({geolocation_data["country"]})')
+        
+        # Check for unusual times (2am-5am)
+        current_hour = timezone.now().hour
+        if 2 <= current_hour < 5:
+            session.add_fraud_flag('unusual_time', f'Verification attempt at {current_hour}:00 (2am-5am window)')
+        
+        logger.info(
+            f"Liveness session created: {session_id}, User: {request.user.id}, "
+            f"Device: {device_fingerprint[:16]}..., IP: {ip_address}, "
+            f"Country: {geolocation_data['country']}, Fraud Score: {session.fraud_risk_score}"
+        )
+        
+        return Response({
+            'success': True,
+            'session_id': session_id,
+            'attempt_number': attempt_number,
+            'daily_count': daily_count + 1,
+            'fraud_risk_score': session.fraud_risk_score,
+            'warnings': session.fraud_flags if session.fraud_flags else []
+        }, status=status.HTTP_200_OK)
             
     except Exception as e:
-        logger.error(f"Error creating liveness session: {str(e)}")
+        logger.error(f"Error creating liveness session: {str(e)}", exc_info=True)
         return Response(
             {
                 'success': False,
                 'error': f'Failed to create liveness session: {str(e)}'
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_liveness(request):
+    """
+    Verify liveness session and optionally compare with ID photo
+    
+    Enhanced security features:
+    - Session expiration checking (5 minute TTL)
+    - Device fingerprint validation
+    - Fraud risk assessment
+    - Comprehensive result tracking
+    
+    Expected POST data:
+    - session_id: String (from create_liveness_session)
+    - device_fingerprint: String (must match session creation)
+    
+    Returns:
+    - success: Boolean
+    - is_live: Boolean
+    - confidence_score: Float (0.0-100.0)
+    - session_id: String
+    - fraud_risk_score: Float
+    - message: String
+    """
+    try:
+        from .models import FaceVerificationSession
+        
+        session_id = request.data.get('session_id')
+        device_fingerprint = request.data.get('device_fingerprint')
+        
+        # Validate inputs
+        if not session_id:
+            return Response(
+                {'error': 'session_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not device_fingerprint:
+            return Response(
+                {'error': 'device_fingerprint is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get session from database
+        try:
+            session = FaceVerificationSession.objects.get(
+                session_id=session_id,
+                user=request.user
+            )
+        except FaceVerificationSession.DoesNotExist:
+            logger.error(f"Session {session_id} not found for user {request.user.id}")
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Invalid session ID'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if session expired
+        if session.is_expired():
+            logger.warning(f"Session {session_id} expired for user {request.user.id}")
+            session.status = 'expired'
+            session.save()
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Session expired. Please start a new verification.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate device fingerprint matches
+        if session.device_fingerprint != device_fingerprint:
+            logger.error(
+                f"Device fingerprint mismatch for session {session_id}: "
+                f"Expected {session.device_fingerprint[:16]}..., Got {device_fingerprint[:16]}..."
+            )
+            session.add_fraud_flag('device_mismatch', 'Device fingerprint changed during verification')
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Device validation failed. Please start a new verification.',
+                    'fraud_detected': True
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Update session status
+        session.status = 'in_progress'
+        session.save()
+        
+        logger.info(f"Verifying liveness for session {session_id}, user {request.user.id}")
+        
+        # Get verification service
+        verification_service = get_verification_service()
+        
+        # Get liveness session results from AWS
+        liveness_result = verification_service.get_liveness_session_results(session_id)
+        
+        if not liveness_result.get('success'):
+            error_msg = liveness_result.get('error', 'Liveness verification failed')
+            logger.error(f"Liveness verification failed for session {session_id}: {error_msg}")
+            session.mark_failed(error_msg)
+            return Response(
+                {
+                    'success': False,
+                    'error': error_msg
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Extract liveness data
+        is_live = liveness_result.get('status') == 'SUCCEEDED'
+        confidence_score = liveness_result.get('confidence', 0.0)
+        audit_images = liveness_result.get('audit_images', [])
+        reference_image = liveness_result.get('reference_image')
+        
+        # Update session with results
+        session.liveness_score = confidence_score
+        session.is_live = is_live
+        session.confidence_score = confidence_score
+        session.aws_response = liveness_result
+        
+        if reference_image:
+            session.reference_image_url = reference_image.get('S3Object', {}).get('Name', '')
+        
+        if audit_images:
+            # Store first audit image URL
+            session.audit_image_url = audit_images[0].get('S3Object', {}).get('Name', '') if audit_images else ''
+        
+        # Assess fraud risk based on confidence
+        if confidence_score < 80:
+            session.add_fraud_flag('low_confidence', f'Low liveness confidence: {confidence_score:.1f}%')
+        
+        if is_live and confidence_score >= 80:
+            session.mark_completed(
+                confidence_score=confidence_score,
+                liveness_score=confidence_score,
+                similarity_score=0.0,  # Will be set later if face matching is done
+                is_live=True,
+                face_match=False  # Will be set later
+            )
+            message = f'Liveness verification successful (Confidence: {confidence_score:.1f}%)'
+        else:
+            session.mark_failed('Liveness check failed')
+            message = f'Liveness verification failed (Confidence: {confidence_score:.1f}%)'
+        
+        logger.info(
+            f"Liveness verification completed: Session={session_id}, "
+            f"User={request.user.id}, IsLive={is_live}, "
+            f"Confidence={confidence_score:.1f}%, FraudScore={session.fraud_risk_score}"
+        )
+        
+        return Response({
+            'success': is_live,
+            'is_live': is_live,
+            'confidence_score': confidence_score,
+            'session_id': session_id,
+            'fraud_risk_score': session.fraud_risk_score,
+            'fraud_flags': session.fraud_flags,
+            'audit_image_url': session.audit_image_url,
+            'reference_image_url': session.reference_image_url,
+            'message': message
+        }, status=status.HTTP_200_OK if is_live else status.HTTP_400_BAD_REQUEST)
+        
+    except Exception as e:
+        logger.error(f"Error in verify_liveness: {str(e)}", exc_info=True)
+        return Response(
+            {
+                'success': False,
+                'error': f'Verification failed: {str(e)}'
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

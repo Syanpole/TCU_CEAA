@@ -1740,6 +1740,19 @@ class AllowanceApplicationCreateSerializer(serializers.ModelSerializer):
         if grade_submission.status != 'approved':
             raise serializers.ValidationError('Grade submission must be approved before applying for allowance.')
         
+        # Check if application already exists for this student and grade submission
+        existing_application = AllowanceApplication.objects.filter(
+            student=user,
+            grade_submission=grade_submission
+        ).first()
+        
+        if existing_application:
+            raise serializers.ValidationError({
+                'detail': 'You have already submitted an application for this grade submission.',
+                'existing_application_id': existing_application.id,
+                'status': existing_application.status
+            })
+        
         # Check if AI evaluation qualifies for requested allowance
         if application_type == 'basic' and not grade_submission.qualifies_for_basic_allowance:
             raise serializers.ValidationError('You do not qualify for Basic Educational Assistance based on your grades.')
