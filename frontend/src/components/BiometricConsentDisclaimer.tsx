@@ -36,15 +36,15 @@ const BiometricConsentDisclaimer: React.FC<BiometricConsentDisclaimerProps> = ({
             </div>
             <div className="section-body">
               <p>
-                Your identity will be verified using automated artificial intelligence services, including:
+                Your identity will be verified using automated artificial intelligence services powered by AWS Rekognition, including:
               </p>
               <ul>
-                <li><strong>Liveness Detection:</strong> Advanced liveness verification to confirm you are a real person and prevent spoofing attempts.</li>
-                <li><strong>Face Matching:</strong> Your live face will be automatically compared against your submitted School ID using biometric verification technology.</li>
-                <li><strong>Confidence Scoring:</strong> The system will provide automated confidence scores (very high: ≥99%, high: ≥95%, medium: ≥90%, low: ≥85%, very low: &lt;85%).</li>
+                <li><strong>Liveness Check:</strong> You will be asked to perform a brief video selfie (3D liveness challenge) to confirm you are a real person and not a photo, video replay, or deepfake.</li>
+                <li><strong>Identity Comparison:</strong> Your live face will be compared against the School ID photo you submitted, using advanced facial recognition technology with a strict &gt;99% similarity threshold.</li>
+                <li><strong>Confidence Scoring:</strong> The system provides automated confidence levels (very high: ≥99%, high: ≥95%, medium: ≥90%, low: ≥85%, very low: &lt;85%).</li>
               </ul>
               <div className="info-box">
-                <strong>⚡ Processing Time:</strong> Verification typically completes within 10-30 seconds.
+                <strong>⚡ Processing Time:</strong> Verification typically completes within 30-60 seconds due to cross-cloud processing.
               </div>
             </div>
           </section>
@@ -52,21 +52,21 @@ const BiometricConsentDisclaimer: React.FC<BiometricConsentDisclaimerProps> = ({
           {/* Section 2: Data Usage & Comparison */}
           <section className="consent-section">
             <div className="section-header">
-              <h3>2️⃣ Reference Data Comparison</h3>
+              <h3>2️⃣ Data Processing</h3>
               <span className="section-icon">🆔</span>
             </div>
             <div className="section-body">
               <p>
-                To verify your identity, the system will:
+                Your biometric data is processed securely via Google Cloud (where this application is hosted) and Amazon Web Services (AWS) Rekognition for facial analysis:
               </p>
               <ul>
-                <li><strong>Capture your live face:</strong> A real-time video and still image of your face during the verification process.</li>
-                <li><strong>Access your School ID image:</strong> The official ID document you previously submitted to TCU CEAA.</li>
-                <li><strong>Extract facial features:</strong> Both images will be processed to extract and compare facial features using advanced facial recognition technology.</li>
-                <li><strong>Calculate similarity score:</strong> The automated service will determine if your live face matches your ID at a confidence level of 99% or higher.</li>
+                <li><strong>Video Capture:</strong> A brief video selfie is recorded during the 3D liveness challenge to detect real human presence.</li>
+                <li><strong>Reference Image Extraction:</strong> AWS Rekognition extracts a high-quality reference image from your liveness video for comparison.</li>
+                <li><strong>School ID Comparison:</strong> Your reference image is compared against the face in your submitted School ID document.</li>
+                <li><strong>Audit Trail:</strong> Liveness session data (including audit images) is stored in AWS S3 with encryption for administrative review.</li>
               </ul>
               <div className="info-box">
-                <strong>📋 Data Retention:</strong> Facial embeddings and liveness detection data are securely stored and used exclusively for identity verification. Raw images are processed securely with no storage on external third-party systems.
+                <strong>📋 Data Retention:</strong> Biometric data is retained for verification audit purposes only. All data transmission is encrypted, and your information is never shared with unauthorized third parties.
               </div>
             </div>
           </section>
@@ -79,17 +79,17 @@ const BiometricConsentDisclaimer: React.FC<BiometricConsentDisclaimerProps> = ({
             </div>
             <div className="section-body">
               <p>
-                <strong>Important:</strong> Regardless of the automated verification result (pass or fail), your verification attempt will be reviewed by an authorized TCU CEAA administrator.
+                <strong>Important:</strong> While our system uses automated biometric analysis with high accuracy, ALL verifications require mandatory human review by authorized TCU CEAA administrators before final approval.
               </p>
               <ul>
-                <li><strong>Human Review Required:</strong> An admin staff member will manually review your live captured image and your School ID side-by-side.</li>
-                <li><strong>Final Decision Authority:</strong> The administrator has the authority to approve, reject, or request additional verification based on their professional judgment.</li>
-                <li><strong>Override Capability:</strong> The admin can override any automated decision if they identify discrepancies or have concerns about the verification.</li>
-                <li><strong>Security Review:</strong> The admin may also flag suspicious activity or potential fraud for further investigation.</li>
-                <li><strong>Audit Trail:</strong> All administrative decisions, notes, and actions are logged for transparency and accountability.</li>
+                <li><strong>Human-in-the-Loop Security:</strong> Every verification (regardless of AI confidence score) is sent to an admin review queue.</li>
+                <li><strong>Side-by-Side Comparison:</strong> Administrators manually inspect your liveness reference image alongside your School ID photo.</li>
+                <li><strong>Final Decision Authority:</strong> The administrator has absolute authority to approve, reject, or request re-verification based on their professional judgment.</li>
+                <li><strong>Override Capability:</strong> Admins can override any automated result if they detect discrepancies, quality issues, or fraud indicators.</li>
+                <li><strong>Security Escalation:</strong> Suspicious cases may be escalated for enhanced fraud investigation.</li>
               </ul>
               <div className="info-box alert">
-                <strong>🔐 Privacy & Security:</strong> Your facial data is encrypted during transmission and at rest. All verification data is handled in compliance with RA 10173 (Data Privacy Act of 2012) and institutional security policies. Your information will never be shared with third parties without explicit consent.
+                <strong>🔐 Privacy & Security:</strong> Your biometric data is encrypted during transmission and at rest. All processing complies with RA 10173 (Data Privacy Act of 2012). Your information will never be shared with unauthorized third parties.
               </div>
             </div>
           </section>

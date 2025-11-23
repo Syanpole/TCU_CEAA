@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
 import './DocumentsManagement.css';
 
 interface Document {
@@ -51,6 +53,7 @@ interface DocumentsManagementProps {
 }
 
 const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange }) => {
+  const { notification, confirm: showConfirm, alert: showAlert } = useNotification();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +102,14 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
       setActionLoading(prev => ({ ...prev, [actionKey]: true }));
       
       if (action === 'delete') {
-        if (!window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+        const confirmed = await showConfirm({
+          message: 'Are you sure you want to delete this document? This action cannot be undone.',
+          type: 'warning',
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
+        });
+        
+        if (!confirmed) {
           return;
         }
         await apiClient.delete(`/documents/${documentId}/`);
@@ -122,7 +132,11 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
       
     } catch (error) {
       console.error(`Error ${action}ing document:`, error);
-      alert(`Failed to ${action} document. Please try again.`);
+      await showAlert({
+        message: `Failed to ${action} document. Please try again.`,
+        type: 'error',
+        confirmText: 'OK'
+      });
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
@@ -613,6 +627,8 @@ const DocumentsManagement: React.FC<DocumentsManagementProps> = ({ onViewChange 
           </div>
         )}
       </div>
+      
+      <NotificationDialog {...notification} />
     </div>
   );
 };

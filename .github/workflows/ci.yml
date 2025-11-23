@@ -146,6 +146,10 @@ jobs:
           DB_PASSWORD: postgres
           DB_HOST: localhost
           DB_PORT: 5432
+          VERIFICATION_SERVICE_ENABLED: ${{ secrets.VERIFICATION_SERVICE_ENABLED }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
 
       - name: Run Django tests
         run: |
@@ -163,6 +167,10 @@ jobs:
           DB_PASSWORD: postgres
           DB_HOST: localhost
           DB_PORT: 5432
+          VERIFICATION_SERVICE_ENABLED: ${{ secrets.VERIFICATION_SERVICE_ENABLED }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
 
       - name: Check Django code style with flake8
         run: |
@@ -273,6 +281,10 @@ jobs:
           python manage.py collectstatic --noinput
         env:
           DJANGO_SETTINGS_MODULE: backend_project.settings
+          VERIFICATION_SERVICE_ENABLED: ${{ secrets.VERIFICATION_SERVICE_ENABLED }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
 
       - name: Create deployment artifact
         run: |

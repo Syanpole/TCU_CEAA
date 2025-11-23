@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import GradeDetailsModal from './GradeDetailsModal';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
 import './GradesManagement.css';
 
 interface Subject {
@@ -76,6 +78,7 @@ interface GradesManagementProps {
 }
 
 const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => {
+  const { notification, confirm: showConfirm, alert: showAlert } = useNotification();
   const [studentGrades, setStudentGrades] = useState<StudentGrades[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,11 +199,14 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   };
 
   const handleApproveSemesterGroup = async (studentId: number, academicYear: string, semester: string) => {
-    const confirmApprove = window.confirm(
-      `Are you sure you want to approve all subjects in this semester group? This will update eligibility and allowance amounts.`
-    );
+    const confirmed = await showConfirm({
+      message: 'Are you sure you want to approve all subjects in this semester group? This will update eligibility and allowance amounts.',
+      type: 'warning',
+      confirmText: 'Approve',
+      cancelText: 'Cancel'
+    });
     
-    if (!confirmApprove) return;
+    if (!confirmed) return;
 
     try {
       const response = await apiClient.post('/grades/approve_semester_group/', {
@@ -213,10 +219,18 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
       setStudentGrades(updatedResponse.data);
       
-      alert(`✅ Successfully approved all grades in this semester group!`);
+      await showAlert({
+        message: '✅ Successfully approved all grades in this semester group!',
+        type: 'success',
+        confirmText: 'OK'
+      });
     } catch (err) {
       console.error('Error approving semester group:', err);
-      alert('Failed to approve semester group. Please try again.');
+      await showAlert({
+        message: 'Failed to approve semester group. Please try again.',
+        type: 'error',
+        confirmText: 'OK'
+      });
     }
   };
 
@@ -511,6 +525,8 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
           onClose={() => setSelectedGrade(null)}
         />
       )}
+      
+      <NotificationDialog {...notification} />
     </div>
   );
 };

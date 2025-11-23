@@ -3,7 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/authService';
 import { formatCurrency } from '../utils/numberUtils';
 import AdminAIDashboard from './AdminAIDashboard';
+import FaceAdjudicationDashboard from './FaceAdjudicationDashboard';
 import ModernLoadingSpinner from './ModernLoadingSpinner';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -265,7 +268,8 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'audit' | 'ai-dashboard' | 'qualifications' | 'applications'>('overview');
+  const { notification, confirm: showConfirm, alert: showAlert } = useNotification();
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'audit' | 'ai-dashboard' | 'face-verification' | 'qualifications' | 'applications'>('overview');
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -613,6 +617,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             AI System
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'face-verification' ? 'active' : ''}`}
+            onClick={() => setActiveTab('face-verification')}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px', marginRight: '8px'}}>
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+            Face Verification
           </button>
           <button 
             className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
@@ -1506,6 +1519,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           </div>
         )}
 
+        {/* Face Verification Tab */}
+        {activeTab === 'face-verification' && (
+          <div className="face-verification-section">
+            <FaceAdjudicationDashboard />
+          </div>
+        )}
+
         {/* Basic Qualifications Tab */}
         {activeTab === 'qualifications' && (
           <div className="qualifications-section">
@@ -1805,14 +1825,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                         <td style={{padding: '12px', textAlign: 'center'}}>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`Are you sure you want to delete the application for ${app.user.first_name} ${app.user.last_name}?`)) {
+                              const confirmed = await showConfirm({
+                                message: `Are you sure you want to delete the application for ${app.user.first_name} ${app.user.last_name}?`,
+                                type: 'warning',
+                                confirmText: 'Delete',
+                                cancelText: 'Cancel'
+                              });
+                              
+                              if (confirmed) {
                                 try {
                                   await apiClient.delete(`/full-application/${app.id}/`);
-                                  alert('Application deleted successfully');
+                                  await showAlert({
+                                    message: 'Application deleted successfully',
+                                    type: 'success',
+                                    confirmText: 'OK'
+                                  });
                                   fetchFullApplications();
                                 } catch (error) {
                                   console.error('Error deleting application:', error);
-                                  alert('Failed to delete application');
+                                  await showAlert({
+                                    message: 'Failed to delete application',
+                                    type: 'error',
+                                    confirmText: 'OK'
+                                  });
                                 }
                               }
                             }}
@@ -2624,6 +2659,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
           </div>
         </div>
       )}
+      
+      <NotificationDialog {...notification} />
     </div>
   );
 };

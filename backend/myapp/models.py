@@ -1302,6 +1302,142 @@ class VerificationAdjudication(models.Model):
         return self.admin_decision == 'approved'
 
 
+class FaceVerificationSession(models.Model):
+    """
+    Track biometric face verification sessions with bank-grade security
+    
+    This model stores comprehensive data for each face liveness/verification attempt including:
+    - AWS Rekognition session tracking
+    - Device fingerprinting for fraud detection
+    - Rate limiting and attempt tracking
+    - Security metadata (IP, geolocation, device)
+    - Verification results and confidence scores
+    """
+    
+    VERIFICATION_STATUS_CHOICES = [
+        ('created', 'Session Created'),
+        ('in_progress', 'Verification In Progress'),
+        ('completed', 'Verification Completed'),
+        ('failed', 'Verification Failed'),
+        ('expired', 'Session Expired'),
+        ('fraud_detected', 'Fraud Detected'),
+    ]
+    
+    # Session identification
+    session_id = models.CharField(max_length=255, unique=True, db_index=True, help_text="AWS Rekognition session ID or UUID")
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='face_verification_sessions')
+    
+    # Linked application (if this is for allowance application)
+    application = models.ForeignKey(
+        AllowanceApplication,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='face_verification_sessions',
+        help_text="Associated allowance application"
+    )
+    
+    # Session status
+    status = models.CharField(max_length=20, choices=VERIFICATION_STATUS_CHOICES, default='created', db_index=True)
+    verification_type = models.CharField(
+        max_length=50,
+        default='liveness_and_match',
+        help_text="Type of verification (liveness_only, face_match_only, liveness_and_match)"
+    )
+    
+    # Verification results
+    confidence_score = models.FloatField(null=True, blank=True, help_text="Overall verification confidence (0.0-100.0)")
+    liveness_score = models.FloatField(null=True, blank=True, help_text="Liveness detection score (0.0-100.0)")
+    similarity_score = models.FloatField(null=True, blank=True, help_text="Face similarity score (0.0-100.0)")
+    is_live = models.BooleanField(default=False, help_text="Liveness check passed")
+    face_match = models.BooleanField(default=False, help_text="Face matching passed")
+    
+    # Fraud detection scores
+    fraud_risk_score = models.FloatField(default=0.0, help_text="Fraud risk score (0.0-100.0, higher = more suspicious)")
+    fraud_flags = models.JSONField(default=list, blank=True, help_text="List of fraud detection flags")
+    
+    # Device and security metadata
+    device_fingerprint = models.CharField(max_length=255, db_index=True, help_text="Unique device identifier")
+    ip_address = models.GenericIPAddressField(help_text="User's IP address")
+    user_agent = models.TextField(blank=True, null=True, help_text="Browser user agent string")
+    geolocation_country = models.CharField(max_length=100, blank=True, null=True, help_text="Country from IP geolocation")
+    geolocation_region = models.CharField(max_length=100, blank=True, null=True, help_text="Region/State from IP")
+    geolocation_city = models.CharField(max_length=100, blank=True, null=True, help_text="City from IP")
+    is_vpn = models.BooleanField(default=False, help_text="VPN/Proxy detected")
+    is_philippines = models.BooleanField(default=False, help_text="IP originates from Philippines")
+    
+    # Rate limiting
+    attempt_number = models.IntegerField(default=1, help_text="Attempt number for this session")
+    daily_attempt_count = models.IntegerField(default=0, help_text="Total attempts by user today")
+    
+    # Image references
+    audit_image_url = models.URLField(blank=True, null=True, help_text="S3 URL to audit images")
+    reference_image_url = models.URLField(blank=True, null=True, help_text="S3 URL to reference image")
+    
+    # Detailed verification data
+    aws_response = models.JSONField(default=dict, blank=True, help_text="Full AWS Rekognition API response")
+    verification_metadata = models.JSONField(default=dict, blank=True, help_text="Additional verification metadata")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(help_text="Session expiration time (5 minutes from creation)")
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="When verification completed")
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['device_fingerprint', '-created_at']),
+            models.Index(fields=['session_id', 'status']),
+        ]
+        verbose_name = "Face Verification Session"
+        verbose_name_plural = "Face Verification Sessions"
+    
+    def __str__(self):
+        return f"Session {self.session_id[:8]}... - {self.user.username} - {self.get_status_display()}"
+    
+    def is_expired(self):
+        """Check if session has expired"""
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+    
+    def mark_completed(self, confidence_score, liveness_score, similarity_score, is_live, face_match):
+        """Mark session as completed with results"""
+        self.status = 'completed'
+        self.confidence_score = confidence_score
+        self.liveness_score = liveness_score
+        self.similarity_score = similarity_score
+        self.is_live = is_live
+        self.face_match = face_match
+        self.verified_at = timezone.now()
+        self.save()
+    
+    def mark_failed(self, reason=''):
+        """Mark session as failed"""
+        self.status = 'failed'
+        if reason:
+            self.verification_metadata['failure_reason'] = reason
+        self.verified_at = timezone.now()
+        self.save()
+    
+    def add_fraud_flag(self, flag_type, description):
+        """Add a fraud detection flag"""
+        if not isinstance(self.fraud_flags, list):
+            self.fraud_flags = []
+        self.fraud_flags.append({
+            'type': flag_type,
+            'description': description,
+            'timestamp': timezone.now().isoformat()
+        })
+        # Increase fraud risk score
+        self.fraud_risk_score = min(100.0, self.fraud_risk_score + 15.0)
+        if self.fraud_risk_score >= 50.0:
+            self.status = 'fraud_detected'
+        self.save()
+
+
 # Import fraud detection models at the end to avoid circular import
 from .fraud_detection_models import FraudReport, FraudNotification, UserAccountAction
 

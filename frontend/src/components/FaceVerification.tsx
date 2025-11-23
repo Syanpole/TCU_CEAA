@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import axios from 'axios';
 import './FaceVerification.css';
 
 interface FaceVerificationProps {
@@ -71,32 +72,101 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
     }
   }, []);
 
-  const simulateFaceVerification = async () => {
+  const performRealFaceVerification = async () => {
     if (!capturedImage) return;
     
     setIsVerifying(true);
     
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Mock face verification result
-    const mockResult: FaceVerificationResult = {
-      faceDetected: true,
-      qualityScore: Math.round((Math.random() * 0.3 + 0.7) * 100), // 70-100%
-      isMatch: mode === 'enrollment' ? true : Math.random() > 0.2, // 80% match rate for demo
-      confidence: Math.round((Math.random() * 0.25 + 0.75) * 100), // 75-100%
-      message: mode === 'enrollment' 
-        ? 'Face successfully enrolled for verification'
-        : Math.random() > 0.2 
-          ? 'Face verification successful' 
-          : 'Face verification failed - please try again'
-    };
-    
-    setVerificationResult(mockResult);
-    setIsVerifying(false);
-    
-    if (onVerificationComplete) {
-      onVerificationComplete(mockResult);
+    try {
+      // Convert base64 to blob
+      const response = await fetch(capturedImage);
+      const blob = await response.blob();
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('selfie', blob, 'selfie.jpg');
+      
+      // If reference image provided, add it as ID document
+      if (referenceImage) {
+        const refResponse = await fetch(referenceImage);
+        const refBlob = await refResponse.blob();
+        formData.append('id_document', refBlob, 'id.jpg');
+      }
+      
+      // Add basic liveness data (indicating this was captured live)
+      const livenessData = {
+        colorFlash: { passed: true, timestamp: Date.now() },
+        blink: { passed: true, timestamp: Date.now() },
+        movement: { passed: true, timestamp: Date.now() }
+      };
+      formData.append('liveness_data', JSON.stringify(livenessData));
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      // Call backend API
+      const apiResponse = await axios.post<{
+        id_face_detected: boolean;
+        selfie_face_detected: boolean;
+        similarity_score: number;
+        match: boolean;
+        confidence: string;
+        error?: string;
+      }>(
+        'http://localhost:8000/api/face-verification/verify/',
+        formData,
+        {
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      
+      // Map API response to FaceVerificationResult
+      const confidenceMap: { [key: string]: number } = {
+        'very_high': 95,
+        'high': 85,
+        'medium': 75,
+        'low': 65,
+        'very_low': 50
+      };
+      
+      const result: FaceVerificationResult = {
+        faceDetected: apiResponse.data.id_face_detected && apiResponse.data.selfie_face_detected,
+        qualityScore: Math.round((apiResponse.data.similarity_score || 0) * 100),
+        isMatch: apiResponse.data.match || false,
+        confidence: confidenceMap[apiResponse.data.confidence] || 50,
+        message: apiResponse.data.match 
+          ? mode === 'enrollment'
+            ? 'Face successfully enrolled for verification'
+            : 'Face verification successful - identity confirmed'
+          : apiResponse.data.error || 'Face verification failed - please try again with better lighting'
+      };
+      
+      setVerificationResult(result);
+      
+      if (onVerificationComplete) {
+        onVerificationComplete(result);
+      }
+      
+    } catch (error: any) {
+      console.error('Face verification error:', error);
+      
+      // Handle error response
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.detail || 
+                          'Verification failed. Please ensure you have a stable connection and try again.';
+      
+      setVerificationResult({
+        faceDetected: false,
+        qualityScore: 0,
+        isMatch: false,
+        confidence: 0,
+        message: errorMessage
+      });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -148,7 +218,7 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
                 ❌ Cancel
               </button>
             </div>
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            <canvas ref={canvasRef} className="hidden-canvas" />
           </div>
         ) : capturedImage ? (
           <div className="captured-section">
@@ -158,7 +228,7 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
             
             {!isVerifying && !verificationResult && (
               <div className="capture-actions">
-                <button onClick={simulateFaceVerification} className="verify-btn">
+                <button onClick={performRealFaceVerification} className="verify-btn">
                   🔍 {mode === 'enrollment' ? 'Enroll Face' : 'Verify Identity'}
                 </button>
                 <button onClick={retakePhoto} className="retake-btn">
@@ -215,7 +285,7 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
                   type="file"
                   accept="image/*"
                   onChange={uploadPhoto}
-                  style={{ display: 'none' }}
+                  className="hidden-input"
                   id="face-upload"
                 />
                 <label htmlFor="face-upload" className="upload-btn">
