@@ -23,6 +23,25 @@ logger = logging.getLogger(__name__)
 face_service = FaceComparisonService()
 
 
+def get_user_id_document(user):
+    """
+    Retrieve the user's submitted ID document (school_id or valid_id)
+    Returns the most recent approved or pending document
+    """
+    # Try to find school_id or valid_id document types
+    id_document_types = ['school_id', 'valid_id', 'philsys_id', 'umid_card', 
+                         'drivers_license', 'voters_id', 'passport', 'sss_id',
+                         'bir_tin_id', 'pag_ibig_id', 'postal_id', 'philhealth_id']
+    
+    document = DocumentSubmission.objects.filter(
+        student=user,
+        document_type__in=id_document_types,
+        status__in=['approved', 'pending', 'ai_processing']
+    ).order_by('-submitted_at').first()
+    
+    return document
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def verify_face_with_id(request):
@@ -1111,17 +1130,71 @@ def verify_liveness(request):
             logger.warning(f"⚠️ Low confidence detected: {confidence_score:.1f}%")
             session.add_fraud_flag('low_confidence', f'Low liveness confidence: {confidence_score:.1f}%')
         
+        # Initialize face matching variables
+        face_match = False
+        similarity_score = 0.0
+        face_match_message = ''
+        
         # Determine success based on liveness_passed flag and confidence
         if is_live and confidence_score >= 80:
             logger.info(f"✅ Liveness PASSED: confidence={confidence_score:.1f}%, threshold=80%")
+            
+            # Attempt to compare with submitted ID document
+            id_document = get_user_id_document(request.user)
+            
+            if id_document and id_document.document_file and reference_image:
+                try:
+                    logger.info(f"📸 Attempting face comparison with submitted ID: {id_document.document_type}")
+                    
+                    # Get the S3 paths
+                    id_photo_path = id_document.document_file.name  # Path in S3
+                    reference_s3_object = reference_image.get('S3Object', {})
+                    reference_photo_path = reference_s3_object.get('Name', '')
+                    
+                    if reference_photo_path:
+                        # Use AWS Rekognition to compare faces
+                        compare_result = verification_service.compare_faces_s3(
+                            source_image_path=reference_photo_path,  # Live liveness photo
+                            target_image_path=id_photo_path,  # Submitted ID
+                            similarity_threshold=80.0  # 80% minimum similarity
+                        )
+                        
+                        if compare_result.get('success'):
+                            similarity_score = compare_result.get('similarity', 0.0)
+                            face_match = compare_result.get('is_match', False)
+                            
+                            logger.info(
+                                f"🎭 Face comparison result: match={face_match}, "
+                                f"similarity={similarity_score:.1f}%"
+                            )
+                            
+                            if face_match:
+                                face_match_message = f' Face matches submitted ID ({similarity_score:.1f}% similarity).'
+                            else:
+                                face_match_message = f' WARNING: Face does not match submitted ID ({similarity_score:.1f}% similarity).'
+                                session.add_fraud_flag(
+                                    'face_mismatch',
+                                    f'Live face does not match submitted ID photo (similarity: {similarity_score:.1f}%)'
+                                )
+                        else:
+                            logger.warning(f"⚠️ Face comparison failed: {compare_result.get('error')}")
+                            face_match_message = ' (Unable to verify face match with ID)'
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error during face comparison: {str(e)}", exc_info=True)
+                    face_match_message = ' (Face comparison error)'
+            else:
+                logger.warning("⚠️ No ID document found for face comparison")
+                face_match_message = ' (No ID document available for comparison)'
+            
             session.mark_completed(
                 confidence_score=confidence_score,
                 liveness_score=confidence_score,
-                similarity_score=0.0,  # Will be set later if face matching is done
+                similarity_score=similarity_score,
                 is_live=True,
-                face_match=False  # Will be set later
+                face_match=face_match
             )
-            message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%'
+            message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%{face_match_message}'
         else:
             logger.error(f"❌ Liveness FAILED: is_live={is_live}, confidence={confidence_score:.1f}%, threshold=80%")
             session.mark_failed(f'Liveness check failed (is_live: {is_live}, confidence: {confidence_score:.1f}%)')
@@ -1142,6 +1215,8 @@ def verify_liveness(request):
             'fraud_flags': session.fraud_flags,
             'audit_image_url': session.audit_image_url,
             'reference_image_url': session.reference_image_url,
+            'face_match': face_match,
+            'similarity_score': similarity_score,
             'message': message
         }, status=status.HTTP_200_OK if is_live else status.HTTP_400_BAD_REQUEST)
         
