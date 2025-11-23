@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
 import { Amplify } from 'aws-amplify';
 import { apiClient } from '../services/authService';
-import '@aws-amplify/ui-react/styles.css';
 import './BiometricLivenessCapture.css';
 
 // Configure Amplify (minimal config - we're using custom backend)
