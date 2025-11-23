@@ -66,17 +66,22 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
           Amplify.configure({
             Auth: {
               Cognito: {
-                identityPoolId: 'us-east-1:dummy-pool-id', // Not used, but required by Amplify
-                region: awsConfigResponse.data.region,
-                credentials: {
-                  accessKeyId: awsConfigResponse.data.credentials.accessKeyId,
-                  secretAccessKey: awsConfigResponse.data.credentials.secretAccessKey,
-                },
+                identityPoolId: `${awsConfigResponse.data.region}:dummy-pool-id`,
+                userPoolId: 'dummy-pool',
+                userPoolClientId: 'dummy-client',
               }
             }
           });
+          
+          // Store AWS credentials in window for FaceLivenessDetector
+          (window as any).awsCredentials = {
+            accessKeyId: awsConfigResponse.data.credentials.accessKeyId,
+            secretAccessKey: awsConfigResponse.data.credentials.secretAccessKey,
+            region: awsConfigResponse.data.region
+          };
+          
           amplifyConfigured = true;
-          console.log('✅ AWS Amplify configured successfully');
+          console.log('✅ AWS Amplify configured with region:', awsConfigResponse.data.region);
         }
 
         // Generate device fingerprint
