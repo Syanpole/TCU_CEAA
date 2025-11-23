@@ -1086,10 +1086,12 @@ def verify_liveness(request):
             )
         
         # Extract liveness data
-        is_live = liveness_result.get('status') == 'SUCCEEDED'
-        confidence_score = liveness_result.get('confidence', 0.0)
+        is_live = liveness_result.get('liveness_passed', False)  # Use the calculated field
+        confidence_score = liveness_result.get('liveness_confidence_percentage', 0.0)  # Percentage (0-100)
         audit_images = liveness_result.get('audit_images', [])
         reference_image = liveness_result.get('reference_image')
+        
+        logger.info(f"🔍 Liveness results: status={liveness_result.get('status')}, passed={is_live}, confidence={confidence_score}%")
         
         # Update session with results
         session.liveness_score = confidence_score
@@ -1106,9 +1108,12 @@ def verify_liveness(request):
         
         # Assess fraud risk based on confidence
         if confidence_score < 80:
+            logger.warning(f"⚠️ Low confidence detected: {confidence_score:.1f}%")
             session.add_fraud_flag('low_confidence', f'Low liveness confidence: {confidence_score:.1f}%')
         
+        # Determine success based on liveness_passed flag and confidence
         if is_live and confidence_score >= 80:
+            logger.info(f"✅ Liveness PASSED: confidence={confidence_score:.1f}%, threshold=80%")
             session.mark_completed(
                 confidence_score=confidence_score,
                 liveness_score=confidence_score,
@@ -1116,10 +1121,11 @@ def verify_liveness(request):
                 is_live=True,
                 face_match=False  # Will be set later
             )
-            message = f'Liveness verification successful (Confidence: {confidence_score:.1f}%)'
+            message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%'
         else:
-            session.mark_failed('Liveness check failed')
-            message = f'Liveness verification failed (Confidence: {confidence_score:.1f}%)'
+            logger.error(f"❌ Liveness FAILED: is_live={is_live}, confidence={confidence_score:.1f}%, threshold=80%")
+            session.mark_failed(f'Liveness check failed (is_live: {is_live}, confidence: {confidence_score:.1f}%)')
+            message = f'Liveness verification failed. Confidence: {confidence_score:.1f}% (minimum: 80%)'
         
         logger.info(
             f"Liveness verification completed: Session={session_id}, "
