@@ -1194,11 +1194,85 @@ def verify_liveness(request):
                 is_live=True,
                 face_match=face_match
             )
-            message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%{face_match_message}'
+            
+            # Create VerificationAdjudication record for admin review
+            try:
+                # Determine confidence level based on similarity score
+                if similarity_score >= 95:
+                    confidence_level = 'very_high'
+                elif similarity_score >= 90:
+                    confidence_level = 'high'
+                elif similarity_score >= 85:
+                    confidence_level = 'medium'
+                elif similarity_score >= 80:
+                    confidence_level = 'low'
+                else:
+                    confidence_level = 'very_low'
+                
+                # Get ID document path if available
+                id_photo_path = ''
+                if id_document and id_document.document_file:
+                    id_photo_path = id_document.document_file.name
+                
+                # Create adjudication record
+                adjudication = VerificationAdjudication.objects.create(
+                    user=request.user,
+                    application=session.application if session.application else None,
+                    document_submission=id_document if id_document else None,
+                    school_id_image_path=id_photo_path,
+                    selfie_image_path=session.reference_image_url or '',
+                    verification_backend='rekognition',
+                    automated_liveness_score=confidence_score / 100.0,  # Convert to 0.0-1.0
+                    automated_match_result=face_match,
+                    automated_similarity_score=similarity_score / 100.0 if similarity_score > 0 else None,
+                    automated_confidence_level=confidence_level,
+                    automated_verification_data={
+                        'session_id': session_id,
+                        'liveness_confidence': confidence_score,
+                        'face_similarity': similarity_score,
+                        'face_match': face_match,
+                        'fraud_risk_score': session.fraud_risk_score,
+                        'fraud_flags': session.fraud_flags,
+                        'geolocation': {
+                            'country': session.geolocation_country,
+                            'city': session.geolocation_city,
+                            'is_philippines': session.is_philippines,
+                            'is_vpn': session.is_vpn
+                        },
+                        'device_fingerprint': session.device_fingerprint[:16] + '...',  # Truncate for privacy
+                        'id_document_type': id_document.document_type if id_document else None,
+                        'comparison_performed': similarity_score > 0
+                    },
+                    liveness_data={
+                        'aws_status': liveness_result.get('status'),
+                        'liveness_passed': liveness_result.get('liveness_passed'),
+                        'confidence_percentage': confidence_score,
+                        'audit_images': session.audit_image_url,
+                        'reference_image': session.reference_image_url
+                    },
+                    status='pending_review',
+                    admin_decision='pending'
+                )
+                
+                logger.info(
+                    f"📋 Created VerificationAdjudication record: ID={adjudication.id}, "
+                    f"User={request.user.username}, FaceMatch={face_match}, "
+                    f"Similarity={similarity_score:.1f}%"
+                )
+                
+                adjudication_id = adjudication.id
+                message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%{face_match_message} Pending admin review.'
+                
+            except Exception as adj_error:
+                logger.error(f"❌ Error creating adjudication record: {str(adj_error)}", exc_info=True)
+                adjudication_id = None
+                message = f'Liveness verification successful! Confidence: {confidence_score:.1f}%{face_match_message}'
+            
         else:
             logger.error(f"❌ Liveness FAILED: is_live={is_live}, confidence={confidence_score:.1f}%, threshold=80%")
             session.mark_failed(f'Liveness check failed (is_live: {is_live}, confidence: {confidence_score:.1f}%)')
             message = f'Liveness verification failed. Confidence: {confidence_score:.1f}% (minimum: 80%)'
+            adjudication_id = None
         
         logger.info(
             f"Liveness verification completed: Session={session_id}, "
@@ -1217,6 +1291,8 @@ def verify_liveness(request):
             'reference_image_url': session.reference_image_url,
             'face_match': face_match,
             'similarity_score': similarity_score,
+            'adjudication_id': adjudication_id,
+            'requires_admin_review': True if adjudication_id else False,
             'message': message
         }, status=status.HTTP_200_OK if is_live else status.HTTP_400_BAD_REQUEST)
         
