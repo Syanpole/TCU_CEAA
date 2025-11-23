@@ -212,18 +212,45 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
 
   const handleError = (error: any) => {
     console.error('Liveness detector error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error keys:', error ? Object.keys(error) : 'null');
     
     // Extract detailed error information
     let errorMsg = 'An error occurred during face verification.';
-    if (error?.message) {
+    
+    // Try different ways to extract error message
+    if (typeof error === 'string') {
+      errorMsg = error;
+    } else if (error?.message) {
       errorMsg = error.message;
-    } else if (error?.toString) {
-      errorMsg = error.toString();
+    } else if (error?.error) {
+      errorMsg = error.error;
+    } else if (error?.toString && typeof error.toString === 'function') {
+      const stringified = error.toString();
+      if (stringified !== '[object Object]') {
+        errorMsg = stringified;
+      }
+    }
+    
+    // Try to stringify the error for more details
+    try {
+      const jsonError = JSON.stringify(error, null, 2);
+      console.error('Error JSON:', jsonError);
+      
+      // If we still have generic error, try to extract more details
+      if (errorMsg === 'An error occurred during face verification.' && error) {
+        errorMsg = `Face verification error. Check console for details. Error type: ${error.constructor?.name || typeof error}`;
+      }
+    } catch (e) {
+      console.error('Could not stringify error:', e);
     }
     
     // Check if it's an AWS configuration issue
-    if (errorMsg.includes('SessionNotFoundException') || errorMsg.includes('session') || errorMsg.includes('not found')) {
-      errorMsg = '⚙️ AWS Rekognition is not properly configured. The session ID from the backend is not valid in AWS. Please configure AWS credentials in the backend settings.';
+    const errorStr = JSON.stringify(error).toLowerCase();
+    if (errorStr.includes('sessionnotfoundexception') || 
+        errorStr.includes('session') && errorStr.includes('not found') ||
+        errorStr.includes('invalid') && errorStr.includes('session')) {
+      errorMsg = '⚙️ AWS Rekognition is not properly configured. The session ID from the backend is not valid in AWS. Please configure AWS credentials in the backend .env file:\n\nVERIFICATION_SERVICE_ENABLED=True\nAWS_ACCESS_KEY_ID=your-key\nAWS_SECRET_ACCESS_KEY=your-secret\nAWS_STORAGE_BUCKET_NAME=your-bucket';
     }
     
     console.error('Formatted error:', errorMsg);
