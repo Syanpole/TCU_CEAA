@@ -220,6 +220,9 @@ VERIFICATION_SERVICE_REGION = os.environ.get('VERIFICATION_SERVICE_REGION', 'us-
 VERIFICATION_SERVICE_ID = os.environ.get('VERIFICATION_SERVICE_ID', 'tcu-ceaa-verification')
 VERIFICATION_SERVICE_MIN_CONFIDENCE = int(os.environ.get('VERIFICATION_SERVICE_MIN_CONFIDENCE', '80'))
 
+# 🔒 SECURITY: AWS Cognito Identity Pool (for temporary credentials)
+AWS_COGNITO_IDENTITY_POOL_ID = os.environ.get('AWS_COGNITO_IDENTITY_POOL_ID', 'us-east-1:a1252e7a-7da3-4703-88da-22cacd3b88b5')
+
 # Face Verification Thresholds
 FACE_SIMILARITY_THRESHOLD = float(os.environ.get('FACE_SIMILARITY_THRESHOLD', '0.99'))  # >99% for high confidence
 FACE_CONFIDENCE_VERY_HIGH = float(os.environ.get('FACE_CONFIDENCE_VERY_HIGH', '0.99'))
@@ -234,6 +237,41 @@ VERIFICATION_ADMIN_REVIEW_THRESHOLD = float(os.environ.get('VERIFICATION_ADMIN_R
 VERIFICATION_MAX_ATTEMPTS = int(os.environ.get('VERIFICATION_MAX_ATTEMPTS', '3'))
 VERIFICATION_COOLDOWN_HOURS = int(os.environ.get('VERIFICATION_COOLDOWN_HOURS', '24'))
 
+# ============================================================================
+# SECURITY SETTINGS - Production Hardening
+# ============================================================================
+
+# 🔒 SECURITY: Production security headers
+if not DEBUG:
+    # Force HTTPS
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Content Security
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Proxy headers (if behind load balancer)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 🔒 SECURITY: Session configuration
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+SESSION_COOKIE_AGE = 3600  # 1 hour session timeout
+
+# 🔒 SECURITY: CSRF configuration
+CSRF_COOKIE_HTTPONLY = False  # Must be False for frontend to read it
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_NAME = 'csrftoken'
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -244,7 +282,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3003",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+# ⚠️ WARNING: CORS_ALLOW_ALL_ORIGINS should be False in production
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',

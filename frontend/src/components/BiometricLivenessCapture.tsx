@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
-import { Amplify } from 'aws-amplify';
 import { apiClient } from '../services/authService';
+import { initializeAmplify, isAmplifyConfigured } from '../services/amplifyService';
 import '@aws-amplify/ui-react/styles.css';
 import './BiometricLivenessCapture.css';
-
-// Amplify configuration will be set dynamically after getting AWS config from backend
-let amplifyConfigured = false;
 
 interface BiometricLivenessCaptureProps {
   onComplete: (result: LivenessResult) => void;
@@ -35,53 +32,40 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize: fetch AWS credentials and generate device fingerprint on mount
+  // Initialize: configure Amplify and generate device fingerprint on mount
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 10; // Maximum 5 seconds (10 * 500ms)
+    
     const initialize = async () => {
       try {
-        // Fetch AWS credentials from backend
-        const awsConfigResponse = await apiClient.get<{
-          enabled: boolean;
-          region: string;
-          credentials: {
-            accessKeyId: string;
-            secretAccessKey: string;
-          };
-          warning?: string;
-        }>('/face-verification/aws-credentials/');
-
-        if (!awsConfigResponse.data.enabled) {
-          setErrorMessage('⚙️ AWS Rekognition is not enabled. Please configure AWS in backend .env file.');
-          setIsInitialized(false);
+        // Check if user is authenticated (use 'token' key to match authService)
+        const token = localStorage.getItem('token');
+        if (!token) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error('❌ Authentication timeout: No auth token found after', maxRetries * 500, 'ms');
+            const errorMsg = '🔐 Please log in to use face verification.';
+            setErrorMessage(errorMsg);
+            setIsInitialized(false);
+            if (onError) onError(errorMsg);
+            return;
+          }
+          
+          console.warn(`⚠️ No auth token found, retry ${retryCount}/${maxRetries}...`);
+          // Retry after a short delay
+          setTimeout(initialize, 500);
           return;
         }
 
-        // Configure Amplify with AWS credentials
-        if (!amplifyConfigured) {
-          console.log('🔧 Configuring AWS Amplify with region:', awsConfigResponse.data.region);
-          if (awsConfigResponse.data.warning) {
-            console.warn('⚠️', awsConfigResponse.data.warning);
-          }
-          
-          Amplify.configure({
-            Auth: {
-              Cognito: {
-                identityPoolId: `${awsConfigResponse.data.region}:dummy-pool-id`,
-                userPoolId: 'dummy-pool',
-                userPoolClientId: 'dummy-client',
-              }
-            }
-          });
-          
-          // Store AWS credentials in window for FaceLivenessDetector
-          (window as any).awsCredentials = {
-            accessKeyId: awsConfigResponse.data.credentials.accessKeyId,
-            secretAccessKey: awsConfigResponse.data.credentials.secretAccessKey,
-            region: awsConfigResponse.data.region
-          };
-          
-          amplifyConfigured = true;
-          console.log('✅ AWS Amplify configured with region:', awsConfigResponse.data.region);
+        // Initialize Amplify using the centralized service
+        const amplifyReady = await initializeAmplify();
+        
+        if (!amplifyReady) {
+          setErrorMessage('⚙️ AWS Rekognition is not configured. Please check backend settings.');
+          setIsInitialized(false);
+          if (onError) onError('AWS Rekognition is not configured');
+          return;
         }
 
         // Generate device fingerprint
@@ -89,11 +73,22 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         setIsInitialized(true);
       } catch (error: any) {
         console.error('Failed to initialize biometric capture:', error);
-        setErrorMessage(
-          error.response?.data?.error || 
-          'Failed to initialize face verification. Please check AWS configuration.'
-        );
+        
+        let errorMsg = 'Failed to initialize face verification.';
+        
+        if (error.response?.status === 401) {
+          errorMsg = '🔐 Authentication required. Please log in and try again.';
+        } else if (error.response?.status === 403) {
+          errorMsg = '🔐 Access denied. Please check your permissions.';
+        } else if (error.response?.data?.error) {
+          errorMsg = error.response.data.error;
+        } else if (error.message) {
+          errorMsg = error.message;
+        }
+        
+        setErrorMessage(errorMsg);
         setIsInitialized(false);
+        onError(errorMsg);
       }
     };
 
@@ -144,57 +139,16 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     setErrorMessage('');
 
     try {
-      // Check AWS configuration from backend
-      if (!amplifyConfigured) {
-        try {
-          console.log('🔧 Checking AWS configuration from backend...');
-          const configResponse = await apiClient.get<{
-            region: string;
-            enabled: boolean;
-            message: string;
-          }>('/face-verification/aws-config/');
-          
-          console.log('✅ AWS config received:', configResponse.data);
-          
-          if (!configResponse.data.enabled) {
-            throw new Error(
-              '⚙️ AWS Rekognition is not configured in the backend.\n\n' +
-              'To enable face liveness detection, configure your backend/.env file:\n\n' +
-              'VERIFICATION_SERVICE_ENABLED=True\n' +
-              'AWS_ACCESS_KEY_ID=your-aws-access-key\n' +
-              'AWS_SECRET_ACCESS_KEY=your-aws-secret-key\n' +
-              'AWS_STORAGE_BUCKET_NAME=your-s3-bucket\n' +
-              'VERIFICATION_SERVICE_REGION=us-east-1\n\n' +
-              'Then restart the Django server.'
-            );
-          }
-          
-          // For AWS Amplify FaceLivenessDetector to work, we need proper AWS credentials
-          // Since we're creating sessions server-side, Amplify still needs to be configured
-          // This is a limitation of the current setup - AWS Amplify expects client-side AWS SDK access
-          
-          amplifyConfigured = true;
-          console.log('⚠️ AWS is enabled but Amplify needs client-side credentials');
-          
-          throw new Error(
-            '⚙️ AWS Rekognition Face Liveness requires additional configuration.\n\n' +
-            'The current setup creates sessions server-side, but AWS Amplify FaceLivenessDetector ' +
-            'component requires client-side AWS credentials or Cognito Identity Pool.\n\n' +
-            'For thesis demo, consider:\n' +
-            '1. Use server-side only verification (no live camera widget)\n' +
-            '2. Set up AWS Cognito Identity Pool for unauthenticated access\n' +
-            '3. Use alternative face detection library (face-api.js, MediaPipe)\n\n' +
-            'Contact your supervisor for guidance on which approach fits your thesis scope.'
-          );
-          
-        } catch (configError: any) {
-          console.error('❌ AWS configuration check failed:', configError);
-          setErrorMessage(configError.message || 'AWS configuration error');
-          onError(configError.message || 'AWS configuration error');
-          setLoading(false);
-          return;
-        }
+      // Check if Amplify is configured
+      if (!isAmplifyConfigured()) {
+        const errorMsg = '⚙️ AWS Rekognition is not initialized. Please refresh the page.';
+        setErrorMessage(errorMsg);
+        setLoading(false);
+        if (onError) onError(errorMsg);
+        return;
       }
+
+      // Amplify is configured, proceed with session creation
 
       // DEV MODE: Rate limiting disabled for development
       // if (attemptCount >= 3) {

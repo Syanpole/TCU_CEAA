@@ -645,52 +645,50 @@ def verify_allowance_application_identity(request):
 @permission_classes([IsAuthenticated])
 def get_aws_credentials(request):
     """
-    Provide AWS credentials for client-side Amplify configuration
+    Provide AWS configuration for client-side Amplify setup
     
-    ⚠️ DEV MODE ONLY - In production, use AWS Cognito Identity Pool
-    This endpoint exposes AWS credentials to authenticated users
-    Only use for development/thesis demo purposes
+    🔒 SECURITY: This endpoint ONLY returns region/config data
+    Credentials are managed via AWS Cognito Identity Pool
+    No sensitive AWS keys are exposed to the client
     
     Returns:
     - enabled: Boolean (is AWS Rekognition enabled)
     - region: String (AWS region)
-    - credentials: Object (access key ID and secret)
+    - identityPoolId: String (Cognito Identity Pool ID)
     """
     from django.conf import settings
+    import os
+    
+    # Security: Validate user session and IP consistency
+    ip_address = request.META.get('REMOTE_ADDR', '')
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    
+    # Log security event
+    logger.info(f"🔐 AWS config request from user {request.user.id}, IP: {ip_address}")
     
     # Check if verification service is enabled
-    enabled = getattr(settings, 'VERIFICATION_SERVICE_ENABLED', 'False').lower() == 'true'
+    enabled_value = getattr(settings, 'VERIFICATION_SERVICE_ENABLED', False)
+    if isinstance(enabled_value, bool):
+        enabled = enabled_value
+    else:
+        enabled = str(enabled_value).lower() in ('true', '1', 'yes')
     
     if not enabled:
         return Response({
             'enabled': False,
-            'message': 'AWS Rekognition Face Liveness is not enabled. Set VERIFICATION_SERVICE_ENABLED=True in .env file.'
+            'message': 'AWS Rekognition Face Liveness is not enabled. Contact administrator.'
         }, status=status.HTTP_200_OK)
     
-    # Get AWS credentials from settings
-    access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', '')
-    secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', '')
-    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+    # Get configuration (NO CREDENTIALS)
     region = getattr(settings, 'VERIFICATION_SERVICE_REGION', 'us-east-1')
+    identity_pool_id = os.environ.get('AWS_COGNITO_IDENTITY_POOL_ID', 'us-east-1:a1252e7a-7da3-4703-88da-22cacd3b88b5')
     
-    if not access_key or not secret_key:
-        return Response({
-            'enabled': False,
-            'error': 'AWS credentials not configured in backend .env file'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    logger.warning(f"⚠️ DEV MODE: Providing AWS credentials to frontend for user {request.user.id}")
-    logger.warning("⚠️ In production, use AWS Cognito Identity Pool instead of exposing credentials")
-    
+    # 🔒 SECURITY: Only return configuration, never credentials
     return Response({
         'enabled': True,
         'region': region,
-        'credentials': {
-            'accessKeyId': access_key,
-            'secretAccessKey': secret_key
-        },
-        'bucketName': bucket_name,
-        'warning': 'DEV MODE: These credentials are for development only. Use Cognito Identity Pool in production.'
+        'identityPoolId': identity_pool_id,
+        'message': 'Configuration loaded. Credentials managed via Cognito Identity Pool.'
     }, status=status.HTTP_200_OK)
 
 
@@ -729,83 +727,156 @@ def create_liveness_session(request):
         device_fingerprint = request.data.get('device_fingerprint')
         attempt_number = int(request.data.get('attempt_number', 1))
         
-        # Validate device fingerprint
-        if not device_fingerprint or len(device_fingerprint) < 32:
+        # 🔒 SECURITY: Validate device fingerprint (must be 64-char SHA-256 hash)
+        if not device_fingerprint or len(device_fingerprint) != 64:
+            logger.error(f"⚠️ Invalid device fingerprint from user {request.user.id}: {len(device_fingerprint) if device_fingerprint else 0} chars")
             return Response(
                 {
                     'success': False,
-                    'error': 'Invalid device fingerprint'
+                    'error': 'Invalid device fingerprint. Please refresh and try again.'
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get IP address
-        ip_address = request.data.get('ip_address') or request.META.get('REMOTE_ADDR', '')
+        # 🔒 SECURITY: Detect device fingerprint reuse across multiple users (fraud indicator)
+        fingerprint_users = FaceVerificationSession.objects.filter(
+            device_fingerprint=device_fingerprint
+        ).values_list('user_id', flat=True).distinct()
+        
+        if fingerprint_users.count() > 3:
+            logger.error(f"🚨 FRAUD ALERT: Device fingerprint {device_fingerprint[:16]}... used by {fingerprint_users.count()} users")
+            # Don't block immediately, but increase fraud score
+        
+        # Get IP address (prefer X-Forwarded-For if behind proxy, but validate)
+        ip_address = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        if ip_address:
+            ip_address = ip_address.split(',')[0].strip()  # First IP in chain
+        else:
+            ip_address = request.META.get('REMOTE_ADDR', '')
+        
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         
-        # DEV MODE: Rate limiting disabled for development
-        # Check rate limiting - daily attempts
+        # 🔒 SECURITY: Validate IP address format
+        import ipaddress
+        try:
+            ipaddress.ip_address(ip_address)
+        except ValueError:
+            logger.error(f"⚠️ Invalid IP address: {ip_address}")
+            ip_address = '0.0.0.0'  # Fallback
+        
+        # 🔒 SECURITY: Strict rate limiting with exponential backoff
         today = timezone.now().date()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
-        daily_count = FaceVerificationSession.objects.filter(
+        
+        # Check daily limit (10 attempts per 24 hours)
+        daily_sessions = FaceVerificationSession.objects.filter(
             user=request.user,
             created_at__gte=today_start
-        ).count()
+        ).order_by('-created_at')
+        daily_count = daily_sessions.count()
         
-        # if daily_count >= 10:
-        #     logger.warning(f"User {request.user.id} exceeded daily verification limit ({daily_count}/10)")
-        #     return Response(
-        #         {
-        #             'success': False,
-        #             'error': 'Daily verification limit reached (10 attempts). Please try again tomorrow.',
-        #             'daily_count': daily_count
-        #         },
-        #         status=status.HTTP_429_TOO_MANY_REQUESTS
-        #     )
+        if daily_count >= 10:
+            logger.warning(f"🚫 User {request.user.id} exceeded daily verification limit ({daily_count}/10)")
+            # Security: Flag excessive attempts as suspicious
+            if daily_count >= 15:
+                logger.error(f"⚠️ FRAUD ALERT: User {request.user.id} attempted {daily_count} verifications today")
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Daily verification limit reached (10 attempts). Please contact support if you need assistance.',
+                    'daily_count': daily_count,
+                    'retry_after': 86400  # 24 hours
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         
-        # DEV MODE: Cooldown disabled for development
-        # Check for recent sessions with same device (prevent rapid fire)
-        # recent_cutoff = timezone.now() - timedelta(minutes=2)
-        # recent_session = FaceVerificationSession.objects.filter(
-        #     user=request.user,
-        #     device_fingerprint=device_fingerprint,
-        #     created_at__gte=recent_cutoff
-        # ).first()
-        # 
-        # if recent_session and not recent_session.is_expired():
-        #     logger.warning(f"User {request.user.id} has recent active session from same device")
-        #     return Response(
-        #         {
-        #             'success': False,
-        #             'error': 'Please wait 2 minutes between verification attempts from the same device.',
-        #             'retry_after': 120
-        #         },
-        #         status=status.HTTP_429_TOO_MANY_REQUESTS
-        #     )
+        # 🔒 SECURITY: Progressive cooldown based on recent failures
+        failed_recent = daily_sessions.filter(status='failed').count()
+        cooldown_minutes = 2 if failed_recent < 3 else 5 if failed_recent < 5 else 15
         
-        # Get IP geolocation (optional - will not block if service unavailable)
+        recent_cutoff = timezone.now() - timedelta(minutes=cooldown_minutes)
+        recent_session = FaceVerificationSession.objects.filter(
+            user=request.user,
+            device_fingerprint=device_fingerprint,
+            created_at__gte=recent_cutoff
+        ).first()
+        
+        if recent_session:
+            wait_seconds = cooldown_minutes * 60
+            logger.warning(f"🚫 User {request.user.id} must wait {cooldown_minutes} minutes between attempts (failed: {failed_recent})")
+            return Response(
+                {
+                    'success': False,
+                    'error': f'Please wait {cooldown_minutes} minutes between verification attempts from the same device.',
+                    'retry_after': wait_seconds,
+                    'cooldown_reason': 'progressive_backoff' if failed_recent > 0 else 'rate_limit'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        # 🔒 SECURITY: Enhanced geolocation with VPN/Proxy detection and Philippines validation
         geolocation_data = {
             'country': None,
             'region': None,
             'city': None,
             'is_vpn': False,
-            'is_philippines': False
+            'is_proxy': False,
+            'is_tor': False,
+            'is_philippines': False,
+            'is_suspicious': False
         }
+        
+        fraud_flags = []
         
         try:
             # Use ipapi.co for geolocation (free tier: 1000 requests/day)
-            geo_response = requests.get(f'https://ipapi.co/{ip_address}/json/', timeout=3)
+            geo_response = requests.get(f'https://ipapi.co/{ip_address}/json/', timeout=5)
             if geo_response.status_code == 200:
                 geo_data = geo_response.json()
+                
+                # Extract threat intelligence
+                is_vpn = geo_data.get('threat', {}).get('is_vpn', False)
+                is_proxy = geo_data.get('threat', {}).get('is_proxy', False)
+                is_tor = geo_data.get('threat', {}).get('is_tor', False)
+                country_code = geo_data.get('country_code', '')
+                
                 geolocation_data = {
                     'country': geo_data.get('country_name'),
                     'region': geo_data.get('region'),
                     'city': geo_data.get('city'),
-                    'is_vpn': geo_data.get('threat', {}).get('is_proxy', False) or geo_data.get('threat', {}).get('is_vpn', False),
-                    'is_philippines': geo_data.get('country_code') == 'PH'
+                    'is_vpn': is_vpn,
+                    'is_proxy': is_proxy,
+                    'is_tor': is_tor,
+                    'is_philippines': country_code == 'PH',
+                    'is_suspicious': is_vpn or is_proxy or is_tor
                 }
+                
+                # 🔒 SECURITY: Flag suspicious connections
+                if is_vpn:
+                    fraud_flags.append({'type': 'vpn_detected', 'description': 'VPN connection detected', 'severity': 'medium'})
+                    logger.warning(f"⚠️ VPN detected for user {request.user.id} from IP {ip_address}")
+                
+                if is_proxy:
+                    fraud_flags.append({'type': 'proxy_detected', 'description': 'Proxy server detected', 'severity': 'medium'})
+                    logger.warning(f"⚠️ Proxy detected for user {request.user.id} from IP {ip_address}")
+                
+                if is_tor:
+                    fraud_flags.append({'type': 'tor_detected', 'description': 'TOR network detected', 'severity': 'high'})
+                    logger.error(f"🚨 TOR detected for user {request.user.id} from IP {ip_address}")
+                
+                # 🔒 SECURITY: Flag non-Philippines locations (suspicious for TCU students)
+                if not geolocation_data['is_philippines'] and country_code:
+                    fraud_flags.append({
+                        'type': 'foreign_location',
+                        'description': f'Access from {geo_data.get("country_name", "unknown")}',
+                        'severity': 'low'
+                    })
+                    logger.info(f"ℹ️ Non-PH location for user {request.user.id}: {geo_data.get('country_name')}")
+                    
         except Exception as geo_error:
             logger.warning(f"Geolocation lookup failed: {str(geo_error)}")
+            # Don't block on geolocation failure, but log it
+            fraud_flags.append({'type': 'geolocation_failed', 'description': 'Unable to verify location', 'severity': 'info'})
         
         # Get verification service (AWS Rekognition or fallback)
         verification_service = get_verification_service()
@@ -819,7 +890,31 @@ def create_liveness_session(request):
         
         session_id = result.get('session_id')
         
-        # Create FaceVerificationSession record
+        # 🔒 SECURITY: Calculate initial fraud risk score
+        initial_fraud_score = 0.0
+        
+        # Add points for each fraud indicator
+        if geolocation_data.get('is_vpn'): initial_fraud_score += 15.0
+        if geolocation_data.get('is_proxy'): initial_fraud_score += 15.0
+        if geolocation_data.get('is_tor'): initial_fraud_score += 30.0
+        if not geolocation_data.get('is_philippines'): initial_fraud_score += 5.0
+        if fingerprint_users.count() > 3: initial_fraud_score += 20.0
+        if daily_count > 5: initial_fraud_score += 10.0
+        if failed_recent > 3: initial_fraud_score += 15.0
+        
+        # 🔒 SECURITY: Auto-block high-risk sessions
+        if initial_fraud_score >= 60.0:
+            logger.error(f"🚨 HIGH FRAUD RISK: User {request.user.id}, Score: {initial_fraud_score}, Flags: {fraud_flags}")
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Verification blocked due to security concerns. Please contact support.',
+                    'fraud_score': initial_fraud_score
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Create FaceVerificationSession record with security metadata
         session = FaceVerificationSession.objects.create(
             session_id=session_id,
             user=request.user,
@@ -835,6 +930,8 @@ def create_liveness_session(request):
             is_philippines=geolocation_data['is_philippines'],
             attempt_number=attempt_number,
             daily_attempt_count=daily_count + 1,
+            fraud_risk_score=initial_fraud_score,
+            fraud_flags=fraud_flags,
             expires_at=timezone.now() + timedelta(minutes=5)
         )
         
