@@ -1728,9 +1728,9 @@ def student_dashboard_data(request):
     approved_applications = AllowanceApplication.objects.filter(student=request.user, status='approved').count()
     
     return Response({
-        'documents': DocumentSubmissionSerializer(documents, many=True).data,
-        'grades': GradeSubmissionSerializer(grades, many=True).data,
-        'applications': AllowanceApplicationSerializer(applications, many=True).data,
+        'documents': DocumentSubmissionSerializer(documents, many=True, context={'request': request}).data,
+        'grades': GradeSubmissionSerializer(grades, many=True, context={'request': request}).data,
+        'applications': AllowanceApplicationSerializer(applications, many=True, context={'request': request}).data,
         'stats': {
             'total_documents': total_documents,
             'approved_documents': approved_documents,
@@ -1769,9 +1769,9 @@ def admin_dashboard_data(request):
     ai_processing = DocumentSubmission.objects.filter(status='ai_processing').count()
     
     return Response({
-        'pending_documents': DocumentSubmissionSerializer(pending_documents, many=True).data,
-        'pending_grades': GradeSubmissionSerializer(pending_grades, many=True).data,
-        'pending_applications': AllowanceApplicationSerializer(pending_applications, many=True).data,
+        'pending_documents': DocumentSubmissionSerializer(pending_documents, many=True, context={'request': request}).data,
+        'pending_grades': GradeSubmissionSerializer(pending_grades, many=True, context={'request': request}).data,
+        'pending_applications': AllowanceApplicationSerializer(pending_applications, many=True, context={'request': request}).data,
         'stats': {
             'total_students': total_students,
             'total_documents': total_documents,
