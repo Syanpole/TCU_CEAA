@@ -35,11 +35,64 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Generate device fingerprint on mount
+  // Initialize: fetch AWS credentials and generate device fingerprint on mount
   useEffect(() => {
-    generateDeviceFingerprint().then(() => {
-      setIsInitialized(true);
-    });
+    const initialize = async () => {
+      try {
+        // Fetch AWS credentials from backend
+        const awsConfigResponse = await apiClient.get<{
+          enabled: boolean;
+          region: string;
+          credentials: {
+            accessKeyId: string;
+            secretAccessKey: string;
+          };
+          warning?: string;
+        }>('/face-verification/aws-credentials/');
+
+        if (!awsConfigResponse.data.enabled) {
+          setErrorMessage('⚙️ AWS Rekognition is not enabled. Please configure AWS in backend .env file.');
+          setIsInitialized(false);
+          return;
+        }
+
+        // Configure Amplify with AWS credentials
+        if (!amplifyConfigured) {
+          console.log('🔧 Configuring AWS Amplify with region:', awsConfigResponse.data.region);
+          if (awsConfigResponse.data.warning) {
+            console.warn('⚠️', awsConfigResponse.data.warning);
+          }
+          
+          Amplify.configure({
+            Auth: {
+              Cognito: {
+                identityPoolId: 'us-east-1:dummy-pool-id', // Not used, but required by Amplify
+                region: awsConfigResponse.data.region,
+                credentials: {
+                  accessKeyId: awsConfigResponse.data.credentials.accessKeyId,
+                  secretAccessKey: awsConfigResponse.data.credentials.secretAccessKey,
+                },
+              }
+            }
+          });
+          amplifyConfigured = true;
+          console.log('✅ AWS Amplify configured successfully');
+        }
+
+        // Generate device fingerprint
+        await generateDeviceFingerprint();
+        setIsInitialized(true);
+      } catch (error: any) {
+        console.error('Failed to initialize biometric capture:', error);
+        setErrorMessage(
+          error.response?.data?.error || 
+          'Failed to initialize face verification. Please check AWS configuration.'
+        );
+        setIsInitialized(false);
+      }
+    };
+
+    initialize();
   }, []);
 
   const generateDeviceFingerprint = async (): Promise<void> => {

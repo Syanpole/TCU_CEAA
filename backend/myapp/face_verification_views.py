@@ -641,6 +641,59 @@ def verify_allowance_application_identity(request):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_aws_credentials(request):
+    """
+    Provide AWS credentials for client-side Amplify configuration
+    
+    ⚠️ DEV MODE ONLY - In production, use AWS Cognito Identity Pool
+    This endpoint exposes AWS credentials to authenticated users
+    Only use for development/thesis demo purposes
+    
+    Returns:
+    - enabled: Boolean (is AWS Rekognition enabled)
+    - region: String (AWS region)
+    - credentials: Object (access key ID and secret)
+    """
+    from django.conf import settings
+    
+    # Check if verification service is enabled
+    enabled = getattr(settings, 'VERIFICATION_SERVICE_ENABLED', 'False').lower() == 'true'
+    
+    if not enabled:
+        return Response({
+            'enabled': False,
+            'message': 'AWS Rekognition Face Liveness is not enabled. Set VERIFICATION_SERVICE_ENABLED=True in .env file.'
+        }, status=status.HTTP_200_OK)
+    
+    # Get AWS credentials from settings
+    access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', '')
+    secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', '')
+    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+    region = getattr(settings, 'VERIFICATION_SERVICE_REGION', 'us-east-1')
+    
+    if not access_key or not secret_key:
+        return Response({
+            'enabled': False,
+            'error': 'AWS credentials not configured in backend .env file'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    logger.warning(f"⚠️ DEV MODE: Providing AWS credentials to frontend for user {request.user.id}")
+    logger.warning("⚠️ In production, use AWS Cognito Identity Pool instead of exposing credentials")
+    
+    return Response({
+        'enabled': True,
+        'region': region,
+        'credentials': {
+            'accessKeyId': access_key,
+            'secretAccessKey': secret_key
+        },
+        'bucketName': bucket_name,
+        'warning': 'DEV MODE: These credentials are for development only. Use Cognito Identity Pool in production.'
+    }, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_liveness_session(request):
