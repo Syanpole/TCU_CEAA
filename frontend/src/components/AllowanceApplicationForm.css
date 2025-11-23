@@ -636,11 +636,11 @@
 }
 
 .dark-theme .face-verification-modal .modal-header h3 {
-  color: #f9fafb;
+  color: #f9fafb !important;
 }
 
 .dark-theme .face-verification-modal .modal-header p {
-  color: #9ca3af;
+  color: #cbd5e1 !important;
 }
 
 .dark-theme .face-verification-modal .close-modal-btn:hover {
@@ -1143,7 +1143,25 @@
 .dark-theme .verification-retry-modal,
 .dark-theme .cooldown-modal {
   background: #1f2937;
-  color: #f9fafb;
+  color: #f9fafb !important;
+}
+
+.dark-theme .liveness-verification-modal h3,
+.dark-theme .verification-retry-modal h3,
+.dark-theme .cooldown-modal h3,
+.dark-theme .liveness-verification-modal h4,
+.dark-theme .verification-retry-modal h4,
+.dark-theme .cooldown-modal h4 {
+  color: #f1f5f9 !important;
+}
+
+.dark-theme .liveness-verification-modal p,
+.dark-theme .verification-retry-modal p,
+.dark-theme .cooldown-modal p,
+.dark-theme .liveness-verification-modal li,
+.dark-theme .verification-retry-modal li,
+.dark-theme .cooldown-modal li {
+  color: #cbd5e1 !important;
 }
 
 .dark-theme .verification-disclaimer,
