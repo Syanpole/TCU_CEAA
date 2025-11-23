@@ -218,15 +218,26 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
 
   const handleError = (error: any) => {
     console.error('Liveness detector error:', error);
-    const errorMsg = error?.message || error?.toString() || 'An error occurred during face verification.';
+    
+    // Extract detailed error information
+    let errorMsg = 'An error occurred during face verification.';
+    if (error?.message) {
+      errorMsg = error.message;
+    } else if (error?.toString) {
+      errorMsg = error.toString();
+    }
+    
+    // Check if it's an AWS configuration issue
+    if (errorMsg.includes('SessionNotFoundException') || errorMsg.includes('session') || errorMsg.includes('not found')) {
+      errorMsg = '⚙️ AWS Rekognition is not properly configured. The session ID from the backend is not valid in AWS. Please configure AWS credentials in the backend settings.';
+    }
+    
+    console.error('Formatted error:', errorMsg);
     setErrorMessage(errorMsg);
     onError(errorMsg);
     
-    // Allow retry
-    setTimeout(() => {
-      setSessionId(null);
-      setErrorMessage('');
-    }, 3000);
+    // Reset session to allow retry
+    setSessionId(null);
   };
 
   return (
@@ -278,26 +289,6 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
 
       {sessionId && (
         <div className="liveness-detector-wrapper">
-          <div className="aws-setup-notice">
-            <h4>⚙️ AWS Configuration Required</h4>
-            <p>
-              AWS Rekognition Face Liveness is not yet configured. 
-              Please configure AWS credentials in the backend to enable biometric verification.
-            </p>
-            <p className="setup-note">
-              <strong>For thesis demo:</strong> You have 100 free verification checks/month with AWS Free Tier.
-            </p>
-            <button 
-              className="cancel-btn"
-              onClick={() => {
-                setSessionId(null);
-                setErrorMessage('');
-              }}
-            >
-              Go Back
-            </button>
-          </div>
-          {/* Temporarily commented out until AWS is configured
           <FaceLivenessDetector
             sessionId={sessionId}
             region="us-east-1"
@@ -312,7 +303,6 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
               )
             }}
           />
-          */}
         </div>
       )}
 
