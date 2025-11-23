@@ -3,6 +3,7 @@ import { apiClient } from '../services/authService';
 import { sendApplicationConfirmationEmail } from '../services/email/emailService';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricLivenessCapture, LivenessResult } from './BiometricLivenessCapture';
+import VerificationLimitModal from './VerificationLimitModal';
 import './AllowanceApplicationForm.css';
 
 interface GradeSubmission {
@@ -66,6 +67,18 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null);
   const [showVerificationInstructions, setShowVerificationInstructions] = useState(false);
+  
+  // Verification limit state
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{
+    dailyCount: number;
+    maxAttempts: number;
+    retryAfter: number;
+  }>({
+    dailyCount: 0,
+    maxAttempts: 15,
+    retryAfter: 86400
+  });
 
   useEffect(() => {
     fetchApprovedGrades();
@@ -260,9 +273,21 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     localStorage.setItem('livenessVerificationResult', JSON.stringify(result));
   };
 
-  const handleLivenessError = (error: string) => {
+  const handleLivenessError = (error: string, errorData?: any) => {
     console.error('❌ Biometric liveness verification error:', error);
-    setError(`Face verification failed: ${error}`);
+    
+    // Check if this is a rate limit error
+    if (error.includes('Daily verification limit reached') || error.includes('429')) {
+      setLimitInfo({
+        dailyCount: errorData?.daily_count || errorData?.dailyCount || 15,
+        maxAttempts: errorData?.max_daily_attempts || errorData?.maxAttempts || 15,
+        retryAfter: errorData?.retry_after || errorData?.retryAfter || 86400
+      });
+      setShowLimitModal(true);
+    } else {
+      setError(`Face verification failed: ${error}`);
+    }
+    
     setShowFaceVerification(false);
   };
 
@@ -763,6 +788,15 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
           </div>
         </form>
       )}
+
+      {/* Verification Limit Modal */}
+      <VerificationLimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        dailyCount={limitInfo.dailyCount}
+        maxAttempts={limitInfo.maxAttempts}
+        retryAfter={limitInfo.retryAfter}
+      />
     </div>
   );
 };

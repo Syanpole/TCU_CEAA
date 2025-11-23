@@ -7,7 +7,7 @@ import './BiometricLivenessCapture.css';
 
 interface BiometricLivenessCaptureProps {
   onComplete: (result: LivenessResult) => void;
-  onError: (error: string) => void;
+  onError: (error: string, errorData?: any) => void;
   studentId?: string;
 }
 
@@ -181,17 +181,20 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     } catch (error: any) {
       console.error('Failed to create liveness session:', error);
       let errorMsg = 'Failed to start face verification. Please try again.';
+      let errorData = null;
       
       if (error.response?.status === 429) {
         errorMsg = error.response?.data?.error || 'Too many attempts. Please wait before trying again.';
+        errorData = error.response?.data; // Pass the full error data including limits
       } else if (error.response?.data?.error) {
         errorMsg = error.response.data.error;
+        errorData = error.response?.data;
       } else if (error.message) {
         errorMsg = error.message;
       }
       
       setErrorMessage(errorMsg);
-      onError(errorMsg);
+      onError(errorMsg, errorData);
       
       // Make sure sessionId is null on error
       setSessionId(null);
