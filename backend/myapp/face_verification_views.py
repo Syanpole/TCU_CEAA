@@ -690,6 +690,7 @@ def create_liveness_session(request):
         ip_address = request.data.get('ip_address') or request.META.get('REMOTE_ADDR', '')
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         
+        # DEV MODE: Rate limiting disabled for development
         # Check rate limiting - daily attempts
         today = timezone.now().date()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
@@ -698,35 +699,36 @@ def create_liveness_session(request):
             created_at__gte=today_start
         ).count()
         
-        if daily_count >= 10:
-            logger.warning(f"User {request.user.id} exceeded daily verification limit ({daily_count}/10)")
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Daily verification limit reached (10 attempts). Please try again tomorrow.',
-                    'daily_count': daily_count
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
+        # if daily_count >= 10:
+        #     logger.warning(f"User {request.user.id} exceeded daily verification limit ({daily_count}/10)")
+        #     return Response(
+        #         {
+        #             'success': False,
+        #             'error': 'Daily verification limit reached (10 attempts). Please try again tomorrow.',
+        #             'daily_count': daily_count
+        #         },
+        #         status=status.HTTP_429_TOO_MANY_REQUESTS
+        #     )
         
+        # DEV MODE: Cooldown disabled for development
         # Check for recent sessions with same device (prevent rapid fire)
-        recent_cutoff = timezone.now() - timedelta(minutes=2)
-        recent_session = FaceVerificationSession.objects.filter(
-            user=request.user,
-            device_fingerprint=device_fingerprint,
-            created_at__gte=recent_cutoff
-        ).first()
-        
-        if recent_session and not recent_session.is_expired():
-            logger.warning(f"User {request.user.id} has recent active session from same device")
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Please wait 2 minutes between verification attempts from the same device.',
-                    'retry_after': 120
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
+        # recent_cutoff = timezone.now() - timedelta(minutes=2)
+        # recent_session = FaceVerificationSession.objects.filter(
+        #     user=request.user,
+        #     device_fingerprint=device_fingerprint,
+        #     created_at__gte=recent_cutoff
+        # ).first()
+        # 
+        # if recent_session and not recent_session.is_expired():
+        #     logger.warning(f"User {request.user.id} has recent active session from same device")
+        #     return Response(
+        #         {
+        #             'success': False,
+        #             'error': 'Please wait 2 minutes between verification attempts from the same device.',
+        #             'retry_after': 120
+        #         },
+        #         status=status.HTTP_429_TOO_MANY_REQUESTS
+        #     )
         
         # Get IP geolocation (optional - will not block if service unavailable)
         geolocation_data = {

@@ -91,12 +91,12 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     setErrorMessage('');
 
     try {
-      // Check attempt count
-      if (attemptCount >= 3) {
-        setErrorMessage('Maximum verification attempts reached. Please try again later.');
-        onError('Maximum verification attempts reached. Please try again later.');
-        return;
-      }
+      // DEV MODE: Rate limiting disabled for development
+      // if (attemptCount >= 3) {
+      //   setErrorMessage('Maximum verification attempts reached. Please try again later.');
+      //   onError('Maximum verification attempts reached. Please try again later.');
+      //   return;
+      // }
 
       // Get user's IP and location
       const ipResponse = await fetch('https://api.ipify.org?format=json');
@@ -172,13 +172,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         setErrorMessage(`Verification confidence too low (${result.confidenceScore}%). Please try again in better lighting.`);
         onError(`Low confidence score: ${result.confidenceScore}%`);
         
-        // Allow retry if under max attempts
-        if (attemptCount < 3) {
-          setTimeout(() => {
-            setSessionId(null);
-            setErrorMessage('');
-          }, 3000);
-        }
+        // DEV MODE: Always allow retry
+        setTimeout(() => {
+          setSessionId(null);
+          setErrorMessage('');
+        }, 3000);
         return;
       }
 
@@ -186,13 +184,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         setErrorMessage('Liveness check failed. Please ensure you are using a live camera and follow the instructions carefully.');
         onError('Liveness check failed');
         
-        // Allow retry if under max attempts
-        if (attemptCount < 3) {
-          setTimeout(() => {
-            setSessionId(null);
-            setErrorMessage('');
-          }, 3000);
-        }
+        // DEV MODE: Always allow retry
+        setTimeout(() => {
+          setSessionId(null);
+          setErrorMessage('');
+        }, 3000);
         return;
       }
 
@@ -204,13 +200,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
       setErrorMessage(errorMsg);
       onError(errorMsg);
       
-      // Allow retry if under max attempts
-      if (attemptCount < 3) {
-        setTimeout(() => {
-          setSessionId(null);
-          setErrorMessage('');
-        }, 3000);
-      }
+      // DEV MODE: Always allow retry
+      setTimeout(() => {
+        setSessionId(null);
+        setErrorMessage('');
+      }, 3000);
     } finally {
       setLoading(false);
     }
@@ -273,9 +267,9 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
           <button 
             className="start-verification-btn"
             onClick={createLivenessSession}
-            disabled={attemptCount >= 3 || !isInitialized || loading}
+            disabled={!isInitialized || loading}
           >
-            {!isInitialized ? 'Initializing...' : attemptCount >= 3 ? 'Maximum Attempts Reached' : 'Start Verification'}
+            {!isInitialized ? 'Initializing...' : 'Start Verification'}
           </button>
         </div>
       )}
@@ -306,6 +300,7 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         </div>
       )}
 
+      {/* DEV MODE: Max attempts warning disabled
       {attemptCount >= 3 && (
         <div className="max-attempts-warning">
           <h4>🚫 Maximum Attempts Reached</h4>
@@ -315,6 +310,7 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
           </p>
         </div>
       )}
+      */}
     </div>
   );
 };
