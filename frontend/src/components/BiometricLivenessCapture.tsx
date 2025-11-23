@@ -5,13 +5,8 @@ import { apiClient } from '../services/authService';
 import '@aws-amplify/ui-react/styles.css';
 import './BiometricLivenessCapture.css';
 
-// Configure Amplify (minimal config - we're using custom backend)
-// Note: We're using our own apiClient, so Amplify config is minimal
-try {
-  Amplify.configure({});
-} catch (error) {
-  console.warn('Amplify configuration skipped:', error);
-}
+// Amplify configuration will be set dynamically after getting AWS config from backend
+let amplifyConfigured = false;
 
 interface BiometricLivenessCaptureProps {
   onComplete: (result: LivenessResult) => void;
@@ -91,6 +86,58 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     setErrorMessage('');
 
     try {
+      // Check AWS configuration from backend
+      if (!amplifyConfigured) {
+        try {
+          console.log('🔧 Checking AWS configuration from backend...');
+          const configResponse = await apiClient.get<{
+            region: string;
+            enabled: boolean;
+            message: string;
+          }>('/face-verification/aws-config/');
+          
+          console.log('✅ AWS config received:', configResponse.data);
+          
+          if (!configResponse.data.enabled) {
+            throw new Error(
+              '⚙️ AWS Rekognition is not configured in the backend.\n\n' +
+              'To enable face liveness detection, configure your backend/.env file:\n\n' +
+              'VERIFICATION_SERVICE_ENABLED=True\n' +
+              'AWS_ACCESS_KEY_ID=your-aws-access-key\n' +
+              'AWS_SECRET_ACCESS_KEY=your-aws-secret-key\n' +
+              'AWS_STORAGE_BUCKET_NAME=your-s3-bucket\n' +
+              'VERIFICATION_SERVICE_REGION=us-east-1\n\n' +
+              'Then restart the Django server.'
+            );
+          }
+          
+          // For AWS Amplify FaceLivenessDetector to work, we need proper AWS credentials
+          // Since we're creating sessions server-side, Amplify still needs to be configured
+          // This is a limitation of the current setup - AWS Amplify expects client-side AWS SDK access
+          
+          amplifyConfigured = true;
+          console.log('⚠️ AWS is enabled but Amplify needs client-side credentials');
+          
+          throw new Error(
+            '⚙️ AWS Rekognition Face Liveness requires additional configuration.\n\n' +
+            'The current setup creates sessions server-side, but AWS Amplify FaceLivenessDetector ' +
+            'component requires client-side AWS credentials or Cognito Identity Pool.\n\n' +
+            'For thesis demo, consider:\n' +
+            '1. Use server-side only verification (no live camera widget)\n' +
+            '2. Set up AWS Cognito Identity Pool for unauthenticated access\n' +
+            '3. Use alternative face detection library (face-api.js, MediaPipe)\n\n' +
+            'Contact your supervisor for guidance on which approach fits your thesis scope.'
+          );
+          
+        } catch (configError: any) {
+          console.error('❌ AWS configuration check failed:', configError);
+          setErrorMessage(configError.message || 'AWS configuration error');
+          onError(configError.message || 'AWS configuration error');
+          setLoading(false);
+          return;
+        }
+      }
+
       // DEV MODE: Rate limiting disabled for development
       // if (attemptCount >= 3) {
       //   setErrorMessage('Maximum verification attempts reached. Please try again later.');

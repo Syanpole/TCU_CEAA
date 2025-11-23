@@ -1143,3 +1143,37 @@ def verify_with_liveness(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_aws_config(request):
+    """
+    Get AWS configuration for frontend Amplify setup
+    
+    Returns AWS region and verification service status.
+    Does NOT expose credentials for security.
+    
+    Returns:
+    - region: AWS region (e.g., 'us-east-1')
+    - enabled: Whether verification service is enabled
+    - message: Status message
+    """
+    try:
+        from django.conf import settings
+        
+        return Response({
+            'success': True,
+            'region': getattr(settings, 'VERIFICATION_SERVICE_REGION', 'us-east-1'),
+            'enabled': getattr(settings, 'VERIFICATION_SERVICE_ENABLED', False),
+            'message': 'AWS Rekognition Face Liveness is configured' if getattr(settings, 'VERIFICATION_SERVICE_ENABLED', False) else 'AWS Rekognition is not enabled'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error getting AWS config: {str(e)}")
+        return Response({
+            'success': False,
+            'region': 'us-east-1',
+            'enabled': False,
+            'error': str(e)
+        }, status=status.HTTP_200_OK)  # Still return 200 to allow frontend to proceed with defaults
