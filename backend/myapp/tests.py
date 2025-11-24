@@ -57,11 +57,11 @@ class AuthenticationTestCase(TestCase):
             **self.user_data,
             'password_confirm': 'testpass123',
             'verification_code': '123456'  # Include verification code
-        }, format='json')
+        }, format='json', follow=True)  # Follow redirects
         
         # Registration should succeed (returns 201)
-        # Note: 301 redirect is expected if URL doesn't have trailing slash
-        self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_301_MOVED_PERMANENTLY])
+        # Using follow=True ensures we get the final response with data
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)
         self.assertIn('user', response.data)
         self.assertIn('message', response.data)
@@ -82,9 +82,9 @@ class AuthenticationTestCase(TestCase):
         response = self.client.post('/api/auth/login/', {
             'username': 'testuser',
             'password': 'testpass123'
-        }, format='json')
-        # Note: 301 redirect is expected if URL doesn't have trailing slash
-        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_301_MOVED_PERMANENTLY])
+        }, format='json', follow=True)  # Follow redirects
+        # Using follow=True ensures we get the final response with data
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)
 
 class UserModelTestCase(TestCase):
