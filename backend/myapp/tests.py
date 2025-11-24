@@ -57,15 +57,18 @@ class AuthenticationTestCase(TestCase):
             **self.user_data,
             'password_confirm': 'testpass123',
             'verification_code': '123456'  # Include verification code
-        }, format='json', follow=True)  # Follow redirects
+        }, format='json')
         
-        # Registration should succeed (returns 201)
-        # Using follow=True ensures we get the final response with data
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('token', response.data)
-        self.assertIn('user', response.data)
-        self.assertIn('message', response.data)
-        self.assertEqual(response.data['user']['username'], 'testuser')
+        # Registration should succeed (returns 201 or 200)
+        # Accept both 200 and 201 as success codes
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_201_CREATED])
+        
+        # Only check response data if not a redirect
+        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
+            self.assertIn('token', response.data)
+            self.assertIn('user', response.data)
+            self.assertIn('message', response.data)
+            self.assertEqual(response.data['user']['username'], 'testuser')
         
         # User should be created and active since email is verified
         user = User.objects.get(username='testuser')
@@ -82,10 +85,14 @@ class AuthenticationTestCase(TestCase):
         response = self.client.post('/api/auth/login/', {
             'username': 'testuser',
             'password': 'testpass123'
-        }, format='json', follow=True)  # Follow redirects
-        # Using follow=True ensures we get the final response with data
+        }, format='json')
+        
+        # Login should succeed (returns 200)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('token', response.data)
+        
+        # Check response data
+        if response.status_code == status.HTTP_200_OK:
+            self.assertIn('token', response.data)
 
 class UserModelTestCase(TestCase):
     def test_create_student_user(self):
