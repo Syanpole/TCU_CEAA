@@ -17,7 +17,8 @@ from .views import (
 from .face_verification_views import (
     verify_face_with_id, extract_id_face, verify_liveness_only,
     verify_grade_submission_identity, verify_allowance_application_identity,
-    create_liveness_session, verify_liveness, verify_with_liveness, get_aws_config, get_aws_credentials
+    create_liveness_session, verify_liveness, verify_with_liveness, get_aws_config, get_aws_credentials,
+    check_pending_adjudication
 )
 
 # Face adjudication views
@@ -75,6 +76,7 @@ urlpatterns = [
     path('api/face-verification/liveness/', verify_liveness_only, name='verify-liveness-only'),
     path('api/face-verification/grade-submission/', verify_grade_submission_identity, name='verify-grade-submission-identity'),
     path('api/face-verification/allowance-application/', verify_allowance_application_identity, name='verify-allowance-application-identity'),
+    path('api/face-verification/check-pending/', check_pending_adjudication, name='check-pending-adjudication'),
     # AWS Rekognition liveness endpoints
     path('api/face-verification/aws-config/', get_aws_config, name='get-aws-config'),
     path('api/face-verification/aws-credentials/', get_aws_credentials, name='get-aws-credentials'),

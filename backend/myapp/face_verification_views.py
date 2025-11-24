@@ -1154,11 +1154,15 @@ def verify_liveness(request):
                     reference_photo_path = reference_s3_object.get('Name', '')
                     
                     if reference_photo_path:
+                        # Ensure ID photo path has media/ prefix for S3
+                        if not id_photo_path.startswith('media/'):
+                            id_photo_path = f"media/{id_photo_path}"
+                        
                         # Use AWS Rekognition to compare faces
                         compare_result = verification_service.compare_faces_s3(
                             source_image_path=reference_photo_path,  # Live liveness photo
                             target_image_path=id_photo_path,  # Submitted ID
-                            similarity_threshold=80.0  # 80% minimum similarity
+                            similarity_threshold=50.0  # 50% minimum threshold for detection
                         )
                         
                         if compare_result.get('success'):
@@ -1200,13 +1204,14 @@ def verify_liveness(request):
             # Create VerificationAdjudication record for admin review
             try:
                 # Determine confidence level based on similarity score
-                if similarity_score >= 95:
+                # Updated thresholds for more realistic assessment
+                if similarity_score >= 98:
                     confidence_level = 'very_high'
                 elif similarity_score >= 90:
                     confidence_level = 'high'
-                elif similarity_score >= 85:
+                elif similarity_score >= 75:
                     confidence_level = 'medium'
-                elif similarity_score >= 80:
+                elif similarity_score >= 50:
                     confidence_level = 'low'
                 else:
                     confidence_level = 'very_low'
@@ -1449,6 +1454,59 @@ def verify_with_liveness(request):
             {
                 'success': False,
                 'error': f'Verification failed: {str(e)}'
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_pending_adjudication(request):
+    """
+    Check if the current user has any pending face verification adjudications.
+    
+    If a pending adjudication exists, the user should NOT start a new face verification.
+    Instead, they should wait for admin review or proceed with application submission.
+    
+    Returns:
+    - has_pending: Boolean - True if there's a pending adjudication
+    - adjudication_id: Integer - ID of the pending adjudication (if exists)
+    - created_at: String - When the pending adjudication was created
+    - can_proceed_with_submission: Boolean - True if user can submit application
+    - message: String - User-friendly message
+    """
+    try:
+        # Check for any pending adjudication for this user
+        pending_adjudication = VerificationAdjudication.objects.filter(
+            user=request.user,
+            admin_decision='pending'
+        ).order_by('-created_at').first()
+        
+        if pending_adjudication:
+            return Response({
+                'has_pending': True,
+                'adjudication_id': pending_adjudication.id,
+                'created_at': pending_adjudication.created_at.isoformat(),
+                'automated_match_result': pending_adjudication.automated_match_result,
+                'similarity_score': pending_adjudication.automated_similarity_score,
+                'can_proceed_with_submission': True,  # User can submit, admin will review
+                'message': (
+                    'You have a pending face verification awaiting admin review. '
+                    'You can proceed with your application submission - the admin will verify your identity.'
+                )
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'has_pending': False,
+                'can_proceed_with_submission': False,  # Need to complete verification first
+                'message': 'No pending verification found. Please complete face verification to proceed.'
+            }, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        logger.error(f"Error checking pending adjudication: {str(e)}", exc_info=True)
+        return Response(
+            {
+                'error': f'Failed to check verification status: {str(e)}'
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
