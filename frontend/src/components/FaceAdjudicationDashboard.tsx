@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
 import './FaceAdjudicationDashboard.css';
 
+// Get the API base URL for constructing image URLs
+const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.protocol + '//' + window.location.hostname + ':8000';
+const getImageUrl = (path: string) => {
+  if (!path) return '';
+  // If it's already a full URL, return it
+  if (path.startsWith('http')) return path;
+  // Remove leading slash if present and construct full URL
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
+};
+
 interface DashboardResponse {
   stats: DashboardStats;
   recent_pending: VerificationAdjudication[];
@@ -22,6 +33,8 @@ interface VerificationAdjudication {
   application_type: string;
   school_id_image_path: string;
   selfie_image_path: string;
+  school_id_image_url?: string;
+  selfie_image_url?: string;
   verification_backend: string;
   automated_liveness_score: number;
   automated_match_result: boolean;
@@ -455,18 +468,44 @@ const FaceAdjudicationDashboard: React.FC = () => {
                 <h3>Image Comparison</h3>
                 <div className="images-grid">
                   <div className="image-container">
-                    <h4>School ID</h4>
-                    <div className="image-placeholder">
-                      <p>School ID Image</p>
-                      <small>{selectedVerification.school_id_image_path}</small>
-                    </div>
+                    <h4>📋 School ID</h4>
+                    {selectedVerification.school_id_image_url || selectedVerification.school_id_image_path ? (
+                      <div className="image-wrapper">
+                        <img 
+                          src={selectedVerification.school_id_image_url || getImageUrl(selectedVerification.school_id_image_path)} 
+                          alt="School ID"
+                          onError={(e) => {
+                            console.error('Failed to load school ID image:', selectedVerification.school_id_image_path);
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+                          }}
+                        />
+                        <small className="image-path">{selectedVerification.school_id_image_path?.split('/').pop()}</small>
+                      </div>
+                    ) : (
+                      <div className="image-placeholder">
+                        <p>⚠️ No School ID image available</p>
+                      </div>
+                    )}
                   </div>
                   <div className="image-container">
-                    <h4>Live Selfie</h4>
-                    <div className="image-placeholder">
-                      <p>Live Captured Selfie</p>
-                      <small>{selectedVerification.selfie_image_path}</small>
-                    </div>
+                    <h4>🤳 Live Selfie</h4>
+                    {selectedVerification.selfie_image_url || selectedVerification.selfie_image_path ? (
+                      <div className="image-wrapper">
+                        <img 
+                          src={selectedVerification.selfie_image_url || getImageUrl(selectedVerification.selfie_image_path)} 
+                          alt="Live Captured Selfie"
+                          onError={(e) => {
+                            console.error('Failed to load selfie image:', selectedVerification.selfie_image_path);
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+                          }}
+                        />
+                        <small className="image-path">{selectedVerification.selfie_image_path?.split('/').pop()}</small>
+                      </div>
+                    ) : (
+                      <div className="image-placeholder">
+                        <p>⚠️ No selfie image available</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>

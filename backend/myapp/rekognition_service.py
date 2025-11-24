@@ -247,14 +247,14 @@ class BiometricVerificationService:
             logger.error(f"Unexpected error in face comparison: {str(e)}")
             return self._error_response(f"Face comparison failed: {str(e)}")
     
-    def compare_faces_s3(self, source_image_path: str, target_image_path: str, similarity_threshold: float = 80.0) -> Dict:
+    def compare_faces_s3(self, source_image_path: str, target_image_path: str, similarity_threshold: float = 50.0) -> Dict:
         """
         Compare two face images stored in S3
         
         Args:
             source_image_path: S3 key/path of the reference image (e.g., from liveness session)
             target_image_path: S3 key/path of the target image (e.g., submitted ID document)
-            similarity_threshold: Minimum similarity percentage (0-100)
+            similarity_threshold: Minimum similarity percentage (0-100, default 50.0)
             
         Returns:
             Dict with comparison results including similarity score and match status

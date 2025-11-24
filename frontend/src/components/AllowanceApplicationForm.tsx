@@ -3,6 +3,7 @@ import { apiClient } from '../services/authService';
 import { sendApplicationConfirmationEmail } from '../services/email/emailService';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricLivenessCapture, LivenessResult } from './BiometricLivenessCapture';
+import VerificationLimitModal from './VerificationLimitModal';
 import './AllowanceApplicationForm.css';
 
 interface GradeSubmission {
@@ -41,6 +42,16 @@ interface AllowanceApplication {
   status: string;
 }
 
+interface PendingAdjudicationResponse {
+  has_pending: boolean;
+  adjudication_id?: number;
+  created_at?: string;
+  automated_match_result?: boolean;
+  similarity_score?: number;
+  can_proceed_with_submission?: boolean;
+  message?: string;
+}
+
 interface AllowanceApplicationFormProps {
   onSubmissionSuccess: () => void;
   onCancel: () => void;
@@ -66,11 +77,61 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null);
   const [showVerificationInstructions, setShowVerificationInstructions] = useState(false);
+  
+  // Pending adjudication state
+  const [hasPendingAdjudication, setHasPendingAdjudication] = useState(false);
+  const [pendingAdjudicationInfo, setPendingAdjudicationInfo] = useState<{
+    adjudication_id?: number;
+    created_at?: string;
+    message?: string;
+  } | null>(null);
+  
+  // Verification limit state
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{
+    dailyCount: number;
+    maxAttempts: number;
+    retryAfter: number;
+  }>({
+    dailyCount: 0,
+    maxAttempts: 15,
+    retryAfter: 86400
+  });
 
   useEffect(() => {
     fetchApprovedGrades();
     fetchExistingApplications();
+    checkPendingAdjudication();
   }, []);
+
+  const checkPendingAdjudication = async () => {
+    try {
+      const response = await apiClient.get<PendingAdjudicationResponse>('/face-verification/check-pending/');
+      const data = response.data;
+      
+      if (data.has_pending) {
+        setHasPendingAdjudication(true);
+        setPendingAdjudicationInfo({
+          adjudication_id: data.adjudication_id,
+          created_at: data.created_at,
+          message: data.message
+        });
+        
+        // If there's a pending adjudication, mark verification as complete
+        // so user can proceed with submission
+        if (data.can_proceed_with_submission) {
+          setFaceVerificationComplete(true);
+          setSelfieImage('pending'); // Placeholder to indicate pending status
+        }
+      } else {
+        setHasPendingAdjudication(false);
+        setPendingAdjudicationInfo(null);
+      }
+    } catch (error: any) {
+      console.error('Error checking pending adjudication:', error);
+      // Don't block the user if this check fails
+    }
+  };
 
   const fetchApprovedGrades = async () => {
     try {
@@ -260,9 +321,21 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     localStorage.setItem('livenessVerificationResult', JSON.stringify(result));
   };
 
-  const handleLivenessError = (error: string) => {
+  const handleLivenessError = (error: string, errorData?: any) => {
     console.error('❌ Biometric liveness verification error:', error);
-    setError(`Face verification failed: ${error}`);
+    
+    // Check if this is a rate limit error
+    if (error.includes('Daily verification limit reached') || error.includes('429')) {
+      setLimitInfo({
+        dailyCount: errorData?.daily_count || errorData?.dailyCount || 15,
+        maxAttempts: errorData?.max_daily_attempts || errorData?.maxAttempts || 15,
+        retryAfter: errorData?.retry_after || errorData?.retryAfter || 86400
+      });
+      setShowLimitModal(true);
+    } else {
+      setError(`Face verification failed: ${error}`);
+    }
+    
     setShowFaceVerification(false);
   };
 
@@ -275,7 +348,14 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     }
 
     // Check if face verification is complete
-    if (!faceVerificationComplete || !selfieBlob) {
+    // If there's a pending adjudication, allow submission without selfieBlob
+    if (!faceVerificationComplete) {
+      setError('Please complete face verification before submitting your application.');
+      return;
+    }
+    
+    // If not pending adjudication, require selfieBlob
+    if (!hasPendingAdjudication && !selfieBlob) {
       setError('Please complete face verification before submitting your application.');
       return;
     }
@@ -294,23 +374,27 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
       const response = await apiClient.post('/applications/', applicationData);
       const submittedApplication: any = response.data;
       
-      // Upload face verification selfie
-      try {
-        console.log('📸 Uploading face verification selfie...');
-        const uploadFormData = new FormData();
-        uploadFormData.append('selfie', selfieBlob, 'selfie.jpg');
-        const applicationId = submittedApplication?.id || submittedApplication?.application_id;
-        uploadFormData.append('application_id', String(applicationId));
-        
-        await apiClient.post('/face-verification/upload/', uploadFormData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        console.log('✅ Face verification selfie uploaded successfully!');
-      } catch (faceError) {
-        console.error('❌ Error uploading face verification:', faceError);
-        // Don't fail the entire submission if face upload fails
+      // Upload face verification selfie (only if not pending adjudication)
+      if (selfieBlob && !hasPendingAdjudication) {
+        try {
+          console.log('📸 Uploading face verification selfie...');
+          const uploadFormData = new FormData();
+          uploadFormData.append('selfie', selfieBlob, 'selfie.jpg');
+          const applicationId = submittedApplication?.id || submittedApplication?.application_id;
+          uploadFormData.append('application_id', String(applicationId));
+          
+          await apiClient.post('/face-verification/upload/', uploadFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          console.log('✅ Face verification selfie uploaded successfully!');
+        } catch (faceError) {
+          console.error('❌ Error uploading face verification:', faceError);
+          // Don't fail the entire submission if face upload fails
+        }
+      } else if (hasPendingAdjudication) {
+        console.log('ℹ️ Skipping selfie upload - pending adjudication exists');
       }
       
       // Send confirmation email to student
@@ -567,58 +651,153 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
 
           {selectedGradeSubmission && applicationType && (
             <div className="face-verification-section">
-              <h4>📸 Face Verification Required</h4>
-              <div className="verification-info">
-                <p>Please complete face verification before submitting your application. This helps us verify your identity and prevent fraud.</p>
-                
-                {!showFaceVerification && !faceVerificationComplete && (
-                  <div className="verification-requirements">
-                    <h5>Requirements:</h5>
-                    <ul>
-                      <li>✓ Good lighting</li>
-                      <li>✓ Face clearly visible</li>
-                      <li>✓ Remove glasses if possible</li>
-                      <li>✓ Look directly at camera</li>
-                    </ul>
+              {/* Check for Pending Adjudication */}
+              {hasPendingAdjudication ? (
+                <div className="pending-adjudication-notice">
+                  <div className="notice-header">
+                    <div className="verification-icon-badge">⏳</div>
+                    <div>
+                      <h4>Verification Pending Admin Review</h4>
+                      <p className="verification-subtitle">Your face verification is awaiting administrator approval</p>
+                    </div>
                   </div>
-                )}
+                  
+                  <div className="notice-content">
+                    <div className="info-card">
+                      <div className="card-icon">ℹ️</div>
+                      <div className="card-content">
+                        <h5>What This Means</h5>
+                        <p>{pendingAdjudicationInfo?.message || 'Your face verification has been submitted and is currently under review by an administrator.'}</p>
+                        <div className="status-info">
+                          <p><strong>Status:</strong> Pending Admin Review</p>
+                          {pendingAdjudicationInfo?.created_at && (
+                            <p><strong>Submitted:</strong> {new Date(pendingAdjudicationInfo.created_at).toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="verification-actions">
+                    <div className="info-card success-card">
+                      <div className="card-icon">✅</div>
+                      <div className="card-content">
+                        <h5>You Can Proceed!</h5>
+                        <p>You don't need to verify again. You can submit your application now - the administrator will review your identity verification along with your application.</p>
+                        <ul className="benefit-list">
+                          <li><span className="check-icon">✓</span> No need to wait for verification approval</li>
+                          <li><span className="check-icon">✓</span> Your application will be processed together</li>
+                          <li><span className="check-icon">✓</span> You'll be notified of any status changes</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Progress Header */}
+                  <div className="verification-header">
+                    <div className="verification-title-group">
+                      <div className="verification-icon-badge">
+                        {faceVerificationComplete ? '✅' : showFaceVerification ? '📹' : '📸'}
+                      </div>
+                      <div>
+                        <h4>Face Verification {faceVerificationComplete ? 'Completed' : 'Required'}</h4>
+                        <p className="verification-subtitle">
+                          {faceVerificationComplete 
+                            ? 'Identity verified successfully' 
+                            : showFaceVerification 
+                            ? 'Follow the on-screen instructions' 
+                            : 'Verify your identity before submission'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Indicator */}
+                    <div className="verification-progress-bar">
+                      <div className="progress-steps">
+                        <div className={`progress-step ${!showFaceVerification && !faceVerificationComplete ? 'active' : 'completed'}`}>
+                          <div className="step-circle">1</div>
+                          <span>Prepare</span>
+                        </div>
+                        <div className="progress-line"></div>
+                        <div className={`progress-step ${showFaceVerification ? 'active' : faceVerificationComplete ? 'completed' : ''}`}>
+                          <div className="step-circle">2</div>
+                          <span>Verify</span>
+                        </div>
+                        <div className="progress-line"></div>
+                        <div className={`progress-step ${faceVerificationComplete ? 'completed' : ''}`}>
+                          <div className="step-circle">3</div>
+                          <span>Complete</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BEFORE: Not Started */}
                   {!showFaceVerification && !faceVerificationComplete && (
+                <div className="verification-before-state">
+                  <div className="before-content-grid">
+                    <div className="info-card primary-info">
+                      <div className="card-icon">🎯</div>
+                      <div className="card-content">
+                        <h5>Why Face Verification?</h5>
+                        <p>We verify your identity to:</p>
+                        <ul className="benefit-list">
+                          <li><span className="check-icon">✓</span> Prevent identity fraud and misuse</li>
+                          <li><span className="check-icon">✓</span> Ensure only eligible students receive aid</li>
+                          <li><span className="check-icon">✓</span> Protect your personal information</li>
+                          <li><span className="check-icon">✓</span> Comply with security requirements</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="info-card requirements-card">
+                      <div className="card-icon">📋</div>
+                      <div className="card-content">
+                        <h5>Quick Checklist</h5>
+                        <ul className="checklist">
+                          <li><span className="check-box">□</span> Find a well-lit area</li>
+                          <li><span className="check-box">□</span> Remove glasses & masks</li>
+                          <li><span className="check-box">□</span> Face camera directly</li>
+                          <li><span className="check-box">□</span> Have stable internet</li>
+                        </ul>
+                        <div className="time-estimate">
+                          <span className="clock-icon">⏱️</span>
+                          <span>Takes about 15-30 seconds</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="action-center">
                     <button
                       type="button"
-                      className="verification-btn start-verification"
+                      className="verification-btn start-verification-btn"
                       onClick={() => setShowVerificationInstructions(true)}
                     >
-                      📸 Start Face Verification
+                      <span className="btn-icon">🚀</span>
+                      <span className="btn-text">Begin Face Verification</span>
+                      <span className="btn-arrow">→</span>
                     </button>
-                  )}
-
-                  {faceVerificationComplete && selfieImage && (
-                    <div className="verification-complete">
-                      <div className="success-message">
-                        ✅ Face verification completed successfully!
-                      </div>
-                      <div className="selfie-preview">
-                        <img src={selfieImage} alt="Your selfie" />
-                      </div>
-                      <button
-                        type="button"
-                        className="verification-btn retake"
-                        onClick={() => {
-                          setFaceVerificationComplete(false);
-                          setSelfieImage(null);
-                          setSelfieBlob(null);
-                          setShowFaceVerification(true);
-                        }}
-                      >
-                        🔄 Retake Photo
-                      </button>
-                    </div>
-                  )}
+                    <p className="action-help-text">
+                      Click to view detailed instructions and start the verification process
+                    </p>
+                  </div>
                 </div>
+              )}
 
-                {showFaceVerification && (
+              {/* DURING: In Progress */}
+              {showFaceVerification && !faceVerificationComplete && (
+                <div className="verification-during-state">
+                  <div className="during-instructions">
+                    <div className="instruction-banner">
+                      <span className="banner-icon">👀</span>
+                      <div className="banner-text">
+                        <strong>Follow the prompts on your screen</strong>
+                        <p>Keep your face centered and follow any instructions that appear</p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="camera-capture-container">
                     <BiometricLivenessCapture
                       onComplete={handleLivenessComplete}
@@ -626,8 +805,77 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
                       studentId={selectedGradeSubmission?.toString()}
                     />
                   </div>
-                )}
-              </div>
+
+                  <div className="during-tips">
+                    <div className="tip-item">
+                      <span className="tip-icon">💡</span>
+                      <span>Stay still and look directly at the camera</span>
+                    </div>
+                    <div className="tip-item">
+                      <span className="tip-icon">🎥</span>
+                      <span>Make sure your entire face is visible in the frame</span>
+                    </div>
+                    <div className="tip-item">
+                      <span className="tip-icon">⚡</span>
+                      <span>The process completes automatically when successful</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AFTER: Completed */}
+              {faceVerificationComplete && selfieImage && !hasPendingAdjudication && (
+                <div className="verification-after-state">
+                  <div className="success-banner">
+                    <div className="success-icon-large">✓</div>
+                    <div className="success-content">
+                      <h5>Verification Successful!</h5>
+                      <p>Your identity has been verified. You can now submit your application.</p>
+                    </div>
+                  </div>
+
+                  <div className="verified-preview-card">
+                    <div className="preview-header">
+                      <span className="preview-label">Your Verified Photo</span>
+                      <span className="verified-badge">
+                        <span className="badge-icon">🔒</span>
+                        <span>Verified</span>
+                      </span>
+                    </div>
+                    <div className="selfie-preview-wrapper">
+                      <img src={selfieImage} alt="Verified selfie" className="verified-selfie" />
+                      <div className="preview-overlay">
+                        <div className="verified-checkmark">✓</div>
+                      </div>
+                    </div>
+                    <div className="preview-actions">
+                      <button
+                        type="button"
+                        className="retake-btn"
+                        onClick={() => {
+                          setFaceVerificationComplete(false);
+                          setSelfieImage(null);
+                          setSelfieBlob(null);
+                          setShowFaceVerification(true);
+                        }}
+                      >
+                        <span className="btn-icon">🔄</span>
+                        <span>Retake Photo</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="next-steps-card">
+                    <div className="next-steps-icon">📝</div>
+                    <div className="next-steps-content">
+                      <h6>Ready to Submit</h6>
+                      <p>Review your application details below and click the submit button when ready.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+                </>
+              )}
             </div>
           )}
 
@@ -763,6 +1011,15 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
           </div>
         </form>
       )}
+
+      {/* Verification Limit Modal */}
+      <VerificationLimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        dailyCount={limitInfo.dailyCount}
+        maxAttempts={limitInfo.maxAttempts}
+        retryAfter={limitInfo.retryAfter}
+      />
     </div>
   );
 };
