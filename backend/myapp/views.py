@@ -553,6 +553,46 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             # Regular users can only see their own profile
             return CustomUser.objects.filter(id=self.request.user.id)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Allow admins to delete users"""
+        if not request.user.is_admin():
+            return Response(
+                {'error': 'Only admins can delete users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        user = self.get_object()
+        
+        # Prevent deleting yourself
+        if user.id == request.user.id:
+            return Response(
+                {'error': 'You cannot delete your own account'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create audit log before deletion
+        AuditLog.objects.create(
+            user=request.user,
+            action_type='admin_action',
+            action_description=f'Admin deleted user: {user.first_name} {user.last_name} (ID: {user.student_id}, Role: {user.role})',
+            severity='warning',
+            target_model='CustomUser',
+            target_object_id=user.id,
+            ip_address=request.META.get('REMOTE_ADDR', ''),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+        
+        # Perform deletion
+        user.delete()
+        
+        return Response(
+            {
+                'success': True,
+                'message': 'User deleted successfully'
+            },
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 # API endpoint to get students (users with student role)
 @api_view(['GET'])
