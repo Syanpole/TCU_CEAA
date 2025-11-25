@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.conf import settings
 from .models import Task, CustomUser, DocumentSubmission, GradeSubmission, AllowanceApplication, BasicQualification, VerifiedStudent, FullApplication, VerificationAdjudication
 from .ai_service import document_analyzer, grade_analyzer
 from .audit_logger import audit_logger
