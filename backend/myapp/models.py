@@ -4,10 +4,45 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from PIL import Image
 import os
+from datetime import datetime
 from .validators import profile_image_validators, document_validators, grade_sheet_validators
 
 def profile_image_upload_path(instance, filename):
     return f'profile_images/{instance.id}/{filename}'
+
+def document_upload_path(instance, filename):
+    """
+    Custom upload path for documents with naming convention:
+    documents/YYYY/MM/doc-type_student-number_YYYYMMDD_HHMMSS.ext
+    """
+    ext = os.path.splitext(filename)[1]
+    # Get document type (replace underscores with hyphens for readability)
+    doc_type = instance.document_type.replace('_', '-')
+    # Get student ID (or username if no student_id)
+    student_id = instance.student.student_id or instance.student.username
+    # Generate timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Create filename
+    new_filename = f"{doc_type}_{student_id}_{timestamp}{ext}"
+    # Return full path with year/month structure
+    return f"documents/{datetime.now().strftime('%Y/%m')}/{new_filename}"
+
+def grade_upload_path(instance, filename):
+    """
+    Custom upload path for grade sheets with naming convention:
+    grades/YYYY/MM/grade_student-number_subject-code_YYYYMMDD_HHMMSS.ext
+    """
+    ext = os.path.splitext(filename)[1]
+    # Get student ID (or username if no student_id)
+    student_id = instance.student.student_id or instance.student.username
+    # Get subject code if available
+    subject_code = instance.subject_code.replace(' ', '-') if instance.subject_code else 'general'
+    # Generate timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Create filename
+    new_filename = f"grade_{student_id}_{subject_code}_{timestamp}{ext}"
+    # Return full path with year/month structure
+    return f"grades/{datetime.now().strftime('%Y/%m')}/{new_filename}"
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -266,7 +301,7 @@ class DocumentSubmission(models.Model):
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
-    document_file = models.FileField(upload_to='documents/%Y/%m/', validators=document_validators)
+    document_file = models.FileField(upload_to=document_upload_path, validators=document_validators)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True)
@@ -346,7 +381,7 @@ class GradeSubmission(models.Model):
                                                    null=True, blank=True, default=None)
     
     # Grade sheet upload (one grade image per subject)
-    grade_sheet = models.FileField(upload_to='grades/%Y/%m/', validators=grade_sheet_validators)
+    grade_sheet = models.FileField(upload_to=grade_upload_path, validators=grade_sheet_validators)
     
     # Validation flags
     has_failing_grades = models.BooleanField(default=False)

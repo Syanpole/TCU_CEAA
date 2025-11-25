@@ -247,6 +247,94 @@ class BiometricVerificationService:
             logger.error(f"Unexpected error in face comparison: {str(e)}")
             return self._error_response(f"Face comparison failed: {str(e)}")
     
+    def compare_faces_s3(self, source_image_path: str, target_image_path: str, similarity_threshold: float = 50.0) -> Dict:
+        """
+        Compare two face images stored in S3
+        
+        Args:
+            source_image_path: S3 key/path of the reference image (e.g., from liveness session)
+            target_image_path: S3 key/path of the target image (e.g., submitted ID document)
+            similarity_threshold: Minimum similarity percentage (0-100, default 50.0)
+            
+        Returns:
+            Dict with comparison results including similarity score and match status
+        """
+        try:
+            if not self.enabled:
+                logger.warning("Biometric verification service not enabled")
+                return self._error_response("Biometric verification service not enabled")
+            
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
+            
+            logger.info(f"Comparing faces from S3: source={source_image_path[:50]}..., target={target_image_path[:50]}...")
+            
+            # Call AWS Rekognition CompareFaces API with S3 objects
+            response = self.client.compare_faces(
+                SourceImage={
+                    'S3Object': {
+                        'Bucket': bucket_name,
+                        'Name': source_image_path
+                    }
+                },
+                TargetImage={
+                    'S3Object': {
+                        'Bucket': bucket_name,
+                        'Name': target_image_path
+                    }
+                },
+                QualityFilter='AUTO',
+                SimilarityThreshold=similarity_threshold
+            )
+            
+            # Process response
+            matched_faces = response.get('FaceMatches', [])
+            unmatched_faces = response.get('UnmatchedFaces', [])
+            
+            # Get the best match if available
+            best_match = None
+            similarity = 0.0
+            
+            if matched_faces:
+                best_match = matched_faces[0]  # Sorted by similarity descending
+                similarity = best_match['Similarity']
+            
+            # Determine if faces match based on threshold
+            is_match = similarity >= similarity_threshold
+            
+            result = {
+                'success': True,
+                'is_match': is_match,
+                'similarity': round(similarity, 2),
+                'threshold': similarity_threshold,
+                'matched_faces_count': len(matched_faces),
+                'unmatched_faces_count': len(unmatched_faces),
+                'confidence_level': self._get_confidence_level(similarity),
+                'error': None
+            }
+            
+            logger.info(
+                f"S3 face comparison complete: Match={is_match}, "
+                f"Similarity={similarity:.2f}%, Threshold={similarity_threshold}%"
+            )
+            
+            return result
+            
+        except self.client.exceptions.InvalidParameterException as e:
+            logger.error(f"Invalid parameter in S3 face comparison: {str(e)}")
+            return self._error_response(f"Invalid S3 path or parameters: {str(e)}")
+        except self.client.exceptions.InvalidS3ObjectException as e:
+            logger.error(f"Invalid S3 object: {str(e)}")
+            return self._error_response(f"Could not access image in S3: {str(e)}")
+        except self.client.exceptions.ImageTooLargeException as e:
+            logger.error(f"Image too large: {str(e)}")
+            return self._error_response("Image file is too large. Maximum size: 5MB")
+        except self.client.exceptions.InvalidImageFormatException as e:
+            logger.error(f"Invalid image format: {str(e)}")
+            return self._error_response("Invalid image format. Supported: JPEG, PNG")
+        except Exception as e:
+            logger.error(f"Unexpected error in S3 face comparison: {str(e)}")
+            return self._error_response(f"Face comparison failed: {str(e)}")
+    
     def verify_identity_with_liveness(
         self, 
         session_id: str, 

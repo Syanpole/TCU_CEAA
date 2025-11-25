@@ -372,38 +372,78 @@
 /* Image Comparison */
 .image-comparison .images-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
 }
 
 .image-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .image-container h4 {
   margin: 0;
-  font-size: 14px;
-  color: #333;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.image-wrapper:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.image-wrapper img {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 400px;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.image-path {
+  display: block;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.03);
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+  word-break: break-all;
+  border-top: 1px solid #e2e8f0;
 }
 
 .image-placeholder {
   background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-  border: 2px dashed #ccc;
-  border-radius: 6px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
   height: 300px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #999;
+  color: #94a3b8;
 }
 
 .image-placeholder p {
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .image-placeholder small {

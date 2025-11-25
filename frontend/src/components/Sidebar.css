@@ -8,9 +8,42 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
   background: #ffffff;
+  overflow: visible;
+}
+
+/* Minimized Sidebar */
+.sidebar.minimized {
+  width: 80px;
+}
+
+.sidebar.minimized .sidebar-item {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.sidebar.minimized .sidebar-icon {
+  margin: 0;
+}
+
+.sidebar.minimized .logo-container {
+  justify-content: center;
+}
+
+.sidebar.minimized .sidebar-header {
+  text-align: center;
+}
+
+.sidebar.minimized .sidebar-minimizer-btn {
+  right: 50%;
+  transform: translateX(50%);
+}
+
+.sidebar-minimizer-btn svg,
+.sidebar-minimizer-btn::before {
+  transition: transform 0.3s ease;
 }
 
 /* Light Theme */
@@ -89,6 +122,55 @@
 .sidebar-header {
   padding: 24px 20px;
   border-bottom: none;
+  position: relative;
+  overflow: visible;
+}
+
+/* Sidebar Minimizer Button */
+.sidebar-minimizer-btn {
+  position: absolute;
+  top: 28px;
+  right: 12px;
+  transform: translateX(0);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1001;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-minimizer-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  transform: translateX(0) scale(1.05);
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.3);
+}
+
+.sidebar-minimizer-btn:active {
+  transform: translateX(0) scale(0.98);
+}
+
+.sidebar-minimizer-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.dark-theme .sidebar-minimizer-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .sidebar-minimizer-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
 }
 
 .sidebar.dark-theme .sidebar-header {

@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
-import { Amplify } from 'aws-amplify';
 import { apiClient } from '../services/authService';
+import { initializeAmplify, isAmplifyConfigured } from '../services/amplifyService';
 import '@aws-amplify/ui-react/styles.css';
 import './BiometricLivenessCapture.css';
 
-// Configure Amplify (minimal config - we're using custom backend)
-// Note: We're using our own apiClient, so Amplify config is minimal
-try {
-  Amplify.configure({});
-} catch (error) {
-  console.warn('Amplify configuration skipped:', error);
-}
-
 interface BiometricLivenessCaptureProps {
   onComplete: (result: LivenessResult) => void;
-  onError: (error: string) => void;
+  onError: (error: string, errorData?: any) => void;
   studentId?: string;
 }
 
@@ -40,11 +32,67 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Generate device fingerprint on mount
+  // Initialize: configure Amplify and generate device fingerprint on mount
   useEffect(() => {
-    generateDeviceFingerprint().then(() => {
-      setIsInitialized(true);
-    });
+    let retryCount = 0;
+    const maxRetries = 10; // Maximum 5 seconds (10 * 500ms)
+    
+    const initialize = async () => {
+      try {
+        // Check if user is authenticated (use 'token' key to match authService)
+        const token = localStorage.getItem('token');
+        if (!token) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error('❌ Authentication timeout: No auth token found after', maxRetries * 500, 'ms');
+            const errorMsg = '🔐 Please log in to use face verification.';
+            setErrorMessage(errorMsg);
+            setIsInitialized(false);
+            if (onError) onError(errorMsg);
+            return;
+          }
+          
+          console.warn(`⚠️ No auth token found, retry ${retryCount}/${maxRetries}...`);
+          // Retry after a short delay
+          setTimeout(initialize, 500);
+          return;
+        }
+
+        // Initialize Amplify using the centralized service
+        const amplifyReady = await initializeAmplify();
+        
+        if (!amplifyReady) {
+          setErrorMessage('⚙️ AWS Rekognition is not configured. Please check backend settings.');
+          setIsInitialized(false);
+          if (onError) onError('AWS Rekognition is not configured');
+          return;
+        }
+
+        // Generate device fingerprint
+        await generateDeviceFingerprint();
+        setIsInitialized(true);
+      } catch (error: any) {
+        console.error('Failed to initialize biometric capture:', error);
+        
+        let errorMsg = 'Failed to initialize face verification.';
+        
+        if (error.response?.status === 401) {
+          errorMsg = '🔐 Authentication required. Please log in and try again.';
+        } else if (error.response?.status === 403) {
+          errorMsg = '🔐 Access denied. Please check your permissions.';
+        } else if (error.response?.data?.error) {
+          errorMsg = error.response.data.error;
+        } else if (error.message) {
+          errorMsg = error.message;
+        }
+        
+        setErrorMessage(errorMsg);
+        setIsInitialized(false);
+        onError(errorMsg);
+      }
+    };
+
+    initialize();
   }, []);
 
   const generateDeviceFingerprint = async (): Promise<void> => {
@@ -91,12 +139,23 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     setErrorMessage('');
 
     try {
-      // Check attempt count
-      if (attemptCount >= 3) {
-        setErrorMessage('Maximum verification attempts reached. Please try again later.');
-        onError('Maximum verification attempts reached. Please try again later.');
+      // Check if Amplify is configured
+      if (!isAmplifyConfigured()) {
+        const errorMsg = '⚙️ AWS Rekognition is not initialized. Please refresh the page.';
+        setErrorMessage(errorMsg);
+        setLoading(false);
+        if (onError) onError(errorMsg);
         return;
       }
+
+      // Amplify is configured, proceed with session creation
+
+      // DEV MODE: Rate limiting disabled for development
+      // if (attemptCount >= 3) {
+      //   setErrorMessage('Maximum verification attempts reached. Please try again later.');
+      //   onError('Maximum verification attempts reached. Please try again later.');
+      //   return;
+      // }
 
       // Get user's IP and location
       const ipResponse = await fetch('https://api.ipify.org?format=json');
@@ -122,17 +181,20 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
     } catch (error: any) {
       console.error('Failed to create liveness session:', error);
       let errorMsg = 'Failed to start face verification. Please try again.';
+      let errorData = null;
       
       if (error.response?.status === 429) {
         errorMsg = error.response?.data?.error || 'Too many attempts. Please wait before trying again.';
+        errorData = error.response?.data; // Pass the full error data including limits
       } else if (error.response?.data?.error) {
         errorMsg = error.response.data.error;
+        errorData = error.response?.data;
       } else if (error.message) {
         errorMsg = error.message;
       }
       
       setErrorMessage(errorMsg);
-      onError(errorMsg);
+      onError(errorMsg, errorData);
       
       // Make sure sessionId is null on error
       setSessionId(null);
@@ -172,13 +234,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         setErrorMessage(`Verification confidence too low (${result.confidenceScore}%). Please try again in better lighting.`);
         onError(`Low confidence score: ${result.confidenceScore}%`);
         
-        // Allow retry if under max attempts
-        if (attemptCount < 3) {
-          setTimeout(() => {
-            setSessionId(null);
-            setErrorMessage('');
-          }, 3000);
-        }
+        // DEV MODE: Always allow retry
+        setTimeout(() => {
+          setSessionId(null);
+          setErrorMessage('');
+        }, 3000);
         return;
       }
 
@@ -186,13 +246,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
         setErrorMessage('Liveness check failed. Please ensure you are using a live camera and follow the instructions carefully.');
         onError('Liveness check failed');
         
-        // Allow retry if under max attempts
-        if (attemptCount < 3) {
-          setTimeout(() => {
-            setSessionId(null);
-            setErrorMessage('');
-          }, 3000);
-        }
+        // DEV MODE: Always allow retry
+        setTimeout(() => {
+          setSessionId(null);
+          setErrorMessage('');
+        }, 3000);
         return;
       }
 
@@ -204,13 +262,11 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
       setErrorMessage(errorMsg);
       onError(errorMsg);
       
-      // Allow retry if under max attempts
-      if (attemptCount < 3) {
-        setTimeout(() => {
-          setSessionId(null);
-          setErrorMessage('');
-        }, 3000);
-      }
+      // DEV MODE: Always allow retry
+      setTimeout(() => {
+        setSessionId(null);
+        setErrorMessage('');
+      }, 3000);
     } finally {
       setLoading(false);
     }
@@ -218,15 +274,53 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
 
   const handleError = (error: any) => {
     console.error('Liveness detector error:', error);
-    const errorMsg = error?.message || error?.toString() || 'An error occurred during face verification.';
+    console.error('Error type:', typeof error);
+    console.error('Error keys:', error ? Object.keys(error) : 'null');
+    
+    // Extract detailed error information
+    let errorMsg = 'An error occurred during face verification.';
+    
+    // Try different ways to extract error message
+    if (typeof error === 'string') {
+      errorMsg = error;
+    } else if (error?.message) {
+      errorMsg = error.message;
+    } else if (error?.error) {
+      errorMsg = error.error;
+    } else if (error?.toString && typeof error.toString === 'function') {
+      const stringified = error.toString();
+      if (stringified !== '[object Object]') {
+        errorMsg = stringified;
+      }
+    }
+    
+    // Try to stringify the error for more details
+    try {
+      const jsonError = JSON.stringify(error, null, 2);
+      console.error('Error JSON:', jsonError);
+      
+      // If we still have generic error, try to extract more details
+      if (errorMsg === 'An error occurred during face verification.' && error) {
+        errorMsg = `Face verification error. Check console for details. Error type: ${error.constructor?.name || typeof error}`;
+      }
+    } catch (e) {
+      console.error('Could not stringify error:', e);
+    }
+    
+    // Check if it's an AWS configuration issue
+    const errorStr = JSON.stringify(error).toLowerCase();
+    if (errorStr.includes('sessionnotfoundexception') || 
+        errorStr.includes('session') && errorStr.includes('not found') ||
+        errorStr.includes('invalid') && errorStr.includes('session')) {
+      errorMsg = '⚙️ AWS Rekognition is not properly configured. The session ID from the backend is not valid in AWS. Please configure AWS credentials in the backend .env file:\n\nVERIFICATION_SERVICE_ENABLED=True\nAWS_ACCESS_KEY_ID=your-key\nAWS_SECRET_ACCESS_KEY=your-secret\nAWS_STORAGE_BUCKET_NAME=your-bucket';
+    }
+    
+    console.error('Formatted error:', errorMsg);
     setErrorMessage(errorMsg);
     onError(errorMsg);
     
-    // Allow retry
-    setTimeout(() => {
-      setSessionId(null);
-      setErrorMessage('');
-    }, 3000);
+    // Reset session to allow retry
+    setSessionId(null);
   };
 
   return (
@@ -262,9 +356,9 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
           <button 
             className="start-verification-btn"
             onClick={createLivenessSession}
-            disabled={attemptCount >= 3 || !isInitialized || loading}
+            disabled={!isInitialized || loading}
           >
-            {!isInitialized ? 'Initializing...' : attemptCount >= 3 ? 'Maximum Attempts Reached' : 'Start Verification'}
+            {!isInitialized ? 'Initializing...' : 'Start Verification'}
           </button>
         </div>
       )}
@@ -278,26 +372,6 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
 
       {sessionId && (
         <div className="liveness-detector-wrapper">
-          <div className="aws-setup-notice">
-            <h4>⚙️ AWS Configuration Required</h4>
-            <p>
-              AWS Rekognition Face Liveness is not yet configured. 
-              Please configure AWS credentials in the backend to enable biometric verification.
-            </p>
-            <p className="setup-note">
-              <strong>For thesis demo:</strong> You have 100 free verification checks/month with AWS Free Tier.
-            </p>
-            <button 
-              className="cancel-btn"
-              onClick={() => {
-                setSessionId(null);
-                setErrorMessage('');
-              }}
-            >
-              Go Back
-            </button>
-          </div>
-          {/* Temporarily commented out until AWS is configured
           <FaceLivenessDetector
             sessionId={sessionId}
             region="us-east-1"
@@ -312,10 +386,10 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
               )
             }}
           />
-          */}
         </div>
       )}
 
+      {/* DEV MODE: Max attempts warning disabled
       {attemptCount >= 3 && (
         <div className="max-attempts-warning">
           <h4>🚫 Maximum Attempts Reached</h4>
@@ -325,6 +399,7 @@ export const BiometricLivenessCapture: React.FC<BiometricLivenessCaptureProps> =
           </p>
         </div>
       )}
+      */}
     </div>
   );
 };

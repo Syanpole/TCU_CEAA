@@ -21,6 +21,56 @@
   --shadow-lg: 0 10px 15px -3px rgba(220, 38, 38, 0.1);
 }
 
+/* Dark Theme */
+.dark-theme .applications-management-container {
+  --primary-bg: #0f172a;
+  --secondary-bg: #1e293b;
+  --card-bg: #1e293b;
+  --surface-bg: #334155;
+  --border-color: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+.dark-theme .header-content h1,
+.dark-theme .header-content p {
+  color: #f1f5f9 !important;
+}
+
+.dark-theme .type-title,
+.dark-theme .student-name,
+.dark-theme .info-row label,
+.dark-theme .modal-header h2 {
+  color: #f1f5f9 !important;
+}
+
+.dark-theme .application-id,
+.dark-theme .student-id,
+.dark-theme .info-row span,
+.dark-theme .breadcrumb-current {
+  color: #cbd5e1 !important;
+}
+
+.dark-theme .search-input,
+.dark-theme .filter-select {
+  background: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+.dark-theme .search-input::placeholder {
+  color: #94a3b8;
+}
+
+.dark-theme .modal-content {
+  background: #1e293b;
+}
+
 .applications-management-container {
   min-height: 100vh;
   background: var(--primary-bg);
@@ -36,7 +86,7 @@
 
 /* Header */
 .management-header {
-  background: var(--secondary-bg);
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 2rem;
   margin-bottom: 2rem;
@@ -52,11 +102,11 @@
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: rgb(0, 0, 0);
+  color: var(--text-primary);
 }
 
 .header-content p {
-  color: rgb(0, 0, 0);
+  color: var(--text-secondary);
   margin: 0;
   font-size: 1rem;
 }
@@ -72,14 +122,14 @@
 .breadcrumb-btn {
   background: none;
   border: none;
-  color: var(--accent-blue);
+  color: var(--accent-red);
   cursor: pointer;
   font-size: 0.875rem;
   text-decoration: underline;
 }
 
 .breadcrumb-btn:hover {
-  color: var(--accent-blue);
+  color: var(--accent-red-dark);
   opacity: 0.8;
 }
 
@@ -102,9 +152,9 @@
 }
 
 .stat-number {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: var(--accent-green);
+  color: var(--accent-blue);
   margin-bottom: 0.25rem;
 }
 
@@ -205,9 +255,10 @@
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--accent-green);
+  width: 4px;
+  height: 100%;
+  background: var(--accent-red);
+  border-radius: 12px 0 0 12px;
 }
 
 .application-card:hover {
@@ -504,7 +555,7 @@
 
 .loading-text,
 .error-message {
-  color: rgb(55, 55, 55);
+  color: var(--text-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -610,10 +661,10 @@
 
 .info-section h3 {
   margin: 0 0 1rem 0;
-  font-size: 2rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: 0f172a;
-  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.5rem;
 }
 

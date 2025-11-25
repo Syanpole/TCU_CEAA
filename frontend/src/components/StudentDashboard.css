@@ -269,10 +269,11 @@
   backdrop-filter: blur(20px);
   border: 1px solid var(--card-border);
   border-radius: 16px;
-  padding: 24px;
+  padding: 32px;
   margin-bottom: 32px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 100%;
 }
 
 .progress-section:hover {
@@ -333,15 +334,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .progress-step {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .step-circle {
@@ -390,13 +393,18 @@
   margin: 0;
   color: var(--text-primary);
   text-align: center;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .step-connector {
   flex: 1;
   height: 2px;
   background: var(--border-color);
-  margin: 0 16px;
+  margin: 0 12px;
+  min-width: 40px;
 }
 
 .step-connector.completed {

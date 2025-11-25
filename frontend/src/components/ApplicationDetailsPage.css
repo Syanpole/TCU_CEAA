@@ -61,12 +61,12 @@
 .application-details-page.dark-theme .detail-label,
 .application-details-page.dark-theme .application-date,
 .application-details-page.dark-theme p {
-  color: #9ca3af;
+  color: #cbd5e1 !important;
 }
 
 .application-details-page.dark-theme .detail-value,
 .application-details-page.dark-theme .application-amount {
-  color: #f9fafb;
+  color: #f9fafb !important;
 }
 
 /* Page Header */
@@ -287,7 +287,16 @@
 }
 
 .application-details-page.dark-theme .process-step {
-  background: #374151;
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.application-details-page.dark-theme .step-title {
+  color: #f1f5f9 !important;
+}
+
+.application-details-page.dark-theme .step-description {
+  color: #cbd5e1 !important;
 }
 
 .step-number {
@@ -479,7 +488,12 @@
   }
   
   .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .stat-card {
+    padding: 16px;
   }
   
   .applications-grid {
@@ -490,16 +504,34 @@
     grid-template-columns: 1fr;
   }
   
+  .process-section {
+    padding: 16px;
+  }
+  
   .application-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
   
+  .application-card {
+    padding: 16px;
+  }
+  
   .detail-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+  
+  .requirement-notice {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .apply-section {
+    padding: 16px;
   }
 }
 

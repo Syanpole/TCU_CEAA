@@ -10,7 +10,11 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.utils import timezone
 from django.db.models import Q, Count
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 import logging
+import boto3
+from botocore.exceptions import ClientError
+import os
 
 from myapp.models import VerificationAdjudication, CustomUser, AuditLog
 from myapp.serializers import VerificationAdjudicationSerializer
@@ -25,6 +29,8 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
     admin_reviewer_name = serializers.CharField(source='admin_reviewer.get_full_name', read_only=True, allow_null=True)
     application_type = serializers.CharField(source='application.application_type', read_only=True, allow_null=True)
     grade_submission_info = serializers.SerializerMethodField(read_only=True)
+    school_id_image_url = serializers.SerializerMethodField(read_only=True)
+    selfie_image_url = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = VerificationAdjudication
@@ -33,6 +39,7 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
             'application', 'application_type',
             'document_submission',
             'school_id_image_path', 'selfie_image_path',
+            'school_id_image_url', 'selfie_image_url',
             'verification_backend',
             'automated_liveness_score', 'automated_match_result',
             'automated_similarity_score', 'automated_confidence_level',
@@ -63,6 +70,69 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
                 'status': gs.status
             }
         return None
+    
+    def get_school_id_image_url(self, obj):
+        """Generate URL for school ID image"""
+        if not obj.school_id_image_path:
+            return None
+        
+        # For local storage, build absolute URL with request
+        if not getattr(settings, 'USE_CLOUD_STORAGE', False):
+            request = self.context.get('request')
+            if request:
+                # Build absolute URL
+                return request.build_absolute_uri(f"{settings.MEDIA_URL}{obj.school_id_image_path}")
+            # Fallback to relative URL
+            return f"{settings.MEDIA_URL}{obj.school_id_image_path}"
+        
+        # For S3 storage, generate presigned URL
+        # Ensure path has media/ prefix for S3
+        s3_key = f"media/{obj.school_id_image_path}" if not obj.school_id_image_path.startswith('media/') else obj.school_id_image_path
+        return self._generate_s3_presigned_url(s3_key)
+    
+    def get_selfie_image_url(self, obj):
+        """Generate URL for selfie image (from AWS Rekognition liveness)"""
+        if not obj.selfie_image_path:
+            return None
+        
+        # Check if path is already a full URL (from Rekognition)
+        if obj.selfie_image_path.startswith('http'):
+            return obj.selfie_image_path
+        
+        # Liveness images are always in S3
+        return self._generate_s3_presigned_url(obj.selfie_image_path)
+    
+    def _generate_s3_presigned_url(self, s3_key, expiration=3600):
+        """Generate a presigned URL for an S3 object"""
+        try:
+            s3_client = boto3.client(
+                's3',
+                region_name=os.environ.get('AWS_S3_REGION_NAME', 'us-east-1'),
+                aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+            )
+            
+            bucket_name = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
+            
+            # Generate presigned URL
+            url = s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': bucket_name,
+                    'Key': s3_key
+                },
+                ExpiresIn=expiration
+            )
+            
+            logger.info(f"Generated presigned URL for {s3_key}")
+            return url
+            
+        except ClientError as e:
+            logger.error(f"Error generating presigned URL for {s3_key}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error generating presigned URL: {str(e)}")
+            return None
 
 
 class VerificationAdjudicationViewSet(viewsets.ModelViewSet):
