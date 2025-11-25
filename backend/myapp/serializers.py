@@ -1791,18 +1791,48 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
                           'admin_reviewer_name', 'school_id_image_path', 'selfie_image_path', 'grade_submission_info']
     
     def get_school_id_image_path(self, obj):
-        """Get school ID image URL"""
-        if obj.document_submission and obj.document_submission.document_file:
+        """Get school ID image URL with S3 presigned URL support"""
+        if not obj.school_id_image_path:
+            return None
+        
+        # Check if using S3 cloud storage
+        if settings.USE_CLOUD_STORAGE:
+            try:
+                from .s3_utils import generate_presigned_url
+                # Generate presigned URL valid for 1 hour
+                return generate_presigned_url(obj.school_id_image_path, expiration=3600)
+            except Exception as e:
+                logger.error(f"Failed to generate presigned URL for school ID: {e}")
+                return None
+        else:
+            # Local file - build absolute URL
             request = self.context.get('request')
+            file_url = f"{settings.MEDIA_URL}{obj.school_id_image_path}"
             if request:
-                return request.build_absolute_uri(obj.document_submission.document_file.url)
-            return obj.document_submission.document_file.url
-        return None
+                return request.build_absolute_uri(file_url)
+            return file_url
     
     def get_selfie_image_path(self, obj):
-        """Get selfie image path (placeholder for now)"""
-        # In a real implementation, this would reference the liveness video/image
-        return None
+        """Get selfie/reference image URL with S3 presigned URL support"""
+        if not obj.selfie_image_path:
+            return None
+        
+        # Check if using S3 cloud storage
+        if settings.USE_CLOUD_STORAGE:
+            try:
+                from .s3_utils import generate_presigned_url
+                # Generate presigned URL valid for 1 hour
+                return generate_presigned_url(obj.selfie_image_path, expiration=3600)
+            except Exception as e:
+                logger.error(f"Failed to generate presigned URL for selfie: {e}")
+                return None
+        else:
+            # Local file - build absolute URL
+            request = self.context.get('request')
+            file_url = f"{settings.MEDIA_URL}{obj.selfie_image_path}"
+            if request:
+                return request.build_absolute_uri(file_url)
+            return file_url
     
     def get_grade_submission_info(self, obj):
         """Get grade submission information"""
