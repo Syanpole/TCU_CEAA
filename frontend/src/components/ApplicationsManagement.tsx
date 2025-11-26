@@ -259,7 +259,10 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
                 className="search-input"
               />
             </div>
+            <label htmlFor="statusFilter" className="visually-hidden">Filter by Status</label>
             <select
+              id="statusFilter"
+              aria-label="Filter by Status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="filter-select"
@@ -270,7 +273,10 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
               <option value="rejected">Rejected</option>
               <option value="disbursed">Disbursed</option>
             </select>
+            <label htmlFor="typeFilter" className="visually-hidden">Filter by Type</label>
             <select
+              id="typeFilter"
+              aria-label="Filter by Type"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               className="filter-select"
@@ -424,8 +430,13 @@ const ApplicationsManagement: React.FC<ApplicationsManagementProps> = ({ onViewC
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Application Details</h2>
-                <button className="modal-close" onClick={closeApplicationModal}>
-                  <svg viewBox="0 0 24 24" fill="currentColor">
+                <button 
+                  className="modal-close" 
+                  onClick={closeApplicationModal} 
+                  title="Close"
+                  aria-label="Close modal"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
