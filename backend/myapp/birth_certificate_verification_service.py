@@ -170,24 +170,47 @@ class BirthCertificateVerificationService:
                     else:
                         result['recommendations'].append(f"❌ Only {matched_fields}/{total_fields} fields match user's application ({match_percentage:.0f}%)")
             
-            # Calculate confidence
+            # Calculate confidence (with field matching if available)
             confidence = self._calculate_confidence(
                 is_birth_cert,
                 extracted_fields,
-                ocr_confidence
+                ocr_confidence,
+                field_matches=result.get('field_matches')
             )
             result['confidence'] = confidence
             
-            # Determine validity
-            result['is_valid'] = confidence >= 0.70
+            # Check critical field matches - REJECT if name or DOB don't match
+            critical_fields_match = True
+            mismatch_reasons = []
             
-            if confidence >= 0.85:
+            if field_matches:
+                # Name is CRITICAL - must match
+                if 'child_name' in field_matches and not field_matches['child_name'].get('match', False):
+                    critical_fields_match = False
+                    mismatch_reasons.append(f"❌ Name mismatch: Document '{field_matches['child_name'].get('extracted', 'N/A')}' vs Application '{field_matches['child_name'].get('application', 'N/A')}'")
+                
+                # Date of birth is CRITICAL - must match
+                if 'date_of_birth' in field_matches and not field_matches['date_of_birth'].get('match', False):
+                    critical_fields_match = False
+                    mismatch_reasons.append(f"❌ Date of birth mismatch: Document '{field_matches['date_of_birth'].get('extracted', 'N/A')}' vs Application '{field_matches['date_of_birth'].get('application', 'N/A')}'")
+            
+            # Determine validity - REJECT if critical fields don't match
+            if not critical_fields_match:
+                result['is_valid'] = False
+                result['status'] = 'INVALID'
+                result['confidence'] = 0.0  # Override confidence to 0 for ownership mismatch
+                result['recommendations'].append("❌ REJECTED: Birth certificate does not belong to applicant")
+                result['recommendations'].extend(mismatch_reasons)
+            elif confidence >= 0.85:
+                result['is_valid'] = True
                 result['status'] = 'VALID'
                 result['recommendations'].append("✅ Birth certificate appears valid with high confidence")
             elif confidence >= 0.70:
+                result['is_valid'] = True
                 result['status'] = 'QUESTIONABLE'
                 result['recommendations'].append("⚠️ Birth certificate may be valid but has some quality issues")
             else:
+                result['is_valid'] = False
                 result['status'] = 'INVALID'
                 result['recommendations'].append("❌ Birth certificate quality is too low or information is incomplete")
             
@@ -654,7 +677,8 @@ class BirthCertificateVerificationService:
         self,
         is_birth_cert: bool,
         extracted_fields: Dict[str, Any],
-        ocr_confidence: float
+        ocr_confidence: float,
+        field_matches: Dict[str, Any] = None
     ) -> float:
         """
         Calculate overall confidence score for birth certificate verification.
@@ -663,6 +687,7 @@ class BirthCertificateVerificationService:
             is_birth_cert: Whether document type validation passed
             extracted_fields: Dictionary of extracted fields
             ocr_confidence: OCR confidence score (0.0-1.0)
+            field_matches: Dictionary of field match results (optional)
         
         Returns:
             Confidence score (0.0-1.0)
@@ -670,17 +695,40 @@ class BirthCertificateVerificationService:
         confidence = 0.0
         
         try:
-            # Base confidence from OCR (40%)
-            confidence += 0.40 * ocr_confidence
-            
-            # Document type validation (20%)
-            if is_birth_cert:
-                confidence += 0.20
-            
-            # Critical fields present (40%)
-            critical_fields = ['child_name', 'date_of_birth', 'place_of_birth']
-            critical_present = sum(1 for field in critical_fields if extracted_fields.get(field))
-            confidence += 0.40 * (critical_present / len(critical_fields))
+            if field_matches:
+                # WITH FIELD MATCHING (ownership validation)
+                # Base confidence from OCR (25%)
+                confidence += 0.25 * ocr_confidence
+                
+                # Document type validation (15%)
+                if is_birth_cert:
+                    confidence += 0.15
+                
+                # Critical fields present (20%)
+                critical_fields = ['child_name', 'date_of_birth', 'place_of_birth']
+                critical_present = sum(1 for field in critical_fields if extracted_fields.get(field))
+                confidence += 0.20 * (critical_present / len(critical_fields))
+                
+                # FIELD MATCHING SCORE (40%) - Most important for ownership verification
+                if field_matches:
+                    match_scores = [match.get('score', 0.0) for match in field_matches.values() if isinstance(match, dict)]
+                    if match_scores:
+                        avg_match_score = sum(match_scores) / len(match_scores)
+                        confidence += 0.40 * avg_match_score
+                        logger.info(f"🎯 Field matching average score: {avg_match_score:.2%} -> contributes {0.40 * avg_match_score:.2%} to confidence")
+            else:
+                # WITHOUT FIELD MATCHING (fallback mode)
+                # Base confidence from OCR (40%)
+                confidence += 0.40 * ocr_confidence
+                
+                # Document type validation (20%)
+                if is_birth_cert:
+                    confidence += 0.20
+                
+                # Critical fields present (40%)
+                critical_fields = ['child_name', 'date_of_birth', 'place_of_birth']
+                critical_present = sum(1 for field in critical_fields if extracted_fields.get(field))
+                confidence += 0.40 * (critical_present / len(critical_fields))
             
         except Exception as e:
             logger.error(f"Error calculating confidence: {str(e)}")
