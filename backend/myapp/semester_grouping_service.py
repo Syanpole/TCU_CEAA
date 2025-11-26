@@ -263,9 +263,9 @@ class SemesterGroupingService:
             gwa = float(total_grade_points / total_units)
             merit_level = self._determine_merit_level(gwa)
             
-            # Eligibility rules
-            qualifies_basic = gwa <= 2.5 and total_units >= 15
-            qualifies_merit = gwa < 2.0 and total_units >= 15
+            # Eligibility rules (official TCU-CEAA criteria)
+            qualifies_basic = gwa <= 2.5 and total_units >= 15   # Basic: GWA ≤ 2.5 (80%)
+            qualifies_merit = gwa <= 1.75 and total_units >= 15  # Merit: GWA ≤ 1.75 (87%)
             
             return gwa, merit_level, qualifies_basic, qualifies_merit
         
@@ -344,8 +344,8 @@ class SemesterGroupingService:
             gwa = total_grade_points / total_units
             semester_group['gwa'] = round(gwa, 2)
             semester_group['merit_level'] = self._determine_merit_level(gwa)
-            semester_group['qualifies_basic'] = gwa <= 2.5 and total_units >= 15
-            semester_group['qualifies_merit'] = gwa < 2.0 and total_units >= 15
+            semester_group['qualifies_basic'] = gwa <= 2.5 and total_units >= 15   # Basic: GWA ≤ 2.5 (80%)
+            semester_group['qualifies_merit'] = gwa <= 1.75 and total_units >= 15  # Merit: GWA ≤ 1.75 (87%)
         else:
             semester_group['gwa'] = None
             semester_group['merit_level'] = 'BELOW_PASSING'
