@@ -605,11 +605,20 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                 from .coe_verification_service import get_coe_verification_service
                 coe_service = get_coe_verification_service()
                 
-                # Get the file path
-                file_path = document.document_file.path if hasattr(document.document_file, 'path') else None
+                # Get the file path (handle both local and S3 storage)
+                file_path = None
+                try:
+                    if hasattr(document.document_file, 'path'):
+                        file_path = document.document_file.path
+                    elif hasattr(document.document_file, 'file'):
+                        # For S3 or other storage backends, try to get the file object
+                        file_path = document.document_file.file.name
+                except Exception as path_error:
+                    logger.warning(f"Could not get file path: {str(path_error)}")
                 
                 if file_path:
                     logger.info(f"Extracting subjects from approved COE for student {document.student.student_id}")
+                    logger.info(f"File path: {file_path}")
                     
                     # Extract subjects
                     subject_result = coe_service.extract_subject_list(file_path)
@@ -622,8 +631,12 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                         logger.info(f"✅ Extracted {subject_result['subject_count']} subjects from COE")
                     else:
                         logger.warning(f"⚠️ Could not extract subjects from COE: {subject_result.get('errors')}")
+                else:
+                    logger.error(f"❌ No file path available for COE document {document.id}")
             except Exception as e:
                 logger.error(f"❌ Error extracting subjects from COE: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         # Create audit log
         AuditLog.objects.create(
