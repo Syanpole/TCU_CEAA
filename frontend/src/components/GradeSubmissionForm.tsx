@@ -87,6 +87,44 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     }
   }, [semester, academicYear]);
 
+  // Function to reload COE subjects
+  const reloadCOESubjects = async () => {
+    try {
+      setCoeLoading(true);
+      setError('');
+      
+      const coeData = await gradeService.getCOESubjects();
+      setCoeSubjects(coeData.subjects);
+      
+      // Initialize subject states
+      const initialStates: SubjectSubmissionState[] = coeData.subjects.map(subject => ({
+        subject,
+        file: null,
+        units: 3,
+        grade: 1.0,
+        status: 'not-submitted' as const,
+      }));
+      setSubjectStates(initialStates);
+      
+      // Set default semester and academic year from COE if available
+      if (coeData.semester) setSemester(coeData.semester);
+      if (coeData.academic_year) setAcademicYear(coeData.academic_year);
+      
+      // Show success message
+      setNotificationMessage(`Successfully loaded ${coeData.subjects.length} subjects from your COE`);
+      setNotificationType('success');
+      setShowNotification(true);
+      
+    } catch (error: any) {
+      setError(error.message || 'Failed to reload COE subjects');
+      setNotificationMessage(error.message || 'Failed to reload COE subjects');
+      setNotificationType('error');
+      setShowNotification(true);
+    } finally {
+      setCoeLoading(false);
+    }
+  };
+
   // Check document eligibility and load COE subjects on mount
   useEffect(() => {
     const initializeForm = async () => {
@@ -356,6 +394,15 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           {coeSubjects.length === 0 ? (
             <div className="no-subjects-message">
               <p>📋 No subjects found in your COE. Please ensure your Certificate of Enrollment has been approved and contains subject information.</p>
+              <p>If you just uploaded a new COE, please wait for admin approval. Once approved, subjects will be extracted automatically.</p>
+              <button 
+                onClick={reloadCOESubjects} 
+                disabled={coeLoading}
+                className="refresh-button"
+                style={{ marginTop: '10px', padding: '8px 16px', cursor: 'pointer' }}
+              >
+                {coeLoading ? '⏳ Loading...' : '🔄 Reload Subjects'}
+              </button>
             </div>
           ) : (
             <div className="subject-list">
