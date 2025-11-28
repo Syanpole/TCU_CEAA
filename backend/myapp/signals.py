@@ -25,17 +25,40 @@ def cache_previous_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=DocumentSubmission)
-def extract_coe_subjects_on_approval(sender, instance, created, **kwargs):
+def archive_old_documents_and_extract_coe(sender, instance, created, **kwargs):
     """
-    Automatically extract subjects from COE when it's approved.
-    This ensures subjects are always extracted, regardless of approval method.
+    1. Archive older approved documents of the same type when a new one is approved
+    2. Automatically extract subjects from COE when it's approved
     """
-    # Only process COE documents
-    if instance.document_type != 'certificate_of_enrollment':
-        return
-    
     # Only process when status is approved
     if instance.status != 'approved':
+        return
+    
+    # Check if status just changed to approved
+    previous_status = cache.get(f'doc_prev_status_{instance.pk}')
+    if previous_status == 'approved' and not created:
+        # Already was approved, skip processing
+        return
+    
+    # TASK 1: Archive older approved documents of the same type
+    try:
+        # Find all other approved documents of the same type for this student
+        older_docs = DocumentSubmission.objects.filter(
+            student=instance.student,
+            document_type=instance.document_type,
+            status='approved',
+            is_active=True
+        ).exclude(pk=instance.pk)
+        
+        if older_docs.exists():
+            count = older_docs.count()
+            older_docs.update(is_active=False)
+            logger.info(f"📦 Archived {count} older {instance.document_type} document(s) for student {instance.student.student_id}")
+    except Exception as e:
+        logger.error(f"❌ Error archiving old documents: {str(e)}")
+    
+    # TASK 2: Extract COE subjects (only for COE documents)
+    if instance.document_type != 'certificate_of_enrollment':
         return
     
     # Check if status just changed to approved (not already approved)

@@ -333,6 +333,9 @@ class DocumentSubmission(models.Model):
     extracted_subjects = models.JSONField(default=list, blank=True, help_text="List of subjects extracted from COE: [{subject_code, subject_name}, ...]")
     subject_count = models.IntegerField(default=0, help_text="Total number of subjects extracted from COE")
     
+    # Archive/Active Status
+    is_active = models.BooleanField(default=True, help_text="Whether this document is active or archived (superseded by newer submission)")
+    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 

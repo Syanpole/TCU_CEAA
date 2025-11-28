@@ -239,11 +239,13 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
                  'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
                  'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
                  # New COE subject extraction fields
-                 'extracted_subjects', 'subject_count']
+                 'extracted_subjects', 'subject_count',
+                 # Archive status
+                 'is_active']
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
                           'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
                           'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
-                          'extracted_subjects', 'subject_count']
+                          'extracted_subjects', 'subject_count', 'is_active']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
@@ -366,6 +368,28 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             return f"⚠️ Filename doesn't contain typical keywords for {declared_type.replace('_', ' ').title()}. Please ensure you're uploading the correct document."
         
         return ""
+    
+    def validate(self, data):
+        """Validate document submission and check for duplicates"""
+        request = self.context.get('request')
+        if request and request.user:
+            document_type = data.get('document_type')
+            
+            # Check if user already has an approved document of this type
+            existing_approved = DocumentSubmission.objects.filter(
+                student=request.user,
+                document_type=document_type,
+                status='approved'
+            ).exists()
+            
+            if existing_approved:
+                doc_type_display = dict(DocumentSubmission.DOCUMENT_TYPES).get(document_type, document_type)
+                raise serializers.ValidationError({
+                    'document_type': f'You already have an approved {doc_type_display}. '
+                    f'If you need to update it, please contact the admin or wait for the current document to be archived.'
+                })
+        
+        return data
         
     def create(self, validated_data):
         # Move the uploaded file to document_file field

@@ -199,8 +199,11 @@ class BirthCertificateVerificationService:
                 result['is_valid'] = False
                 result['status'] = 'INVALID'
                 result['confidence'] = 0.0  # Override confidence to 0 for ownership mismatch
-                result['recommendations'].append("❌ REJECTED: Birth certificate does not belong to applicant")
+                result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
+                result['recommendations'].append("📋 The information on this birth certificate does not match your application.")
+                result['recommendations'].append("🔍 Please ensure you uploaded YOUR OWN birth certificate, not someone else's.")
                 result['recommendations'].extend(mismatch_reasons)
+                result['recommendations'].append("💡 What to do: Upload a clear photo of YOUR PSA/NSO birth certificate that matches your application details.")
             elif confidence >= 0.85:
                 result['is_valid'] = True
                 result['status'] = 'VALID'

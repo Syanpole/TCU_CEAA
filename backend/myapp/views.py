@@ -577,8 +577,8 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
         if self.request.user.is_admin():
             return DocumentSubmission.objects.all()
         else:
-            # Students can only see their own documents
-            return DocumentSubmission.objects.filter(student=self.request.user)
+            # Students can only see their own active documents (hide archived/superseded ones)
+            return DocumentSubmission.objects.filter(student=self.request.user, is_active=True)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def review(self, request, pk=None):
@@ -1025,7 +1025,7 @@ def check_grade_submission_eligibility(request):
         )
         
         # Get all user documents for comprehensive check
-        all_docs = DocumentSubmission.objects.filter(student=request.user)
+        all_docs = DocumentSubmission.objects.filter(student=request.user, is_active=True)
         approved_docs = all_docs.filter(status='approved')
         pending_docs = all_docs.filter(status__in=['pending', 'needs_review', 'ai_processing'])
         
@@ -1726,7 +1726,7 @@ def student_dashboard_data(request):
         return Response({'error': 'Only students can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
     
     # Get recent document submissions
-    documents = DocumentSubmission.objects.filter(student=request.user).order_by('-submitted_at')[:5]
+    documents = DocumentSubmission.objects.filter(student=request.user, is_active=True).order_by('-submitted_at')[:5]
     
     # Get recent grade submissions
     grades = GradeSubmission.objects.filter(student=request.user).order_by('-submitted_at')[:5]
@@ -1735,8 +1735,8 @@ def student_dashboard_data(request):
     applications = AllowanceApplication.objects.filter(student=request.user).order_by('-applied_at')[:5]
     
     # Calculate stats
-    total_documents = DocumentSubmission.objects.filter(student=request.user).count()
-    approved_documents = DocumentSubmission.objects.filter(student=request.user, status='approved').count()
+    total_documents = DocumentSubmission.objects.filter(student=request.user, is_active=True).count()
+    approved_documents = DocumentSubmission.objects.filter(student=request.user, status='approved', is_active=True).count()
     total_applications = AllowanceApplication.objects.filter(student=request.user).count()
     approved_applications = AllowanceApplication.objects.filter(student=request.user, status='approved').count()
     

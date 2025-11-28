@@ -628,7 +628,9 @@ class VoterCertificateVerificationService:
                 result['is_valid'] = False
                 result['status'] = 'INVALID'
                 result['confidence'] = 0.0  # Override confidence for ownership mismatch
-                result['recommendations'].append("❌ REJECTED: Voter certificate does not belong to applicant or their parents")
+                result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
+                result['recommendations'].append("📋 The name on this voter certificate doesn't match you or your parents.")
+                result['recommendations'].append("🔍 Voter certificates must belong to YOU or your MOTHER or FATHER.")
                 
                 # Add specific mismatch details
                 voter_name = result.get('extracted_info', {}).get('voter_name', 'N/A')
@@ -636,8 +638,9 @@ class VoterCertificateVerificationService:
                 mother_name = user_application_data.get('mother_name', 'N/A')
                 father_name = user_application_data.get('father_name', 'N/A')
                 
-                result['recommendations'].append(f"Document shows: '{voter_name}'")
-                result['recommendations'].append(f"Expected: Student '{student_name}' OR Mother '{mother_name}' OR Father '{father_name}'")
+                result['recommendations'].append(f"❌ Document shows: '{voter_name}'")
+                result['recommendations'].append(f"✅ Expected one of: Student '{student_name}' OR Mother '{mother_name}' OR Father '{father_name}'")
+                result['recommendations'].append("💡 What to do: Upload a voter certificate/ID that belongs to you or one of your parents listed in your application.")
             else:
                 # Determine validity and status when identity is verified
                 is_valid = self._determine_validity(
