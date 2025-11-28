@@ -407,6 +407,22 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           ) : (
             <div className="subject-list">
               <h4>📚 Subjects from COE ({coeSubjects.length})</h4>
+              
+              {/* Pending Submission Notice */}
+              {gradeStatus && gradeStatus.pending_count > 0 && (
+                <div className="info-message" style={{ 
+                  backgroundColor: '#fff3cd', 
+                  border: '1px solid #ffc107', 
+                  borderRadius: '4px', 
+                  padding: '12px', 
+                  marginBottom: '15px',
+                  color: '#856404'
+                }}>
+                  <strong>⏳ Pending Review:</strong> You have {gradeStatus.pending_count} grade submission(s) pending admin review. 
+                  New submissions are disabled until pending grades are reviewed.
+                </div>
+              )}
+              
               {subjectStates.map((state, index) => (
                 <div key={state.subject.subject_code} className="subject-card">
                   <div className="subject-header">
@@ -480,9 +496,25 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
                         type="button"
                         onClick={() => handleSubmitSubject(index)}
                         className="btn-submit-subject"
-                        disabled={!state.file || state.status === 'uploading'}
+                        disabled={
+                          !state.file || 
+                          state.status === 'uploading' || 
+                          state.status === 'submitted' || 
+                          state.status === 'approved' ||
+                          (gradeStatus && gradeStatus.pending_count > 0)
+                        }
+                        title={
+                          state.status === 'submitted' ? 'Grade already submitted and pending review' :
+                          state.status === 'approved' ? 'Grade already approved' :
+                          (gradeStatus && gradeStatus.pending_count > 0) ? 'Cannot submit - you have pending grade submissions' :
+                          !state.file ? 'Please select a grade sheet file' : 
+                          'Submit grade for review'
+                        }
                       >
-                        {state.status === 'uploading' ? 'Uploading...' : 'Submit Grade'}
+                        {state.status === 'uploading' ? 'Uploading...' : 
+                         state.status === 'submitted' ? 'Submitted (Pending Review)' :
+                         state.status === 'approved' ? 'Already Approved' :
+                         'Submit Grade'}
                       </button>
                     </div>
                   )}
