@@ -169,6 +169,24 @@ class BirthCertificateVerificationService:
                         result['recommendations'].append(f"⚠️ {matched_fields}/{total_fields} fields match user's application ({match_percentage:.0f}%)")
                     else:
                         result['recommendations'].append(f"❌ Only {matched_fields}/{total_fields} fields match user's application ({match_percentage:.0f}%)")
+                    
+                    # Add detailed field matches section
+                    result['recommendations'].append("\n📊 Field Matches:")
+                    for field_name, field_data in field_matches.items():
+                        match_icon = "✓" if field_data.get('match') else "✗"
+                        score = field_data.get('score', 0) * 100
+                        extracted_val = field_data.get('extracted', 'N/A')
+                        app_val = field_data.get('application', 'N/A')
+                        reason = field_data.get('reason', '')
+                        
+                        # Format field name nicely
+                        display_name = field_name.replace('_', ' ').title()
+                        
+                        match_line = f"  {match_icon} {display_name}: {score:.0f}% - Extracted: '{extracted_val}' | Application: '{app_val}'"
+                        if reason:
+                            match_line += f" ({reason})"
+                        
+                        result['recommendations'].append(match_line)
             
             # Calculate confidence (with field matching if available)
             confidence = self._calculate_confidence(
@@ -198,12 +216,21 @@ class BirthCertificateVerificationService:
             if not critical_fields_match:
                 result['is_valid'] = False
                 result['status'] = 'INVALID'
-                result['confidence'] = 0.0  # Override confidence to 0 for ownership mismatch
+                # Lower confidence when critical fields don't match
+                # High OCR quality but wrong person's document = low overall confidence
+                result['confidence'] = min(confidence * 0.3, 0.5)  # Max 50% confidence for mismatched documents
                 result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
                 result['recommendations'].append("📋 The information on this birth certificate does not match your application.")
                 result['recommendations'].append("🔍 Please ensure you uploaded YOUR OWN birth certificate, not someone else's.")
                 result['recommendations'].extend(mismatch_reasons)
                 result['recommendations'].append("💡 What to do: Upload a clear photo of YOUR PSA/NSO birth certificate that matches your application details.")
+                # Add confidence interpretation for rejections
+                if confidence >= 0.75:
+                    result['recommendations'].append(f"✅ AI Detection Quality: High ({confidence*100:.0f}%) - Rejection is accurate")
+                elif confidence >= 0.60:
+                    result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
+                else:
+                    result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
             elif confidence >= 0.85:
                 result['is_valid'] = True
                 result['status'] = 'VALID'
@@ -549,12 +576,13 @@ class BirthCertificateVerificationService:
             return ratio >= threshold, ratio
         
         def compare_date(date1: str, date2: Any) -> Tuple[bool, float]:
-            """Compare dates (extracted vs application)"""
+            """Compare dates (extracted vs application) with enhanced fuzzy matching"""
             if not date1 or not date2:
                 return False, 0.0
             
             try:
                 from datetime import datetime
+                import re
                 
                 # Convert date2 to string if it's a date object
                 if hasattr(date2, 'strftime'):
@@ -563,28 +591,98 @@ class BirthCertificateVerificationService:
                     date2_str = str(date2)
                 
                 # Normalize date strings
-                date1_clean = date1.upper().strip()
-                date2_clean = date2_str.upper().strip()
+                date1_clean = date1.upper().strip().replace(',', '')
+                date2_clean = date2_str.upper().strip().replace(',', '')
+                
+                logger.info(f"🗓️ Comparing dates: '{date1_clean}' vs '{date2_clean}'")
                 
                 # Try exact match
                 if date1_clean == date2_clean:
+                    logger.info("✅ Exact date match")
                     return True, 1.0
                 
-                # Try different date formats
-                date_formats = ['%d %B %Y', '%d %b %Y', '%B %d %Y', '%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']
+                # Try parsing both dates to compare actual date values
+                date_formats = [
+                    '%d %B %Y', '%d %b %Y', '%B %d %Y', '%b %d %Y',
+                    '%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%m-%d-%Y',
+                    '%Y/%m/%d', '%d %B%Y', '%d%B %Y'
+                ]
+                
+                parsed_date1 = None
+                parsed_date2 = None
                 
                 for fmt in date_formats:
                     try:
-                        parsed_date1 = datetime.strptime(date1_clean.replace(',', ''), fmt)
-                        parsed_date2 = datetime.strptime(date2_clean.replace(',', ''), fmt)
-                        if parsed_date1 == parsed_date2:
-                            return True, 1.0
+                        if not parsed_date1:
+                            parsed_date1 = datetime.strptime(date1_clean, fmt)
                     except:
-                        continue
+                        pass
+                    try:
+                        if not parsed_date2:
+                            parsed_date2 = datetime.strptime(date2_clean, fmt)
+                    except:
+                        pass
+                    if parsed_date1 and parsed_date2:
+                        break
                 
-                # Fuzzy match as fallback
+                # If both dates parsed successfully, compare them
+                if parsed_date1 and parsed_date2:
+                    if parsed_date1 == parsed_date2:
+                        logger.info(f"✅ Parsed date match: {parsed_date1.strftime('%Y-%m-%d')}")
+                        return True, 1.0
+                    else:
+                        logger.info(f"❌ Parsed dates differ: {parsed_date1.strftime('%Y-%m-%d')} vs {parsed_date2.strftime('%Y-%m-%d')}")
+                        # Still apply fuzzy matching in case format differences
+                
+                # Extract day, month, year components for flexible matching
+                def extract_date_components(date_str):
+                    # Try to extract day, month, year
+                    day_match = re.search(r'\b(\d{1,2})\b', date_str)
+                    year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+                    
+                    months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+                             'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+                             'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+                    
+                    month = None
+                    for m in months:
+                        if m in date_str:
+                            month = m
+                            break
+                    
+                    return {
+                        'day': day_match.group(1) if day_match else None,
+                        'month': month,
+                        'year': year_match.group(0) if year_match else None
+                    }
+                
+                comp1 = extract_date_components(date1_clean)
+                comp2 = extract_date_components(date2_clean)
+                
+                # Check if core components match
+                components_match = (
+                    comp1['day'] == comp2['day'] and
+                    comp1['year'] == comp2['year'] and
+                    (comp1['month'] == comp2['month'] or 
+                     (comp1['month'] and comp2['month'] and comp1['month'][:3] == comp2['month'][:3]))
+                )
+                
+                if components_match and comp1['day'] and comp1['year']:
+                    logger.info(f"✅ Date components match: {comp1['day']}/{comp1['month']}/{comp1['year']}")
+                    return True, 0.95
+                
+                # ALWAYS apply fuzzy matching for birth certificates
                 ratio = SequenceMatcher(None, date1_clean, date2_clean).ratio()
-                return ratio >= 0.70, ratio
+                logger.info(f"📊 Fuzzy date similarity: {ratio:.2%}")
+                
+                # Lower threshold for date matching (70%)
+                match = ratio >= 0.70
+                if match:
+                    logger.info(f"✅ Date fuzzy match passed (threshold: 70%)")
+                else:
+                    logger.info(f"⚠️ Date fuzzy match below threshold: {ratio:.2%} < 70%")
+                
+                return match, ratio
                 
             except Exception as e:
                 logger.warning(f"Date comparison error: {str(e)}")
@@ -606,11 +704,24 @@ class BirthCertificateVerificationService:
         # Compare date of birth
         if extracted_fields.get('date_of_birth') and user_application_data.get('date_of_birth'):
             match, score = compare_date(extracted_fields['date_of_birth'], user_application_data['date_of_birth'])
+            
+            # Determine reason for match/mismatch
+            if match:
+                if score == 1.0:
+                    reason = "Exact date match"
+                elif score >= 0.95:
+                    reason = "Date components (day/month/year) match"
+                else:
+                    reason = f"Fuzzy date match ({score:.1%} similarity)"
+            else:
+                reason = f"Date mismatch (only {score:.1%} similarity, threshold: 70%)"
+            
             matches['date_of_birth'] = {
                 'match': match,
                 'score': score,
                 'extracted': extracted_fields['date_of_birth'],
-                'application': str(user_application_data['date_of_birth'])
+                'application': str(user_application_data['date_of_birth']),
+                'reason': reason
             }
         
         # Compare sex

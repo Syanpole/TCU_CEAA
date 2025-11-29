@@ -119,17 +119,19 @@ class ProfileImageStorage(S3Boto3Storage):
 
 def get_storage_backend(storage_type='private'):
     """
-    Get the appropriate storage backend based on configuration.
+    Get the appropriate storage backend - S3 ONLY.
     
     Args:
         storage_type: Type of storage ('private', 'public', 'document', 'grade', 'profile')
     
     Returns:
-        Storage backend instance or None for default local storage
+        S3 Storage backend instance - LOCAL STORAGE NOT ALLOWED
     """
+    # S3 is mandatory - no fallback to local storage
     if not getattr(settings, 'USE_CLOUD_STORAGE', False):
-        logger.info(f"Cloud storage disabled, using local storage for {storage_type}")
-        return None
+        logger.error(f"❌ CRITICAL: Cloud storage is disabled but required! Forcing S3 for {storage_type}")
+        # Force enable cloud storage if somehow disabled
+        settings.USE_CLOUD_STORAGE = True
     
     storage_map = {
         'private': PrivateMediaStorage,
@@ -140,4 +142,5 @@ def get_storage_backend(storage_type='private'):
     }
     
     storage_class = storage_map.get(storage_type, PrivateMediaStorage)
+    logger.info(f"✅ Using S3 storage backend: {storage_class.__name__} for {storage_type}")
     return storage_class()

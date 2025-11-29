@@ -72,7 +72,7 @@ class SemesterGroupingService:
                 - qualifies_merit: Boolean for merit allowance
         """
         try:
-            # Build base query
+            # Build base query - include all submissions (drafts and final)
             query = GradeSubmission.objects.filter(student=student)
             
             if filters:
@@ -125,7 +125,7 @@ class SemesterGroupingService:
             Dictionary: {student_id: [semester_group1, semester_group2, ...]}
         """
         try:
-            # Build query
+            # Build query - include all submissions (drafts and final)
             query = GradeSubmission.objects.all()
             
             if students:

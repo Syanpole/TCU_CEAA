@@ -627,7 +627,8 @@ class VoterCertificateVerificationService:
             if user_application_data and not identity_verified:
                 result['is_valid'] = False
                 result['status'] = 'INVALID'
-                result['confidence'] = 0.0  # Override confidence for ownership mismatch
+                # Keep the confidence score - it represents detection quality, not match validity
+                # High confidence rejection means: "We are confident this document doesn't match"
                 result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
                 result['recommendations'].append("📋 The name on this voter certificate doesn't match you or your parents.")
                 result['recommendations'].append("🔍 Voter certificates must belong to YOU or your MOTHER or FATHER.")
@@ -641,6 +642,14 @@ class VoterCertificateVerificationService:
                 result['recommendations'].append(f"❌ Document shows: '{voter_name}'")
                 result['recommendations'].append(f"✅ Expected one of: Student '{student_name}' OR Mother '{mother_name}' OR Father '{father_name}'")
                 result['recommendations'].append("💡 What to do: Upload a voter certificate/ID that belongs to you or one of your parents listed in your application.")
+                
+                # Add confidence interpretation for rejections
+                if confidence >= 0.75:
+                    result['recommendations'].append(f"✅ AI Detection Quality: High ({confidence*100:.0f}%) - Rejection is accurate")
+                elif confidence >= 0.60:
+                    result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
+                else:
+                    result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
             else:
                 # Determine validity and status when identity is verified
                 is_valid = self._determine_validity(

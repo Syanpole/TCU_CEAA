@@ -82,17 +82,19 @@ def submit_document_with_face_verification(request):
         if document_type in face_required_types:
             logger.info(f"Face verification required for document type: {document_type}")
             
-            # Save uploaded files temporarily
-            from django.core.files.storage import default_storage
+            # Save uploaded files to S3 - NO LOCAL STORAGE
+            from myapp.storage_backends import get_storage_backend
             from django.core.files.base import ContentFile
             
-            document_path = default_storage.save(
+            s3_storage = get_storage_backend('private')
+            document_path = s3_storage.save(
                 f'temp/doc_{request.user.id}.jpg',
                 ContentFile(document_file.read())
             )
             
             try:
-                document_full_path = default_storage.path(document_path)
+                # For S3, we need to use the URL, not a local path
+                document_full_path = s3_storage.url(document_path) if hasattr(s3_storage, 'url') else document_path
                 
                 # Step 1: Detect face in document
                 face, bbox = face_service._detect_face_yolo(document_full_path)
@@ -114,13 +116,14 @@ def submit_document_with_face_verification(request):
                         
                         # Step 3: If selfie provided, verify face match
                         if selfie_file:
-                            selfie_path = default_storage.save(
+                            selfie_path = s3_storage.save(
                                 f'temp/selfie_{request.user.id}.jpg',
                                 ContentFile(selfie_file.read())
                             )
                             
                             try:
-                                selfie_full_path = default_storage.path(selfie_path)
+                                # For S3, use URL instead of local path
+                                selfie_full_path = s3_storage.url(selfie_path) if hasattr(s3_storage, 'url') else selfie_path
                                 
                                 # Perform complete verification
                                 verification_result = face_service.verify_id_with_selfie(
@@ -294,18 +297,20 @@ def submit_selfie_for_document(request, document_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Save selfie temporarily and verify
-        from django.core.files.storage import default_storage
+        # Save selfie to S3 and verify - NO LOCAL STORAGE
+        from myapp.storage_backends import get_storage_backend
         from django.core.files.base import ContentFile
         import numpy as np
         
-        selfie_path = default_storage.save(
+        s3_storage = get_storage_backend('private')
+        selfie_path = s3_storage.save(
             f'temp/selfie_{request.user.id}_{document_id}.jpg',
             ContentFile(selfie_file.read())
         )
         
         try:
-            selfie_full_path = default_storage.path(selfie_path)
+            # For S3, use URL instead of local path
+            selfie_full_path = s3_storage.url(selfie_path) if hasattr(s3_storage, 'url') else selfie_path
             
             # Detect face in selfie
             selfie_face, selfie_bbox = face_service._detect_face_yolo(selfie_full_path)

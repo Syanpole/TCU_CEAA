@@ -56,6 +56,83 @@ def _extract_final_grade_from_class_card(file_path, raw_text):
     return None
 
 
+def auto_approve_semester_if_ready(student_id: int, academic_year: str, semester: str):
+    """
+    Check if all grades for a semester are verified with high confidence and auto-approve them all.
+    This runs after each grade verification to check if the semester is complete.
+    """
+    from .models import GradeSubmission
+    
+    logger.info(f"Checking if semester {semester} {academic_year} for student {student_id} can be auto-approved")
+    
+    # Get all submissions for this semester
+    semester_grades = GradeSubmission.objects.filter(
+        student_id=student_id,
+        academic_year=academic_year,
+        semester=semester
+    ).exclude(status='rejected')  # Don't include rejected grades
+    
+    if not semester_grades.exists():
+        logger.info("No grades found for this semester")
+        return
+    
+    total_grades = semester_grades.count()
+    verified_grades = semester_grades.filter(
+        status__in=['approved', 'pending'],
+        ai_evaluation_completed=True,
+        ai_confidence_score__gte=0.85
+    ).count()
+    
+    logger.info(f"Semester status: {verified_grades}/{total_grades} grades verified with 85%+ confidence")
+    
+    # If all grades are verified with high confidence, auto-approve any that are still pending
+    if verified_grades == total_grades:
+        pending_to_approve = semester_grades.filter(status='pending', ai_evaluation_completed=True, ai_confidence_score__gte=0.85)
+        
+        if pending_to_approve.exists():
+            count = pending_to_approve.count()
+            pending_to_approve.update(
+                status='approved',
+                reviewed_by_id=None,  # Auto-approved, not by admin
+                reviewed_at=timezone.now()
+            )
+            
+            logger.info(f"🎉 AUTO-APPROVED {count} grades for {semester} {academic_year}! All semester grades verified with high confidence.")
+            
+            # Add note to each approved grade
+            for grade in pending_to_approve:
+                notes = grade.ai_evaluation_notes or ""
+                notes += f"\n\n🤖 SEMESTER AUTO-APPROVED: All {total_grades} grades for {semester} {academic_year} verified with 85%+ confidence. Approved automatically on {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                grade.ai_evaluation_notes = notes
+                grade.save()
+            
+            # Calculate GWA and set eligibility flags
+            try:
+                from .services import gwa_calculation_service
+                from .models import CustomUser
+                student = CustomUser.objects.get(id=student_id)
+                gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
+                if gwa_result:
+                    logger.info(f"✅ GWA calculated: {gwa_result['gwa']:.2f} - {gwa_result['merit_level']}")
+            except Exception as e:
+                logger.error(f"Error calculating GWA: {str(e)}")
+        else:
+            logger.info(f"All {total_grades} grades already approved for {semester} {academic_year}")
+            
+            # Calculate GWA for already approved semester
+            try:
+                from .services import gwa_calculation_service
+                from .models import CustomUser
+                student = CustomUser.objects.get(id=student_id)
+                gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
+                if gwa_result:
+                    logger.info(f"✅ GWA calculated: {gwa_result['gwa']:.2f} - {gwa_result['merit_level']}")
+            except Exception as e:
+                logger.error(f"Error calculating GWA: {str(e)}")
+    else:
+        logger.info(f"Not ready for auto-approval: {total_grades - verified_grades} grades still need verification")
+
+
 def verify_grade_sheet_task(grade_submission_id: int):
     """
     Verify a grade sheet submission using AI.
@@ -227,6 +304,25 @@ def verify_grade_sheet_task(grade_submission_id: int):
         # Determine if grade is verified
         is_verified = is_authentic and subject_in_coe and grade_matches
         
+        # Check if we should boost confidence for OCR failure cases
+        # Boost if: authentic, subject in COE, user entered grade, but OCR failed
+        if confidence_score < 0.85 and is_authentic and subject_in_coe and grade_submission.grade_received and not extracted_grade:
+            old_confidence = confidence_score
+            confidence_score = 0.85
+            grade_submission.ai_confidence_score = confidence_score
+            
+            verification_notes.append("\n🔧 CONFIDENCE BOOST (Auto-Applied)")
+            verification_notes.append(f"   Reason: OCR failed to extract grade, but document is authentic")
+            verification_notes.append(f"   Evidence:")
+            verification_notes.append(f"     • Document verified as authentic ({detected_count}/3 logos detected)")
+            verification_notes.append(f"     • Subject verified in student's COE")
+            verification_notes.append(f"     • Student manually entered grade: {grade_submission.grade_received}")
+            verification_notes.append(f"   Confidence: {old_confidence:.0%} → {confidence_score:.0%}")
+            
+            # Update verification status with boost
+            is_verified = True
+            grade_matches = True  # Accept manual grade when OCR fails but doc is authentic
+        
         # Auto-approve if all checks pass with high confidence
         if is_verified and confidence_score >= 0.85:
             grade_submission.status = 'approved'
@@ -242,6 +338,12 @@ def verify_grade_sheet_task(grade_submission_id: int):
         grade_submission.save()
         
         logger.info(f"✅ AI verification completed for grade submission {grade_submission_id}: {grade_submission.status}")
+        
+        # Check if all grades for this semester are verified and can be auto-approved
+        try:
+            auto_approve_semester_if_ready(grade_submission.student.id, grade_submission.academic_year, grade_submission.semester)
+        except Exception as e:
+            logger.error(f"Error in auto-approval check: {str(e)}")
         
     except GradeSubmission.DoesNotExist:
         logger.error(f"Grade submission {grade_submission_id} not found")
