@@ -11,6 +11,7 @@ from django.core.files.storage import default_storage
 from .models import DocumentSubmission
 from .face_comparison_service import FaceComparisonService
 from .fraud_detection_service import FraudDetectionService
+from .s3_utils import download_s3_file_to_temp, cleanup_temp_file
 import json
 import logging
 
@@ -93,12 +94,13 @@ def submit_document_with_face_verification(request):
                 ContentFile(document_file.read())
             )
             
+            document_temp_path = None
             try:
-                # For S3, we need to use the URL, not a local path
-                document_full_path = s3_storage.url(document_path) if hasattr(s3_storage, 'url') else document_path
+                # Download S3 file to temp location for processing
+                document_temp_path = download_s3_file_to_temp(document_path)
                 
                 # Step 1: Detect face in document
-                face, bbox = face_service._detect_face_yolo(document_full_path)
+                face, bbox = face_service._detect_face_yolo(document_temp_path)
                 
                 if face is not None:
                     document.face_detected_in_document = True
@@ -122,14 +124,15 @@ def submit_document_with_face_verification(request):
                                 ContentFile(selfie_file.read())
                             )
                             
+                            selfie_temp_path = None
                             try:
-                                # For S3, use URL instead of local path
-                                selfie_full_path = s3_storage.url(selfie_path) if hasattr(s3_storage, 'url') else selfie_path
+                                # Download S3 file to temp location for processing
+                                selfie_temp_path = download_s3_file_to_temp(selfie_path)
                                 
                                 # Perform complete verification
                                 verification_result = face_service.verify_id_with_selfie(
-                                    document_full_path,
-                                    selfie_full_path,
+                                    document_temp_path,
+                                    selfie_temp_path,
                                     liveness_data
                                 )
                                 
@@ -178,6 +181,9 @@ def submit_document_with_face_verification(request):
                                 )
                                 
                             finally:
+                                # Clean up temp files
+                                if selfie_temp_path:
+                                    cleanup_temp_file(selfie_temp_path)
                                 default_storage.delete(selfie_path)
                         else:
                             # No selfie provided - mark as pending for manual selfie
@@ -193,7 +199,9 @@ def submit_document_with_face_verification(request):
                     document.status = 'pending'
                 
             finally:
-                # Clean up temporary document file
+                # Clean up temp files
+                if document_temp_path:
+                    cleanup_temp_file(document_temp_path)
                 default_storage.delete(document_path)
         else:
             # Document type doesn't require face verification
@@ -309,12 +317,13 @@ def submit_selfie_for_document(request, document_id):
             ContentFile(selfie_file.read())
         )
         
+        selfie_temp_path = None
         try:
-            # For S3, use URL instead of local path
-            selfie_full_path = s3_storage.url(selfie_path) if hasattr(s3_storage, 'url') else selfie_path
+            # Download S3 file to temp location for processing
+            selfie_temp_path = download_s3_file_to_temp(selfie_path)
             
             # Detect face in selfie
-            selfie_face, selfie_bbox = face_service._detect_face_yolo(selfie_full_path)
+            selfie_face, selfie_bbox = face_service._detect_face_yolo(selfie_temp_path)
             
             if selfie_face is None:
                 return Response(
@@ -417,6 +426,9 @@ def submit_selfie_for_document(request, document_id):
             }, status=status.HTTP_200_OK)
             
         finally:
+            # Clean up temp files
+            if selfie_temp_path:
+                cleanup_temp_file(selfie_temp_path)
             default_storage.delete(selfie_path)
             
     except Exception as e:

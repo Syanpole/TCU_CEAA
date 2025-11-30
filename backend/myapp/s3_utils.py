@@ -48,8 +48,8 @@ def generate_presigned_url(object_key, expiration=3600):
         clean_key = object_key.lstrip('/')
         
         # If the key doesn't start with 'media/', add it (for document files)
-        # Liveness session files already have the correct path
-        if not clean_key.startswith(('media/', 'liveness-sessions/', 'grades/', 'documents/')):
+        # Only liveness-sessions/ is stored at root level without media/ prefix
+        if not clean_key.startswith(('media/', 'liveness-sessions/')):
             clean_key = f'media/{clean_key}'
         
         # Generate presigned URL
@@ -98,7 +98,7 @@ def check_object_exists(object_key):
         )
         
         clean_key = object_key.lstrip('/')
-        if not clean_key.startswith(('media/', 'liveness-sessions/', 'grades/', 'documents/')):
+        if not clean_key.startswith(('media/', 'liveness-sessions/')):
             clean_key = f'media/{clean_key}'
         
         s3_client.head_object(
@@ -135,9 +135,9 @@ def download_s3_file_to_temp(s3_key):
             region_name=settings.AWS_S3_REGION_NAME
         )
         
-        # Clean the key
+        # Clean the key and ensure media/ prefix for documents and grades
         clean_key = s3_key.lstrip('/')
-        if not clean_key.startswith(('media/', 'liveness-sessions/', 'grades/', 'documents/')):
+        if not clean_key.startswith(('media/', 'liveness-sessions/')):
             clean_key = f'media/{clean_key}'
         
         # Create temporary file with appropriate extension

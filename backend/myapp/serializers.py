@@ -607,14 +607,24 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"🪪 Routing to ID Verification Service for document {document.id}")
                 try:
                     from myapp.id_verification_service import get_id_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     id_service = get_id_verification_service()
                     
-                    id_result = id_service.verify_id_card(
-                        image_path=document.document_file.path,
-                        document_type=document.document_type,
-                        user=document.student
-                    )
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    try:
+                        id_result = id_service.verify_id_card(
+                            image_path=file_path,
+                            document_type=document.document_type,
+                            user=document.student
+                        )
+                    finally:
+                        # Clean up temp file if created
+                        if is_temp:
+                            cleanup_temp_file(file_path)
+                    
                     
                     # Process ID results
                     confidence = id_result.get('confidence', 0.0)
@@ -845,16 +855,27 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"🗳️ Routing to Voter Certificate Verification Service for document {document.id}")
                 try:
                     from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     voter_cert_service = get_voter_certificate_verification_service()
                     
-                    user_application_data = self._build_user_application_data(document.student)
-                    voter_cert_result = voter_cert_service.verify_voter_certificate_document(
-                        image_path=document.document_file.path,
-                        confidence_threshold=0.5,
-                        include_ocr=True,
-                        user_application_data=user_application_data
-                    )
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    if not file_path:
+                        raise ValueError("Could not access document file for processing")
+                    
+                    try:
+                        user_application_data = self._build_user_application_data(document.student)
+                        voter_cert_result = voter_cert_service.verify_voter_certificate_document(
+                            image_path=file_path,
+                            confidence_threshold=0.5,
+                            include_ocr=True,
+                            user_application_data=user_application_data
+                        )
+                    finally:
+                        if is_temp:
+                            cleanup_temp_file(file_path)
                     
                     # Process Voter Certificate results
                     confidence = voter_cert_result.get('confidence', 0.0)
