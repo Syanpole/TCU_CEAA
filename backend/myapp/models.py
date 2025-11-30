@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from PIL import Image
@@ -8,12 +8,14 @@ from datetime import datetime
 from .validators import profile_image_validators, document_validators, grade_sheet_validators
 
 def profile_image_upload_path(instance, filename):
-    return f'profile_images/{instance.id}/{filename}'
+    """Storage backend location 'media/profiles' is automatically prepended"""
+    return f'{instance.id}/{filename}'
 
 def document_upload_path(instance, filename):
     """
     Custom upload path for documents with naming convention:
-    documents/YYYY/MM/doc-type_student-number_YYYYMMDD_HHMMSS.ext
+    YYYY/MM/doc-type_student-number_YYYYMMDD_HHMMSS.ext
+    Note: Storage backend location 'media/documents' is automatically prepended
     """
     ext = os.path.splitext(filename)[1]
     # Get document type (replace underscores with hyphens for readability)
@@ -24,13 +26,14 @@ def document_upload_path(instance, filename):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     # Create filename
     new_filename = f"{doc_type}_{student_id}_{timestamp}{ext}"
-    # Return full path with year/month structure
-    return f"documents/{datetime.now().strftime('%Y/%m')}/{new_filename}"
+    # Return path with year/month structure (storage location is prepended automatically)
+    return f"{datetime.now().strftime('%Y/%m')}/{new_filename}"
 
 def grade_upload_path(instance, filename):
     """
     Custom upload path for grade sheets with naming convention:
-    grades/YYYY/MM/grade_student-number_subject-code_YYYYMMDD_HHMMSS.ext
+    YYYY/MM/grade_student-number_subject-code_YYYYMMDD_HHMMSS.ext
+    Note: Storage backend location 'media/grades' is automatically prepended
     """
     ext = os.path.splitext(filename)[1]
     # Get student ID (or username if no student_id)
@@ -41,10 +44,10 @@ def grade_upload_path(instance, filename):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     # Create filename
     new_filename = f"grade_{student_id}_{subject_code}_{timestamp}{ext}"
-    # Return full path with year/month structure
-    return f"grades/{datetime.now().strftime('%Y/%m')}/{new_filename}"
+    # Return path with year/month structure (storage location is prepended automatically)
+    return f"{datetime.now().strftime('%Y/%m')}/{new_filename}"
 
-class CustomUserManager(models.Manager):
+class CustomUserManager(BaseUserManager):
     """Custom manager to exclude archived users by default"""
     def get_queryset(self):
         return super().get_queryset().filter(is_archived=False)
@@ -63,6 +66,34 @@ class CustomUserManager(models.Manager):
         Get user by their natural key (username).
         """
         return self.get(**{self.model.USERNAME_FIELD: username})
+    
+    def create_user(self, username, email=None, password=None, **extra_fields):
+        """
+        Create and save a regular user with the given username, email, and password.
+        """
+        if not username:
+            raise ValueError('The Username field must be set')
+        
+        email = self.normalize_email(email) if email else None
+        user = self.model(username=username, email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        """
+        Create and save a superuser with the given username, email, and password.
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'admin')
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        return self.create_user(username, email, password, **extra_fields)
 
 
 class CustomUser(AbstractUser):

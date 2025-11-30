@@ -71,14 +71,14 @@ class DocumentStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     
     Provides optimized settings for document storage and retrieval.
     """
-    location = 'documents'
-    default_acl = 'private'
+    location = 'media/documents'
+    default_acl = 'private' if S3_AVAILABLE else None
     file_overwrite = False
     custom_domain = False
     object_parameters = {
         'CacheControl': 'max-age=86400',
         'ContentDisposition': 'inline',
-    }
+    } if S3_AVAILABLE else {}
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,7 +92,7 @@ class GradeSheetStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     Highly secure storage with strict access controls for
     sensitive academic documents.
     """
-    location = 'grades'
+    location = 'media/grades'
     default_acl = 'private' if S3_AVAILABLE else None
     file_overwrite = False
     custom_domain = False
@@ -113,7 +113,7 @@ class ProfileImageStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage)
     Optimized for image files with appropriate caching and
     content type settings.
     """
-    location = 'profiles'
+    location = 'media/profiles'
     default_acl = 'private' if S3_AVAILABLE else None
     file_overwrite = True  # Allow profile image updates
     custom_domain = False

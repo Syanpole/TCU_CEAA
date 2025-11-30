@@ -116,7 +116,7 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
             bucket_name = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
             
             # Clean the key - storage backend may have added 'media/' prefix
-            # Try both with and without 'media/' prefix
+            # Try both with and withou
             clean_key = s3_key.lstrip('/')
             
             # First try the key as-is
