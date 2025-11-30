@@ -17,13 +17,22 @@ Date: November 2025
 """
 
 from django.conf import settings
-from storages.backends.s3boto3 import S3Boto3Storage
+from django.core.files.storage import FileSystemStorage
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Try to import S3 storage, fallback to local storage if not available
+try:
+    from storages.backends.s3boto3 import S3Boto3Storage
+    S3_AVAILABLE = True
+except ImportError:
+    logger.warning("django-storages not available, using local storage fallback")
+    S3Boto3Storage = FileSystemStorage  # Fallback to local storage
+    S3_AVAILABLE = False
 
-class PrivateMediaStorage(S3Boto3Storage):
+
+class PrivateMediaStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     """
     Private storage backend for sensitive user files.
     
@@ -40,7 +49,7 @@ class PrivateMediaStorage(S3Boto3Storage):
         logger.info("Private Media Storage initialized (Cloud Storage)")
 
 
-class PublicMediaStorage(S3Boto3Storage):
+class PublicMediaStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     """
     Public storage backend for non-sensitive files.
     
@@ -48,7 +57,7 @@ class PublicMediaStorage(S3Boto3Storage):
     Use this for files that don't contain sensitive information.
     """
     location = 'media/public'
-    default_acl = 'public-read'
+    default_acl = 'public-read' if S3_AVAILABLE else None
     file_overwrite = False
     
     def __init__(self, *args, **kwargs):
@@ -56,7 +65,7 @@ class PublicMediaStorage(S3Boto3Storage):
         logger.info("Public Media Storage initialized (Cloud Storage)")
 
 
-class DocumentStorage(S3Boto3Storage):
+class DocumentStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     """
     Specialized storage for document files (PDFs, Word docs, etc.).
     
@@ -76,7 +85,7 @@ class DocumentStorage(S3Boto3Storage):
         logger.info("Document Storage initialized (Cloud Storage)")
 
 
-class GradeSheetStorage(S3Boto3Storage):
+class GradeSheetStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     """
     Specialized storage for grade sheets and transcripts.
     
@@ -84,20 +93,20 @@ class GradeSheetStorage(S3Boto3Storage):
     sensitive academic documents.
     """
     location = 'grades'
-    default_acl = 'private'
+    default_acl = 'private' if S3_AVAILABLE else None
     file_overwrite = False
     custom_domain = False
     object_parameters = {
         'CacheControl': 'no-cache',
         'ServerSideEncryption': 'AES256',
-    }
+    } if S3_AVAILABLE else {}
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         logger.info("Grade Sheet Storage initialized (Cloud Storage - Encrypted)")
 
 
-class ProfileImageStorage(S3Boto3Storage):
+class ProfileImageStorage(S3Boto3Storage if S3_AVAILABLE else FileSystemStorage):
     """
     Specialized storage for profile images.
     
@@ -105,33 +114,36 @@ class ProfileImageStorage(S3Boto3Storage):
     content type settings.
     """
     location = 'profiles'
-    default_acl = 'private'
+    default_acl = 'private' if S3_AVAILABLE else None
     file_overwrite = True  # Allow profile image updates
     custom_domain = False
     object_parameters = {
         'CacheControl': 'max-age=604800',  # 7 days
-    }
+    } if S3_AVAILABLE else {}
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        logger.info("Profile Image Storage initialized (Cloud Storage)")
+        storage_type = "Cloud Storage" if S3_AVAILABLE else "Local Storage (Fallback)"
+        logger.info(f"Profile Image Storage initialized ({storage_type})")
 
 
 def get_storage_backend(storage_type='private'):
     """
-    Get the appropriate storage backend - S3 ONLY.
+    Get the appropriate storage backend.
     
     Args:
         storage_type: Type of storage ('private', 'public', 'document', 'grade', 'profile')
     
     Returns:
-        S3 Storage backend instance - LOCAL STORAGE NOT ALLOWED
+        Storage backend instance (S3 if available, FileSystemStorage as fallback)
     """
-    # S3 is mandatory - no fallback to local storage
-    if not getattr(settings, 'USE_CLOUD_STORAGE', False):
-        logger.error(f"❌ CRITICAL: Cloud storage is disabled but required! Forcing S3 for {storage_type}")
-        # Force enable cloud storage if somehow disabled
-        settings.USE_CLOUD_STORAGE = True
+    # Check if S3 is available and enabled
+    use_s3 = S3_AVAILABLE and getattr(settings, 'USE_CLOUD_STORAGE', False)
+    
+    if not use_s3 and S3_AVAILABLE:
+        logger.warning(f"⚠️ Cloud storage available but disabled for {storage_type}")
+    elif not S3_AVAILABLE:
+        logger.warning(f"⚠️ django-storages not available, using local storage fallback for {storage_type}")
     
     storage_map = {
         'private': PrivateMediaStorage,
@@ -142,5 +154,6 @@ def get_storage_backend(storage_type='private'):
     }
     
     storage_class = storage_map.get(storage_type, PrivateMediaStorage)
-    logger.info(f"✅ Using S3 storage backend: {storage_class.__name__} for {storage_type}")
+    backend_type = "S3" if (use_s3 and S3_AVAILABLE) else "Local"
+    logger.info(f"✅ Using {backend_type} storage backend: {storage_class.__name__} for {storage_type}")
     return storage_class()
