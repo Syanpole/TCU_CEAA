@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.core.files.storage import default_storage
 from .models import DocumentSubmission
 from .face_comparison_service import FaceComparisonService
 from .fraud_detection_service import FraudDetectionService
