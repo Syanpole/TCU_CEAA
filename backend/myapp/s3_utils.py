@@ -137,14 +137,20 @@ def download_s3_file_to_temp(s3_key):
         
         # Clean the key and ensure media/ prefix for documents and grades
         clean_key = s3_key.lstrip('/')
+        logger.info(f"📥 S3 Download - Original key: {s3_key}")
+        logger.info(f"📥 S3 Download - Cleaned key: {clean_key}")
+        
         if not clean_key.startswith(('media/', 'liveness-sessions/')):
             clean_key = f'media/{clean_key}'
+            logger.info(f"📥 S3 Download - Added media/ prefix: {clean_key}")
         
         # Create temporary file with appropriate extension
         suffix = os.path.splitext(clean_key)[1]
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         temp_path = temp_file.name
         temp_file.close()
+        
+        logger.info(f"📥 S3 Download - Attempting download from bucket: {settings.AWS_STORAGE_BUCKET_NAME}, key: {clean_key}")
         
         # Download from S3
         s3_client.download_file(
@@ -217,28 +223,34 @@ def get_file_path_for_processing(file_field):
     import os
     
     try:
-        # Try to get local path first (shouldn't exist with S3-only config)
-        if hasattr(file_field, 'path'):
-            try:
-                path = file_field.path
-                if os.path.exists(path):
-                    logger.info(f"Using local file path: {path}")
-                    return path, False
-            except NotImplementedError:
-                pass  # S3 storage doesn't support .path()
-        
-        # Download from S3
+        # Get the file name relative to storage location
         s3_key = file_field.name
+        logger.info(f"🔍 Getting file path for processing - FileField name: {s3_key}")
+        
+        # Get storage location if available and prepend to key
+        if hasattr(file_field, 'storage') and hasattr(file_field.storage, 'location'):
+            storage_location = file_field.storage.location
+            if storage_location and not s3_key.startswith(storage_location):
+                s3_key = f"{storage_location}/{s3_key}"
+                logger.info(f"📂 Prepended storage location - Full S3 key: {s3_key}")
+        
+        # For S3-only storage, always download from S3
+        # Don't check hasattr(file_field, 'path') as it triggers the property getter
+        # which raises NotImplementedError for S3 storage
+        logger.info(f"📥 Downloading from S3 - Key: {s3_key}")
         temp_path = download_s3_file_to_temp(s3_key)
         
         if temp_path:
-            logger.info(f"Downloaded S3 file for processing: {s3_key}")
+            logger.info(f"✅ Downloaded S3 file for processing: {s3_key} -> {temp_path}")
             return temp_path, True
-        
-        return None, False
+        else:
+            logger.error(f"❌ S3 download failed for key: {s3_key}")
+            return None, False
         
     except Exception as e:
         logger.error(f"❌ Error getting file path for processing: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return None, False
 
 

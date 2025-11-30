@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -1243,14 +1244,20 @@ def verify_liveness(request):
                     logger.info(f"📸 Attempting face comparison with submitted ID: {id_document.document_type}")
                     
                     # Get the S3 paths
-                    id_photo_path = id_document.document_file.name  # Path in S3
+                    id_photo_path = id_document.document_file.name  # Path relative to storage location
                     reference_s3_object = reference_image.get('S3Object', {})
                     reference_photo_path = reference_s3_object.get('Name', '')
                     
                     if reference_photo_path:
-                        # Ensure ID photo path has media/ prefix for S3
-                        if not id_photo_path.startswith('media/'):
-                            id_photo_path = f"media/{id_photo_path}"
+                        # Build full S3 key including storage location
+                        # document_file.name returns path relative to storage location (e.g., "2025/12/file.jpg")
+                        # Storage location is "media/documents", so full key is "media/documents/2025/12/file.jpg"
+                        if hasattr(id_document.document_file, 'storage') and hasattr(id_document.document_file.storage, 'location'):
+                            storage_location = id_document.document_file.storage.location
+                            id_photo_path = f"{storage_location}/{id_photo_path}"
+                        elif not id_photo_path.startswith('media/'):
+                            # Fallback: prepend media/documents if no storage location available
+                            id_photo_path = f"media/documents/{id_photo_path}"
                         
                         # Use AWS Rekognition to compare faces
                         compare_result = verification_service.compare_faces_s3(
@@ -1310,10 +1317,15 @@ def verify_liveness(request):
                 else:
                     confidence_level = 'very_low'
                 
-                # Get ID document path if available
+                # Get ID document path if available - use full S3 key including storage location
                 id_photo_path = ''
                 if id_document and id_document.document_file:
-                    id_photo_path = id_document.document_file.name
+                    # Get the storage location and prepend to the file name for full S3 key
+                    storage = id_document.document_file.storage
+                    if hasattr(storage, 'location') and storage.location:
+                        id_photo_path = f"{storage.location}/{id_document.document_file.name}"
+                    else:
+                        id_photo_path = id_document.document_file.name
                 
                 # Create adjudication record
                 adjudication = VerificationAdjudication.objects.create(
@@ -1492,6 +1504,12 @@ def verify_with_liveness(request):
             ContentFile(school_id_bytes)
         )
         
+        # Get full S3 key including storage location if applicable
+        if hasattr(default_storage, 'location') and default_storage.location:
+            school_id_full_path = f"{default_storage.location}/{school_id_path}"
+        else:
+            school_id_full_path = school_id_path
+        
         # Get or create AllowanceApplication if application_id provided
         application = None
         if application_id:
@@ -1507,7 +1525,7 @@ def verify_with_liveness(request):
         adjudication = VerificationAdjudication.objects.create(
             user=request.user,
             application=application,
-            school_id_image_path=school_id_path,
+            school_id_image_path=school_id_full_path,
             selfie_image_path=f'liveness-sessions/{session_id}/reference_image.jpg',  # S3 path from liveness
             verification_backend='rekognition',
             automated_liveness_score=liveness_confidence,

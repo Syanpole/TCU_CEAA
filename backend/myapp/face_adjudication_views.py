@@ -133,8 +133,15 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
                             logger.info(f"✅ S3 object exists with media prefix: {media_key}")
                             clean_key = media_key
                         except ClientError:
-                            logger.warning(f"❌ S3 object not found: {s3_key} (tried both with and without 'media/' prefix)")
-                            return None
+                            # Try with media/documents/ prefix for paths like 2025/12/filename.jpg
+                            try:
+                                documents_key = f'media/documents/{clean_key}'
+                                s3_client.head_object(Bucket=bucket_name, Key=documents_key)
+                                logger.info(f"✅ S3 object exists with media/documents prefix: {documents_key}")
+                                clean_key = documents_key
+                            except ClientError:
+                                logger.warning(f"❌ S3 object not found: {s3_key} (tried: {clean_key}, {media_key}, {documents_key})")
+                                return None
                     else:
                         logger.warning(f"❌ S3 object not found: {s3_key}")
                         return None
