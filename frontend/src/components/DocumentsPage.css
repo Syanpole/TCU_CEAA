@@ -637,7 +637,7 @@
 }
 
 .dark-theme .dp-modal-subheading {
-  color: #cbd5e1 !important;
+  color: #94a3b8 !important;
 }
 
 @media (max-width: 768px) {
@@ -725,7 +725,7 @@
 }
 
 .dark-theme .dp-info-box-label {
-  color: #cbd5e1 !important;
+  color: #94a3b8 !important;
 }
 
 .dp-info-box-value {
@@ -826,9 +826,9 @@
 }
 
 .dark-theme .dp-analysis-content {
-  background: #0a0f1a;
-  color: #cbd5e1;
-  border-color: #1e293b;
+  background: #0a0f1a !important;
+  color: #cbd5e1 !important;
+  border-color: #1e293b !important;
 }
 
 /* Extracted Info Styles */
@@ -893,8 +893,8 @@
 }
 
 .dark-theme .dp-subject-item {
-  background: #0a0f1a;
-  border-color: #1e293b;
+  background: #0a0f1a !important;
+  border-color: #1e293b !important;
 }
 
 .dp-subject-code {
@@ -920,7 +920,7 @@
 }
 
 .dark-theme .dp-subject-name {
-  color: #d1d5db;
+  color: #cbd5e1 !important;
 }
 
 /* Success Notice */
@@ -975,13 +975,7 @@
 }
 
 .dark-theme .dp-notice-text span {
-  color: #94a3b8;
-  color: inherit;
-}
-
-.dark-theme .dp-approval-text span {
-  color: #cbd5e1;
-  opacity: 1;
+  color: #94a3b8 !important;
 }
 
 /* Action Button */

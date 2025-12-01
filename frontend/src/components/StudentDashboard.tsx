@@ -18,6 +18,7 @@ import BasicQualification, { QualificationData } from './BasicQualification';
 import FullApplicationForm from './FullApplicationForm';
 import ModernLoadingSpinner from './ModernLoadingSpinner';
 import { StudentIcon, EmailIcon, MoneyIcon, DocumentIcon, ChartIcon, WarningIcon, CheckIcon, GradeIcon, ApplicationIcon } from './Icons';
+import TutorialModal, { HelpTooltip, InfoNote, PageGuideBanner } from './TutorialSystem';
 import './StudentDashboard.css';
 
 interface Assignment {
@@ -159,6 +160,7 @@ const StudentDashboard: React.FC = () => {
     semester: string;
   } | null>(null);
   const [applicantType, setApplicantType] = useState<'new' | 'renewing' | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Theme toggle function
   const toggleTheme = () => {
@@ -536,7 +538,7 @@ const StudentDashboard: React.FC = () => {
                           <p>Your application has been successfully submitted and locked.</p>
                           <p>You can now proceed to submit your documents and grades in the "Submission of Requirements" section.</p>
                           {applicationData && (
-                            <div style={{ marginTop: '20px', padding: '15px', background: '#f0f9ff', borderRadius: '8px' }}>
+                            <div className="application-info-box">
                               <p style={{ margin: '5px 0' }}><strong>School Year:</strong> {applicationData.school_year}</p>
                               <p style={{ margin: '5px 0' }}><strong>Semester:</strong> {applicationData.semester}</p>
                             </div>
@@ -712,6 +714,13 @@ const StudentDashboard: React.FC = () => {
               <p>Track your scholarship application progress</p>
             </div>
 
+            {/* Page Guide Banner */}
+            <PageGuideBanner 
+              icon="👋"
+              title="Welcome to Your Dashboard!"
+              text="Complete all three steps below to submit your scholarship application: upload documents, submit grades, and fill out the application form. Click the ? button for detailed guidance."
+            />
+
             {/* Welcome Section */}
             <div className="welcome-card">
               <div className="welcome-content">
@@ -743,7 +752,10 @@ const StudentDashboard: React.FC = () => {
             {/* Application Progress */}
             <div className="progress-section">
               <div className="progress-header">
-                <h3>Application Progress</h3>
+                <h3>
+                  Application Progress
+                  <HelpTooltip text="Complete all three steps in order. Each step must be approved before moving to the next." />
+                </h3>
                 <div className="overall-completion">
                   <span className="completion-percentage">{applicationProgress}%</span>
                 </div>
@@ -786,6 +798,32 @@ const StudentDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Helpful Information */}
+            {!isDocumentsComplete && (
+              <InfoNote 
+                title="Next Step: Submit Documents"
+                text="Start by uploading all required documents. Go to the Documents section using the sidebar or click on the Documents card below."
+              />
+            )}
+            {isDocumentsComplete && !isGradesComplete && (
+              <InfoNote 
+                title="Next Step: Submit Grades"
+                text="Great job on documents! Now submit your academic grades. Your GWA will determine your eligibility for allowances."
+              />
+            )}
+            {isDocumentsComplete && isGradesComplete && !isApplicationComplete && (
+              <InfoNote 
+                title="Final Step: Complete Application"
+                text="Almost there! Complete the Basic Qualification and Full Application forms to finish your submission."
+              />
+            )}
+            {isApplicationComplete && (
+              <InfoNote 
+                title="Application Submitted Successfully!"
+                text="Your application is complete and under review. You'll receive email notifications about your application status."
+              />
+            )}
 
             {/* Quick Stats */}
             <div className="stats-grid">
@@ -894,6 +932,16 @@ const StudentDashboard: React.FC = () => {
         {renderContent()}
       </div>
 
+      {/* Tutorial Button - Fixed Bottom Right */}
+      <button 
+        className="tutorial-button" 
+        onClick={() => setShowTutorial(true)}
+        title="Help & Tutorial"
+        aria-label="Open Tutorial"
+      >
+        ?
+      </button>
+
       {/* Theme Toggle - Fixed Bottom Right */}
       <div className="theme-toggle-container">
         <div className="theme-toggle-switch" onClick={toggleTheme}>
@@ -906,6 +954,13 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Tutorial Modal */}
+      <TutorialModal 
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        page={activeSection}
+      />
 
       {/* Notification Modal */}
       <NotificationModal

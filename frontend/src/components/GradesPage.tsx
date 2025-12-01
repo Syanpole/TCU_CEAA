@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import GradeSubmissionForm from './GradeSubmissionForm';
+import { PageGuideBanner, HelpTooltip, InfoNote } from './TutorialSystem';
 import './GradesPage.css';
 
 interface SubjectGrade {
@@ -269,6 +270,20 @@ const GradesPage: React.FC<GradesPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Page Guide Banner */}
+      <PageGuideBanner 
+        icon="📊"
+        title="Submit Your Academic Grades"
+        text="Submit your grades for each semester. Your GWA determines your eligibility: 2.5 or better for Basic Allowance, 1.75 or better for Merit Incentive. The system calculates your GWA automatically."
+      />
+
+      {groupedGrades.length === 0 && (
+        <InfoNote 
+          title="No Grades Submitted Yet"
+          text="Click 'Submit Grades' to add your academic records. Include all subjects with their codes, units, and grades for accurate GWA calculation."
+        />
+      )}
 
       {/* Stats Overview Cards */}
       <div className="stats-overview">

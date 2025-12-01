@@ -28,6 +28,7 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
   const [editedStudent, setEditedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (student) {
@@ -62,15 +63,29 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
 
     try {
       setLoading(true);
-      await apiClient.delete(`/users/${student.id}/`);
+      const response = await apiClient.delete(`/users/${student.id}/`);
+      
+      // Call onDelete to update the parent list
       onDelete(student.id);
-      onClose();
-    } catch (error) {
+      
+      // Close delete confirm
+      setShowDeleteConfirm(false);
+      
+      // Show success modal
+      setShowSuccessModal(true);
+      
+      // Auto-close success modal after 2 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        onClose();
+      }, 2000);
+    } catch (error: any) {
       console.error('Error deleting student:', error);
-      alert('Failed to delete student. Please try again.');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete student. Please try again.';
+      alert(errorMessage);
+      setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
-      setShowDeleteConfirm(false);
     }
   };
 
@@ -250,6 +265,21 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, isOpen, mode, onCl
                   {loading ? 'Deleting...' : 'Delete Student'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="delete-confirm-overlay success-overlay">
+            <div className="delete-confirm-modal success-modal">
+              <div className="success-icon-container">
+                <div className="success-icon">✓</div>
+              </div>
+              <h3 className="success-title">Successfully Deleted!</h3>
+              <p className="success-message">
+                Student <strong>{student.first_name} {student.last_name}</strong> has been removed from the system.
+              </p>
             </div>
           </div>
         )}

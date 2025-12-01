@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
 import { CheckIcon } from './Icons';
+import { PageGuideBanner, HelpTooltip, InfoNote } from './TutorialSystem';
 import './DocumentsPage.css';
 
 interface DocumentSubmission {
@@ -62,7 +63,7 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
 
   const parseExtractedInfo = (notes: string) => {
     // Try JSON format first (existing format)
-    const extractedMatch = notes.match(/Extracted Info:\s*(\{.*\})/s);
+    const extractedMatch = notes.match(/Extracted Info:\s*(\{[\s\S]*\})/);
     if (extractedMatch) {
       try {
         const jsonStr = extractedMatch[1].replace(/'/g, '"');
@@ -170,6 +171,20 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
           Upload Document
         </button>
       </div>
+
+      {/* Page Guide Banner */}
+      <PageGuideBanner 
+        icon="📤"
+        title="Upload Required Documents"
+        text="Submit clear, readable copies of your Birth Certificate, School ID, Certificate of Enrollment, and Voter's Certificate. All documents will be verified by our AI system and admin staff."
+      />
+
+      {documents.length === 0 && (
+        <InfoNote 
+          title="Get Started"
+          text="Click the 'Upload Document' button above to submit your first document. You'll need to upload all required documents to proceed to the next step."
+        />
+      )}
 
       {/* Documents Grid - Horizontal Cards */}
       {documents.length > 0 ? (
