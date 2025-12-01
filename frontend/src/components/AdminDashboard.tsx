@@ -298,17 +298,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
         setError(null);
         
         try {
-          const response = await apiClient.get<AdminDashboardData>('/dashboard/admin/');
+          const response = await apiClient.get<AdminDashboardData>('/api/dashboard/admin/');
           setDashboardData(response.data);
         } catch (apiError) {
           // If API fails, try to get individual data
           
           try {
             const [documentsRes, gradesRes, applicationsRes, usersRes] = await Promise.all([
-              apiClient.get('/documents/').catch(() => ({ data: [] })),
-              apiClient.get('/grades/').catch(() => ({ data: [] })),
-              apiClient.get('/applications/').catch(() => ({ data: [] })),
-              apiClient.get('/students/').catch(() => ({ data: [] }))
+              apiClient.get('/api/documents/').catch(() => ({ data: [] })),
+              apiClient.get('/api/grades/').catch(() => ({ data: [] })),
+              apiClient.get('/api/applications/').catch(() => ({ data: [] })),
+              apiClient.get('/api/students/').catch(() => ({ data: [] }))
             ]);
 
             // Process the data if available
@@ -361,7 +361,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Function to manually refresh data
   const refreshDashboardData = async () => {
     try {
-      const response = await apiClient.get<AdminDashboardData>('/dashboard/admin/');
+      const response = await apiClient.get<AdminDashboardData>('/api/dashboard/admin/');
       setDashboardData(response.data);
     } catch (error) {
       console.error('Error refreshing dashboard data:', error);
@@ -371,7 +371,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Fetch Analytics Data
   const fetchAnalyticsData = async () => {
     try {
-      const response = await apiClient.get<AnalyticsData>('/analytics/');
+      const response = await apiClient.get<AnalyticsData>('/api/analytics/');
       setAnalyticsData(response.data);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -381,7 +381,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Fetch Audit Logs
   const fetchAuditLogs = async (limit: number = 50) => {
     try {
-      const response = await apiClient.get<{logs: AuditLog[]; count: number}>(`/audit-logs/?limit=${limit}`);
+      const response = await apiClient.get<{logs: AuditLog[]; count: number}>(`/api/audit-logs/?limit=${limit}`);
       setAuditLogs(response.data.logs);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
@@ -391,7 +391,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Fetch AI Statistics
   const fetchAIStats = async () => {
     try {
-      const response = await apiClient.get<AIStats>('/ai-stats/');
+      const response = await apiClient.get<AIStats>('/api/ai-stats/');
       setAiStats(response.data);
     } catch (error) {
       console.error('Error fetching AI stats:', error);
@@ -401,7 +401,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Fetch Basic Qualifications
   const fetchBasicQualifications = async () => {
     try {
-      const response = await apiClient.get<BasicQualificationRecord[]>('/basic-qualification/');
+      const response = await apiClient.get<BasicQualificationRecord[]>('/api/basic-qualification/');
       setBasicQualifications(response.data || []);
     } catch (error) {
       console.error('Error fetching basic qualifications:', error);
@@ -412,7 +412,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   // Fetch Full Applications
   const fetchFullApplications = async () => {
     try {
-      const response = await apiClient.get<FullApplicationRecord[]>('/full-application/');
+      const response = await apiClient.get<FullApplicationRecord[]>('/api/full-application/');
       setFullApplications(response.data || []);
     } catch (error) {
       console.error('Error fetching full applications:', error);

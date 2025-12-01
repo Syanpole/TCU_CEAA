@@ -220,13 +220,13 @@ const StudentDashboard: React.FC = () => {
           qualificationResponse,
           fullApplicationResponse
         ] = await Promise.all([
-          apiClient.get('/tasks/'),
-          apiClient.get('/documents/'),
-          apiClient.get('/grades/'),
-        apiClient.get('/applications/'),
-        apiClient.get('/dashboard/student/'),
-        apiClient.get('/basic-qualification/check_status/'),
-        apiClient.get('/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no applications exist
+          apiClient.get('/api/tasks/'),
+          apiClient.get('/api/documents/'),
+          apiClient.get('/api/grades/'),
+        apiClient.get('/api/applications/'),
+        apiClient.get('/api/dashboard/student/'),
+        apiClient.get('/api/basic-qualification/check_status/'),
+        apiClient.get('/api/full-application/').catch(() => ({ data: [] })) // Gracefully handle if no applications exist
       ]);        setAssignments((assignmentsResponse.data as Assignment[]) || []);
         setDocuments((documentsResponse.data as DocumentSubmission[]) || []);
         setGrades((gradesResponse.data as GradeSubmission[]) || []);
@@ -298,7 +298,7 @@ const StudentDashboard: React.FC = () => {
 
   const refreshDocuments = async () => {
     try {
-      const response = await apiClient.get('/documents/');
+      const response = await apiClient.get('/api/documents/');
       setDocuments((response.data as DocumentSubmission[]) || []);
     } catch (err) {
       console.error('Error refreshing documents:', err);
@@ -342,7 +342,7 @@ const StudentDashboard: React.FC = () => {
 
   const handleGradesRefresh = async () => {
     try {
-      const response = await apiClient.get('/grades/');
+      const response = await apiClient.get('/api/grades/');
       setGrades((response.data as GradeSubmission[]) || []);
     } catch (err) {
       console.error('Error refreshing grades:', err);
@@ -360,7 +360,7 @@ const StudentDashboard: React.FC = () => {
 
   const handleApplicationsRefresh = async () => {
     try {
-      const response = await apiClient.get('/applications/');
+      const response = await apiClient.get('/api/applications/');
       setApplications((response.data as AllowanceApplication[]) || []);
     } catch (err) {
       console.error('Error refreshing applications:', err);
@@ -369,7 +369,7 @@ const StudentDashboard: React.FC = () => {
 
   const handleQualificationComplete = async (data: QualificationData) => {
     try {
-      const response = await apiClient.post('/basic-qualification/submit/', data);
+      const response = await apiClient.post('/api/basic-qualification/submit/', data);
       const responseData = response.data as QualificationSubmitResponse;
       
       if (responseData.success) {

@@ -286,6 +286,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3002",
     "http://localhost:3003",
     "http://127.0.0.1:3003",
+    # Production frontend on Firebase
+    "https://tcu-ceaa-8863d.web.app",
+    "https://tcu-ceaa-8863d.firebaseapp.com",
 ]
 
 # ⚠️ WARNING: CORS_ALLOW_ALL_ORIGINS should be False in production

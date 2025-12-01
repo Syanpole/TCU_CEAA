@@ -21,7 +21,7 @@ export const documentService = {
   // Get all user documents
   async getUserDocuments(): Promise<DocumentStatus[]> {
     try {
-      const response = await apiClient.get('/documents/');
+      const response = await apiClient.get('/api/documents/');
       const data = response.data as any;
       return data.results || data;
     } catch (error) {
@@ -53,7 +53,7 @@ export const documentService = {
     try {
       // Use backend API for real-time eligibility check
       console.log('🔍 Checking grade submission eligibility via backend...');
-      const response = await apiClient.get('/grade-workflow/check-eligibility/');
+      const response = await apiClient.get('/api/grade-workflow/check-eligibility/');
       const data = response.data as any;
       
       console.log('✅ Backend eligibility response:', data);
