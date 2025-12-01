@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 
 class UserSerializer(serializers.ModelSerializer):
     profile_image_url = serializers.SerializerMethodField()
+    archived_by_username = serializers.CharField(source='archived_by.username', read_only=True, allow_null=True)
     
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'middle_initial', 'student_id', 'profile_image', 'profile_image_url', 'created_at']
-        read_only_fields = ['id', 'created_at', 'profile_image_url']
+        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'middle_initial', 'student_id', 'profile_image', 'profile_image_url', 'created_at', 'is_archived', 'archived_at', 'archived_by', 'archived_by_username', 'archive_reason']
+        read_only_fields = ['id', 'created_at', 'profile_image_url', 'is_archived', 'archived_at', 'archived_by', 'archived_by_username']
         extra_kwargs = {
             'profile_image': {'write_only': True}
         }
@@ -239,11 +240,13 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
                  'ai_confidence_score', 'ai_document_type_match', 'ai_recommendations',
                  'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
                  # New COE subject extraction fields
-                 'extracted_subjects', 'subject_count']
+                 'extracted_subjects', 'subject_count',
+                 # Archive status
+                 'is_active']
         read_only_fields = ['id', 'status', 'admin_notes', 'submitted_at', 'reviewed_at', 'reviewed_by',
                           'ai_analysis_completed', 'ai_confidence_score', 'ai_document_type_match',
                           'ai_recommendations', 'ai_auto_approved', 'ai_analysis_notes', 'ai_identity_verified', 'ai_identity_type',
-                          'extracted_subjects', 'subject_count']
+                          'extracted_subjects', 'subject_count', 'is_active']
 
 class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
@@ -366,6 +369,28 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
             return f"⚠️ Filename doesn't contain typical keywords for {declared_type.replace('_', ' ').title()}. Please ensure you're uploading the correct document."
         
         return ""
+    
+    def validate(self, data):
+        """Validate document submission and check for duplicates"""
+        request = self.context.get('request')
+        if request and request.user:
+            document_type = data.get('document_type')
+            
+            # Check if user already has an approved document of this type
+            existing_approved = DocumentSubmission.objects.filter(
+                student=request.user,
+                document_type=document_type,
+                status='approved'
+            ).exists()
+            
+            if existing_approved:
+                doc_type_display = dict(DocumentSubmission.DOCUMENT_TYPES).get(document_type, document_type)
+                raise serializers.ValidationError({
+                    'document_type': f'You already have an approved {doc_type_display}. '
+                    f'If you need to update it, please contact the admin or wait for the current document to be archived.'
+                })
+        
+        return data
         
     def create(self, validated_data):
         # Move the uploaded file to document_file field
@@ -477,13 +502,32 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"🎓 Routing to COE Verification Service for document {document.id}")
                 try:
                     from myapp.coe_verification_service import get_coe_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     coe_service = get_coe_verification_service()
-                    coe_result = coe_service.verify_coe_document(
-                        image_path=document.document_file.path,
-                        confidence_threshold=0.5,
-                        include_ocr=True
-                    )
+                    
+                    # Get user data for identity verification
+                    user_data = {
+                        'first_name': document.student.first_name,
+                        'last_name': document.student.last_name,
+                        'student_id': document.student.student_id
+                    }
+                    logger.info(f"🔍 COE Verification - Student: {document.student.username}, Data: {user_data}")
+                    
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    try:
+                        coe_result = coe_service.verify_coe_document(
+                            image_path=file_path,
+                            confidence_threshold=0.5,
+                            include_ocr=True,
+                            user_data=user_data
+                        )
+                    finally:
+                        # Clean up temp file if downloaded from S3
+                        if is_temp:
+                            cleanup_temp_file(file_path)
                     
                     # Process COE results
                     confidence = coe_result.get('confidence', 0.0)
@@ -563,14 +607,24 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"🪪 Routing to ID Verification Service for document {document.id}")
                 try:
                     from myapp.id_verification_service import get_id_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     id_service = get_id_verification_service()
                     
-                    id_result = id_service.verify_id_card(
-                        image_path=document.document_file.path,
-                        document_type=document.document_type,
-                        user=document.student
-                    )
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    try:
+                        id_result = id_service.verify_id_card(
+                            image_path=file_path,
+                            document_type=document.document_type,
+                            user=document.student
+                        )
+                    finally:
+                        # Clean up temp file if created
+                        if is_temp:
+                            cleanup_temp_file(file_path)
+                    
                     
                     # Process ID results
                     confidence = id_result.get('confidence', 0.0)
@@ -678,14 +732,24 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"👶 Routing to Birth Certificate Verification Service for document {document.id}")
                 try:
                     from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     birth_cert_service = get_birth_certificate_verification_service()
                     
                     user_application_data = self._build_user_application_data(document.student)
-                    birth_cert_result = birth_cert_service.verify_birth_certificate_document(
-                        image_path=document.document_file.path,
-                        user_application_data=user_application_data
-                    )
+                    
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    try:
+                        birth_cert_result = birth_cert_service.verify_birth_certificate_document(
+                            image_path=file_path,
+                            user_application_data=user_application_data
+                        )
+                    finally:
+                        # Clean up temp file if downloaded from S3
+                        if is_temp:
+                            cleanup_temp_file(file_path)
                     
                     # Process Birth Certificate results
                     confidence = birth_cert_result.get('confidence', 0.0)
@@ -791,16 +855,27 @@ class DocumentSubmissionCreateSerializer(serializers.ModelSerializer):
                 logger.info(f"🗳️ Routing to Voter Certificate Verification Service for document {document.id}")
                 try:
                     from myapp.voter_certificate_verification_service import get_voter_certificate_verification_service
+                    from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
                     
                     voter_cert_service = get_voter_certificate_verification_service()
                     
-                    user_application_data = self._build_user_application_data(document.student)
-                    voter_cert_result = voter_cert_service.verify_voter_certificate_document(
-                        image_path=document.document_file.path,
-                        confidence_threshold=0.5,
-                        include_ocr=True,
-                        user_application_data=user_application_data
-                    )
+                    # Get file path for processing (downloads from S3 if needed)
+                    file_path, is_temp = get_file_path_for_processing(document.document_file)
+                    
+                    if not file_path:
+                        raise ValueError("Could not access document file for processing")
+                    
+                    try:
+                        user_application_data = self._build_user_application_data(document.student)
+                        voter_cert_result = voter_cert_service.verify_voter_certificate_document(
+                            image_path=file_path,
+                            confidence_threshold=0.5,
+                            include_ocr=True,
+                            user_application_data=user_application_data
+                        )
+                    finally:
+                        if is_temp:
+                            cleanup_temp_file(file_path)
                     
                     # Process Voter Certificate results
                     confidence = voter_cert_result.get('confidence', 0.0)

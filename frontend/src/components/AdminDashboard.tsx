@@ -287,6 +287,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<string>('all'); // 'all', 'ai', 'admin', 'user'
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [pendingDeleteGrade, setPendingDeleteGrade] = useState<{id: number, name: string} | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -511,6 +514,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
       }
     } else {
       console.log(`Review ${actionType} with ID: ${itemId}`);
+    }
+  };
+
+  const handleDeleteGrade = async (gradeId: number, studentName: string) => {
+    const confirmed = window.confirm(
+      `⚠️ Are you sure you want to delete this grade submission for ${studentName}?\n\n` +
+      `This action cannot be undone and will permanently remove the grade record from the system.`
+    );
+    
+    if (!confirmed) return;
+    
+    // Show custom reason modal
+    setPendingDeleteGrade({ id: gradeId, name: studentName });
+    setDeletionReason('');
+    setShowReasonModal(true);
+  };
+
+  const confirmDeleteWithReason = async () => {
+    if (!pendingDeleteGrade || !deletionReason.trim()) {
+      alert('Please provide a reason for deletion.');
+      return;
+    }
+
+    const actionKey = `delete_grade_${pendingDeleteGrade.id}`;
+    
+    try {
+      setActionLoading(prev => ({ ...prev, [actionKey]: true }));
+      
+      await apiClient.delete(`/grades/${pendingDeleteGrade.id}/`, {
+        params: { reason: deletionReason }
+      });
+      
+      // Close modal and reset state
+      setShowReasonModal(false);
+      setPendingDeleteGrade(null);
+      setDeletionReason('');
+      
+      // Refresh dashboard data
+      await refreshDashboardData();
+      
+      setSuccessMessage(`Grade submission deleted successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      
+    } catch (error) {
+      console.error('Error deleting grade:', error);
+      alert('Failed to delete grade submission. Please try again.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
   };
 
@@ -890,7 +941,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                     <div style={{ color: '#64748b', fontSize: '12px' }}>
                       Submitted: {formatDate(grade.submitted_at)}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                       <button 
                         style={{
                           background: '#10b981',
@@ -920,6 +971,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                         disabled={actionLoading[`grade_${grade.id}`]}
                       >
                         {actionLoading[`grade_${grade.id}`] ? '⏳' : '❌'} Reject
+                      </button>
+                      <button 
+                        style={{
+                          background: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600'
+                        }}
+                        onClick={() => handleDeleteGrade(grade.id, grade.student_name)}
+                        disabled={actionLoading[`delete_grade_${grade.id}`]}
+                        title="Permanently delete this grade submission"
+                      >
+                        {actionLoading[`delete_grade_${grade.id}`] ? '⏳' : '🗑️'} Delete
                       </button>
                     </div>
                   </div>
@@ -2654,6 +2722,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deletion Reason Modal */}
+      {showReasonModal && pendingDeleteGrade && (
+        <div className="reason-modal-overlay" onClick={() => setShowReasonModal(false)}>
+          <div className="reason-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="reason-modal-header">
+              <h3>🗑️ Delete Grade Submission</h3>
+              <button className="reason-modal-close" onClick={() => setShowReasonModal(false)}>✕</button>
+            </div>
+            <div className="reason-modal-body">
+              <p className="reason-modal-message">
+                Please provide a reason for deleting the grade submission for <strong>{pendingDeleteGrade.name}</strong>:
+              </p>
+              <textarea
+                className="reason-modal-input"
+                placeholder="Enter deletion reason (e.g., re-upload, correction needed, duplicate entry...)"
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                autoFocus
+                rows={4}
+              />
+            </div>
+            <div className="reason-modal-footer">
+              <button 
+                className="reason-modal-btn cancel-btn" 
+                onClick={() => {
+                  setShowReasonModal(false);
+                  setPendingDeleteGrade(null);
+                  setDeletionReason('');
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="reason-modal-btn confirm-btn" 
+                onClick={confirmDeleteWithReason}
+                disabled={!deletionReason.trim()}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>

@@ -117,9 +117,50 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
-    // Step 3: Open verification modal (modal will auto-send code on mount)
-    setShowVerificationModal(true);
-    setLoading(false);
+    // Step 3: Validate registration fields (check for duplicates)
+    try {
+      await authService.validateRegistrationFields(
+        formData.username,
+        formData.email,
+        formData.studentId
+      );
+    } catch (validationError: any) {
+      console.error('Field validation error:', validationError);
+      if (validationError.response?.data) {
+        const errorData = validationError.response.data;
+        
+        if (errorData.username) {
+          setError(errorData.username);
+        } else if (errorData.email) {
+          setError(errorData.email);
+        } else if (errorData.student_id) {
+          setError(errorData.student_id);
+        } else {
+          setError('Registration validation failed. Please check your information.');
+        }
+      } else {
+        setError('Unable to validate registration. Please try again.');
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Step 4: Send verification code to email
+    try {
+      const result = await sendVerificationCode(formData.email);
+      
+      if (result.success) {
+        setShowVerificationModal(true);
+        setLoading(false);
+      } else {
+        setError(result.message);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Error sending verification code:', error);
+      setError('Failed to send verification code. Please try again.');
+      setLoading(false);
+    }
   };
 
   const handleEmailVerified = async (code: string) => {
@@ -149,6 +190,7 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       setShowVerificationModal(false);
     } catch (error: any) {
       console.error('Verification error:', error);
+      setShowVerificationModal(false);
       setError('Verification failed. Please try again.');
       setLoading(false);
       setShowVerificationModal(false);
@@ -176,6 +218,9 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       setShowVerificationModal(false);
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
+      setShowVerificationModal(false);
+      
+      // Close modal immediately
       setShowVerificationModal(false);
       
       if (registrationError.response?.data) {

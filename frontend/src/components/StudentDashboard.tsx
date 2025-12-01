@@ -447,7 +447,10 @@ const StudentDashboard: React.FC = () => {
 
   // Check if grade submission is available
   const approvedDocuments = documents.filter(d => d.status === 'approved').length;
-  const canSubmitGrades = approvedDocuments >= 2;
+  const hasPendingGrades = grades.some(g => g.status === 'pending');
+  const hasAnyApprovedGrades = grades.some(g => g.status === 'approved');
+  // Hide button if: not enough documents, has pending grades, or already has approved grades
+  const canSubmitGrades = approvedDocuments >= 2 && !hasPendingGrades && !hasAnyApprovedGrades;
   
   // Check if allowance application is available
   const hasApprovedGrades = grades.some(g => g.status === 'approved' && (g.qualifies_for_basic_allowance || g.qualifies_for_merit_incentive));

@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TaskViewSet, UserViewSet, DocumentSubmissionViewSet, GradeSubmissionViewSet, AllowanceApplicationViewSet,
     BasicQualificationViewSet, FullApplicationViewSet,
-    login_view, logout_view, register_view, verify_student_view, user_profile, check_admin, students_list,
+    login_view, logout_view, register_view, validate_registration_fields, verify_student_view, user_profile, check_admin, students_list,
     student_dashboard_data, admin_dashboard_data, profile_image, audit_logs_list, analytics_overview, ai_stats,
     send_verification_code, verify_email_code, resend_verification_code,
     request_password_reset, verify_reset_code, reset_password,
@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/auth/login/', login_view, name='login'),
     path('api/auth/logout/', logout_view, name='logout'),
     path('api/auth/register/', register_view, name='register'),
+    path('api/auth/validate-registration/', validate_registration_fields, name='validate-registration'),
     path('api/auth/verify-student/', verify_student_view, name='verify-student'),
     path('api/auth/send-verification-code/', send_verification_code, name='send-verification-code'),
     path('api/auth/verify-email-code/', verify_email_code, name='verify-email-code'),

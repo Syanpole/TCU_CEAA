@@ -383,6 +383,52 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
       extractedInfo.recommendations = recommendationsMatch[1].trim();
     }
 
+    // Parse Field Matches (Birth Certificate specific)
+    const fieldMatchesMatch = notes.match(/Field Matches:\s*\n((?:  .+\n?)*)/);  
+    if (fieldMatchesMatch) {
+      const matchesText = fieldMatchesMatch[1];
+      extractedInfo.field_matches = [];
+      
+      const fieldLines = matchesText.split('\n').filter(line => line.trim() && line.includes('✓') || line.includes('✗'));
+      
+      fieldLines.forEach(line => {
+        const matchObj: any = {};
+        
+        // Extract field name
+        if (line.includes('child_name')) matchObj.field = 'Child Name';
+        else if (line.includes('date_of_birth')) matchObj.field = 'Date of Birth';
+        else if (line.includes('sex')) matchObj.field = 'Sex';
+        else if (line.includes('place_of_birth')) matchObj.field = 'Place of Birth';
+        else if (line.includes('mother_name')) matchObj.field = "Mother's Name";
+        else if (line.includes('father_name')) matchObj.field = "Father's Name";
+        
+        // Extract match status
+        matchObj.matched = line.includes('✓');
+        
+        // Extract score
+        const scoreMatch = line.match(/([\d.]+)%/);
+        if (scoreMatch) {
+          matchObj.score = parseFloat(scoreMatch[1]);
+        }
+        
+        // Extract extracted vs application values
+        const extractedMatch = line.match(/Extracted: '([^']+)'/);
+        const applicationMatch = line.match(/Application: '([^']+)'/);
+        if (extractedMatch) matchObj.extracted = extractedMatch[1];
+        if (applicationMatch) matchObj.application = applicationMatch[1];
+        
+        // Extract reason
+        const reasonMatch = line.match(/\((.+?)\)/);
+        if (reasonMatch) {
+          matchObj.reason = reasonMatch[1];
+        }
+        
+        if (matchObj.field) {
+          extractedInfo.field_matches.push(matchObj);
+        }
+      });
+    }
+
     // Return extracted info if we found any data
     if (Object.keys(extractedInfo).length > 0) {
       return extractedInfo;
@@ -912,6 +958,57 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
                                     </div>
                                   ))}
                                 </div>
+                              </div>
+                            )}
+
+                            {/* Field Matches - Birth Certificate Comparison */}
+                            {extractedInfo.field_matches && extractedInfo.field_matches.length > 0 && (
+                              <div className="dr-field-matches-section">
+                                <h4 style={{ marginTop: '1.5rem', marginBottom: '1rem', color: '#1e293b', fontSize: '1rem', fontWeight: '600' }}>📋 Field Comparison</h4>
+                                {extractedInfo.field_matches.map((field: any, index: number) => (
+                                  <div key={index} className="dr-field-match-item" style={{
+                                    padding: '1rem',
+                                    marginBottom: '0.75rem',
+                                    border: `2px solid ${field.matched ? '#10b981' : '#ef4444'}`,
+                                    borderRadius: '8px',
+                                    backgroundColor: field.matched ? '#f0fdf4' : '#fef2f2'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                      <strong style={{ color: '#1e293b', fontSize: '0.9rem' }}>
+                                        {field.matched ? '✅' : '❌'} {field.field}
+                                      </strong>
+                                      {field.score !== undefined && (
+                                        <span style={{
+                                          padding: '0.25rem 0.75rem',
+                                          borderRadius: '12px',
+                                          fontSize: '0.8rem',
+                                          fontWeight: '600',
+                                          backgroundColor: field.score >= 90 ? '#10b981' : field.score >= 70 ? '#f59e0b' : '#ef4444',
+                                          color: 'white'
+                                        }}>
+                                          {field.score}% Match
+                                        </span>
+                                      )}
+                                    </div>
+                                    {field.extracted && (
+                                      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                                        <span style={{ color: '#64748b', fontWeight: '500' }}>📄 Document:</span>
+                                        <span style={{ marginLeft: '0.5rem', color: '#1e293b' }}>{field.extracted}</span>
+                                      </div>
+                                    )}
+                                    {field.application && (
+                                      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                                        <span style={{ color: '#64748b', fontWeight: '500' }}>📝 Application:</span>
+                                        <span style={{ marginLeft: '0.5rem', color: '#1e293b' }}>{field.application}</span>
+                                      </div>
+                                    )}
+                                    {field.reason && (
+                                      <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: '4px' }}>
+                                        <span style={{ color: '#475569', fontStyle: 'italic' }}>ℹ️ {field.reason}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             )}
 

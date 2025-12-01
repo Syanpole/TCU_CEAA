@@ -237,7 +237,16 @@ class IDVerificationService:
             if user and not validation_checks.get('identity_verified', False):
                 result['status'] = 'INVALID'
                 result['is_valid'] = False
-                result['recommendations'].append("ID does not belong to the logged-in user")
+                result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
+                result['recommendations'].append("📋 This ID does not belong to you")
+                result['recommendations'].append("💡 What to do: Upload YOUR valid TCU ID that matches your application details")
+                # Add confidence interpretation for rejections
+                if confidence >= 0.75:
+                    result['recommendations'].append(f"✅ AI Detection Quality: High ({confidence*100:.0f}%) - Rejection is accurate")
+                elif confidence >= 0.60:
+                    result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
+                else:
+                    result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
             elif confidence >= 0.8 and result['checks_passed'] >= min_valid_checks:
                 result['status'] = 'VALID'
                 result['is_valid'] = True
