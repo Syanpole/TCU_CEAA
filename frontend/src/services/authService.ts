@@ -93,7 +93,7 @@ apiClient.interceptors.request.use((config) => {
 
 export const authService = {
   login: async (username: string, password: string): Promise<LoginResponse> => {
-    const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login/`, {
+    const response = await axios.post<LoginResponse>(`${API_BASE_URL}/api/auth/login/`, {
       username,
       password,
     });
@@ -106,7 +106,7 @@ export const authService = {
     lastName: string;
     middleInitial: string;
   }): Promise<VerifyStudentResponse> => {
-    const response = await axios.post<VerifyStudentResponse>(`${API_BASE_URL}/auth/verify-student/`, {
+    const response = await axios.post<VerifyStudentResponse>(`${API_BASE_URL}/api/auth/verify-student/`, {
       student_id: studentData.studentId,
       first_name: studentData.firstName,
       last_name: studentData.lastName,
@@ -116,7 +116,7 @@ export const authService = {
   },
 
   validateRegistrationFields: async (username: string, email: string, studentId: string): Promise<{ valid: boolean }> => {
-    const response = await axios.post<{ valid: boolean }>(`${API_BASE_URL}/auth/validate-registration/`, {
+    const response = await axios.post<{ valid: boolean }>(`${API_BASE_URL}/api/auth/validate-registration/`, {
       username,
       email,
       student_id: studentId,
@@ -125,12 +125,12 @@ export const authService = {
   },
 
   register: async (userData: RegisterData): Promise<RegisterResponse> => {
-    const response = await axios.post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, userData);
+    const response = await axios.post<RegisterResponse>(`${API_BASE_URL}/api/auth/register/`, userData);
     return response.data;
   },
 
   verifyEmail: async (email: string, code: string): Promise<VerifyEmailResponse> => {
-    const response = await axios.post<VerifyEmailResponse>(`${API_BASE_URL}/auth/verify-email/`, {
+    const response = await axios.post<VerifyEmailResponse>(`${API_BASE_URL}/api/auth/verify-email-code/`, {
       email,
       code,
     });
@@ -138,14 +138,14 @@ export const authService = {
   },
 
   resendVerificationCode: async (email: string): Promise<ResendCodeResponse> => {
-    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/auth/resend-verification-code/`, {
+    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/api/auth/resend-verification-code/`, {
       email,
     });
     return response.data;
   },
 
   sendVerificationCode: async (email: string): Promise<ResendCodeResponse> => {
-    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/auth/send-verification-code/`, {
+    const response = await axios.post<ResendCodeResponse>(`${API_BASE_URL}/api/auth/send-verification-code/`, {
       email,
     });
     return response.data;
@@ -153,19 +153,19 @@ export const authService = {
 
   logout: async (): Promise<void> => {
     try {
-      await apiClient.post('/auth/logout/');
+      await apiClient.post('/api/auth/logout/');
     } catch (error) {
       console.error('Logout error:', error);
     }
   },
 
   getProfile: async (): Promise<User> => {
-    const response = await apiClient.get<User>('/auth/profile/');
+    const response = await apiClient.get<User>('/api/auth/profile/');
     return response.data;
   },
 
   checkAdmin: async (): Promise<{ is_admin: boolean; role: string }> => {
-    const response = await apiClient.get<{ is_admin: boolean; role: string }>('/auth/check-admin/');
+    const response = await apiClient.get<{ is_admin: boolean; role: string }>('/api/auth/check-admin/');
     return response.data;
   },
 };

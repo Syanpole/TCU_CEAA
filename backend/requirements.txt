@@ -24,6 +24,9 @@ scipy==1.14.1  # Updated to 1.14.1 for better Python 3.13 wheel support
 # 4. Face Verifier - OpenCV Face Detection
 opencv-python==4.10.0.84
 
+# 4b. YOLO Object Detection - Document Element Detection
+ultralytics==8.3.0  # YOLOv8 for COE/ID/Voter Certificate verification
+
 # 5. Fraud Detector - Metadata Analysis
 PyPDF2==3.0.1
 PyMuPDF==1.24.10  # Updated to latest stable version with better wheel support
