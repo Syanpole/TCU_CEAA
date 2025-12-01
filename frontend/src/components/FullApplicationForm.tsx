@@ -188,7 +188,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
     const checkExistingApplication = async () => {
       try {
         setCheckingExisting(true);
-        const response = await apiClient.get('/full-application/');
+        const response = await apiClient.get('/api/full-application/');
         const applications = Array.isArray(response.data) ? response.data : [];
         
         if (applications.length > 0) {
@@ -487,7 +487,7 @@ const FullApplicationForm: React.FC<FullApplicationFormProps> = ({ applicantType
       console.log('📊 Data field count:', Object.keys(applicationData).length);
 
       // Submit to backend API
-      const response = await apiClient.post('/full-application/', applicationData);
+      const response = await apiClient.post('/api/full-application/', applicationData);
       
       console.log('✅ Application submitted successfully:', response.data);
       console.log('✅ Response status:', response.status);
