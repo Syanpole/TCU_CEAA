@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AllowanceApplicationForm from './AllowanceApplicationForm';
 import { DocumentIcon, RequirementsIcon, MoneyIcon, WarningIcon } from './Icons';
+import { PageGuideBanner, HelpTooltip, InfoNote } from './TutorialSystem';
 import './ApplicationDetailsPage.css';
 
 interface AllowanceApplication {
@@ -83,19 +84,37 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
 
   return (
     <div className={`application-details-page ${darkMode ? 'dark-theme' : 'light-theme'}`}>
-      {/* Refresh Button */}
-      <button 
-          className="refresh-button-corner"
-          onClick={handleRefresh}
-          title="Refresh to see updated data"
-        >
-          🔄
-        </button>
-      
-      <div className="page-header">
-        <h1>Application Details</h1>
-        <p>View your allowance applications</p>
+      {/* Modern Header with Refresh Button */}
+      <div className="application-page-header">
+        <div className="header-left">
+          <h1>Application Details</h1>
+          <p className="header-subtitle">View your allowance applications</p>
+        </div>
+        <div className="header-right">
+          <button 
+            className="refresh-btn-app" 
+            onClick={handleRefresh}
+            title="Refresh applications"
+          >
+            <span className="refresh-icon">🔄</span>
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Page Guide Banner */}
+      <PageGuideBanner 
+        icon="📋"
+        title="Complete Your Scholarship Application"
+        text="First complete the Basic Qualification form, then fill out the Full Application. Ensure all documents and grades are submitted before applying for allowances."
+      />
+
+      {!canApplyForAllowance && applications.length === 0 && (
+        <InfoNote 
+          title="Requirements Not Met"
+          text="Complete and get approval for your documents and grades before you can apply for allowances. Check the Overview page to see your progress."
+        />
+      )}
 
       {/* Simplified Stats */}
       <div className="stats-grid">

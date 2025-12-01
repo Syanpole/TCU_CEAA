@@ -54,6 +54,8 @@ interface BasicQualificationRecord {
     first_name: string;
     last_name: string;
   };
+  student_name: string;
+  student_id: string;
   applicant_type: string;
   is_qualified: boolean;
   is_enrolled: boolean;
@@ -1603,14 +1605,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                       <tr key={qual.id} style={{borderBottom: '1px solid #f3f4f6'}}>
                         <td style={{padding: '12px'}}>
                           <div style={{fontWeight: '500', color: '#1f2937'}}>
-                            {qual.student.first_name} {qual.student.last_name}
-                          </div>
-                          <div style={{fontSize: '12px', color: '#6b7280'}}>
-                            @{qual.student.username}
+                            {qual.student_name || `${qual.student.first_name} ${qual.student.last_name}`}
                           </div>
                         </td>
                         <td style={{padding: '12px', color: '#6b7280'}}>
-                          {qual.student.student_id}
+                          {qual.student_id || qual.student.student_id}
                         </td>
                         <td style={{padding: '12px'}}>
                           <span style={{
@@ -1924,10 +1923,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) => {
                 </h2>
                 <div style={{ fontSize: '14px', color: '#6b7280' }}>
                   <span style={{ fontWeight: '500', color: '#374151' }}>
-                    {selectedQualification.student.first_name} {selectedQualification.student.last_name}
+                    {selectedQualification.student_name || `${selectedQualification.student.first_name} ${selectedQualification.student.last_name}`}
                   </span>
                   {' • '}
-                  <span>ID: {selectedQualification.student.student_id}</span>
+                  <span>ID: {selectedQualification.student_id || selectedQualification.student.student_id}</span>
                 </div>
               </div>
               <button

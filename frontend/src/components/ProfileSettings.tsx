@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient, ProfileImageResponse } from '../services/authService';
 import ImageCropper from './ImageCropper';
 import DefaultAvatar from './DefaultAvatar';
+import { PageGuideBanner, HelpTooltip, InfoNote } from './TutorialSystem';
 import './ProfileSettings.css';
 
 interface ProfileUpdateData {
@@ -384,6 +385,13 @@ const ProfileSettings: React.FC = () => {
         <div className="profile-settings-title">
           <h1>Profile Settings</h1>
         </div>
+
+        {/* Page Guide Banner */}
+        <PageGuideBanner 
+          icon="👤"
+          title="Manage Your Profile"
+          text="Update your profile picture and view your account information. For security reasons, some information can only be changed by contacting the administrator."
+        />
 
         <div 
           className="profile-settings-card"
