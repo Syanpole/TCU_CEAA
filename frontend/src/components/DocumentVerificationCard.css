@@ -330,6 +330,11 @@
   color: #d1d5db;
 }
 
+.dark-mode .dvc-accordion-trigger:hover,
+.dark-theme .dvc-accordion-trigger:hover {
+  background: #1e293b;
+}
+
 .dark-mode .dvc-accordion-trigger.open,
 .dark-theme .dvc-accordion-trigger.open {
   color: #f9fafb;

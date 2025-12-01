@@ -1085,7 +1085,7 @@
 }
 
 .doc-modal-info-box {
-  background: #f8fafc;
+  background: #ffffff;
   padding: 1.25rem;
   border-radius: 12px;
   text-align: center;
@@ -1094,7 +1094,7 @@
 
 .dark-theme .doc-modal-info-box {
   background: #0f172a;
-  border-color: #ffffff;
+  border-color: #334155;
 }
 
 .doc-info-box-label {
@@ -1118,6 +1118,30 @@
 
 .dark-theme .doc-info-box-value {
   color: #f1f5f9;
+}
+
+.doc-info-box-value.status-approved {
+  background: #ffffff;
+  color: #10b981;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+.dark-theme .doc-info-box-value.status-approved {
+  background: #000000;
+  color: #10b981;
+}
+
+.doc-info-box-value.status-pending {
+  background: #ffffff;
+  color: #f59e0b;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+.dark-theme .doc-info-box-value.status-pending {
+  background: #0f172a;
+  color: #f59e0b;
 }
 
 .doc-confidence-value {
