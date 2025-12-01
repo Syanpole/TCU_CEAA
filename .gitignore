@@ -66,3 +66,31 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+
+# Firebase
+.firebase/
+firebase-debug.log
+.firebaserc
+
+# Docker
+*.dockerignore
+
+# Media files (uploaded documents - DO NOT commit to git)
+backend/media/documents/
+backend/media/grades/
+backend/media/profile_images/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.trae/
+.VSCodeCounter/
+
+# Environment files
+.env.local
+.env.production
+.env.*.template
