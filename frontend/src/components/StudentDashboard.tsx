@@ -514,9 +514,6 @@ const StudentDashboard: React.FC = () => {
             ) : (
               <div className="qualification-completed">
                 <div className="completion-card">
-                  <div style={{ color: '#10b981' }}>
-                    <CheckIcon size={48} />
-                  </div>
                   <h2>Application Process {hasCompletedApplication ? 'Completed' : 'In Progress'}</h2>
                   {isQualified ? (
                     <>

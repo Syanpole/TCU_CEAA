@@ -821,7 +821,7 @@
   overflow-wrap: break-word;
   color: #334155;
   border: 1px solid #e5e7eb;
-  max-height: 300px;
+  max-height: 200px;
   overflow-y: auto;
 }
 

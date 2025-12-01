@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DocumentSubmissionForm from './DocumentSubmissionForm';
+import DocumentVerificationCard from './DocumentVerificationCard';
 import { CheckIcon } from './Icons';
 import { PageGuideBanner, HelpTooltip, InfoNote } from './TutorialSystem';
 import './DocumentsPage.css';
@@ -186,92 +187,23 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
         />
       )}
 
-      {/* Documents Grid - Horizontal Cards */}
+      {/* Documents Grid - Modern Vertical Cards */}
       {documents.length > 0 ? (
-        <div className="dp-documents-grid">
+        <div className="dvc-grid">
           {documents.map((doc) => (
-            <div key={doc.id} className={`dp-document-card ${doc.status}`}>
-              {/* Card Header */}
-              <div className="dp-card-header">
-                <div className="dp-doc-icon">
-                  {getStatusIcon(doc.status)}
-                </div>
-                <div className="dp-card-actions">
-                  <button 
-                    className="dp-delete-btn"
-                    onClick={() => {/* Add delete functionality */}}
-                    title="Delete document"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-
-              {/* Document Name */}
-              <div className="dp-doc-name">
-                {doc.document_type_display}
-              </div>
-
-              {/* Document Meta Info */}
-              <div className="dp-doc-meta">
-                <div className="dp-meta-item">
-                  <span className="dp-meta-icon">📅</span>
-                  <span className="dp-meta-text">
-                    {new Date(doc.submitted_at).toLocaleDateString('en-US', { 
-                      month: 'numeric', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <div className="dp-status-section">
-                <span 
-                  className={`dp-status-badge status-${doc.status}`}
-                >
-                  {doc.status === 'pending' ? 'Processing' : 
-                   doc.status === 'approved' ? 'Approved' : 
-                   doc.status === 'rejected' ? 'Rejected' : doc.status_display}
-                </span>
-              </div>
-
-              {/* AI Confidence */}
-              {doc.ai_confidence_score !== undefined && doc.ai_confidence_score > 0 && (
-                <div className="dp-ai-section">
-                  <div className="dp-ai-label">
-                    <span>
-                      <span className="dp-ai-icon">🤖</span>
-                      AI Confidence
-                    </span>
-                    <span className="dp-confidence-text">
-                      {(doc.ai_confidence_score * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="dp-confidence-bar">
-                    <div 
-                      className="dp-confidence-fill"
-                      style={{ 
-                        width: `${doc.ai_confidence_score * 100}%`,
-                        backgroundColor: doc.ai_confidence_score >= 0.8 ? '#10b981' : doc.ai_confidence_score >= 0.6 ? '#f59e0b' : '#ef4444'
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* View Details Button */}
-              {doc.ai_analysis_notes && (
-                <button 
-                  className="dp-view-details-btn"
-                  onClick={() => setSelectedDocForDetails(doc)}
-                >
-                  <span className="details-icon">👁️</span>
-                  View Details
-                </button>
-              )}
-            </div>
+            <DocumentVerificationCard
+              key={doc.id}
+              id={doc.id}
+              documentType={doc.document_type}
+              documentTypeDisplay={doc.document_type_display}
+              status={doc.status as 'approved' | 'rejected' | 'pending'}
+              submittedAt={doc.submitted_at}
+              aiConfidenceScore={doc.ai_confidence_score}
+              aiAnalysisNotes={doc.ai_analysis_notes}
+              aiAutoApproved={doc.ai_auto_approved}
+              onDelete={(id) => {/* Add delete functionality */}}
+              onViewDetails={() => setSelectedDocForDetails(doc)}
+            />
           ))}
         </div>
       ) : (

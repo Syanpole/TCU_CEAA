@@ -1,4 +1,8 @@
-/* DocumentRequirements.css - New Card-Based Design */
+/* ==========================================
+   DOCUMENT REQUIREMENTS - MODERN DESIGN
+   Enhanced UI with clean colors for light & dark mode
+   ========================================== */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
@@ -6,35 +10,31 @@
   --primary-red-hover: #b91c1c;
   --light-red: #fee2e2;
   --accent-red: #ef4444;
-  --light-bg: #f8f9fa;
-  --card-bg: #ffffff;
-  --light-text: #1f2937;
-  --light-text-secondary: #6b7280;
-  --light-border: #e5e7eb;
-  --dark-bg: #1f2937;
-  --dark-text: #f9fafb;
-  --dark-text-secondary: #d1d5db;
-  --dark-border: #374151;
   --success-green: #10b981;
   --warning-yellow: #f59e0b;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
+/* Base Container */
 .document-requirements {
-  font-family: 'Inter', sans-serif;
-  background: var(--light-bg);
-  color: var(--light-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
-  padding: 30px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
   transition: all 0.3s ease;
   position: relative;
 }
 
+/* ========== LIGHT THEME ========== */
+.document-requirements.light-theme {
+  background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
+  color: #111827;
+}
+
+/* ========== DARK THEME ========== */
 .document-requirements.dark-theme {
-  background: var(--dark-bg);
-  color: var(--dark-text);
+  background: linear-gradient(to bottom, #0f172a 0%, #1e293b 100%);
+  color: #f1f5f9;
 }
 
 /* Notification Banners */
@@ -110,68 +110,88 @@
   font-weight: 500;
 }
 
-/* Header Section */
+/* ========== MODERN HEADER ========== */
 .requirements-header {
-  background: var(--primary-red);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   border-radius: 12px;
-  padding: 32px;
-  margin-bottom: 32px;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 40px rgba(220, 38, 38, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Removed header background pattern */
+.requirements-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(30%, -30%);
+}
 
 .header-left {
   flex: 1;
+  z-index: 1;
 }
 
 .header-left h1 {
   color: white;
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.3px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .header-subtitle {
   color: rgba(255, 255, 255, 0.95);
-  font-size: 15px;
+  font-size: 13px;
   margin: 0;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .header-right {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
+  z-index: 1;
 }
 
 .add-document-btn {
-  padding: 12px 24px;
-  background: white;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.98);
   color: var(--primary-red);
   border: none;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .add-document-btn:hover {
-  background: #f9fafb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.add-document-btn:active {
+  transform: translateY(0);
 }
 
 .btn-plus {
@@ -188,8 +208,8 @@
 /* Empty State */
 .empty-state {
   background: white;
-  border-radius: 16px;
-  padding: 80px 40px;
+  border-radius: 12px;
+  padding: 40px 24px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
@@ -197,27 +217,27 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  min-height: 300px;
 }
 
 /* Removed empty state background animation */
 
 .empty-icon {
-  font-size: 80px;
-  margin: 0 auto 20px;
+  font-size: 60px;
+  margin: 0 auto 16px;
   opacity: 0.5;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
 }
 
 .empty-state h3 {
   color: var(--light-text);
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
   max-width: 600px;
 }
 
@@ -890,10 +910,10 @@
 
 .doc-modal-modern {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   width: 100%;
-  max-width: 600px;
-  max-height: 85vh;
+  max-width: 480px;
+  max-height: 75vh;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   position: relative;
@@ -974,12 +994,12 @@
 
 /* Modal Content Container */
 .doc-modal-content {
-  padding: 2.5rem 2rem 2rem;
+  padding: 2rem 1.5rem 1.5rem;
   overflow-y: auto;
-  max-height: 85vh;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 /* Header Section */
@@ -1074,7 +1094,7 @@
 
 .dark-theme .doc-modal-info-box {
   background: #0f172a;
-  border-color: #334155;
+  border-color: #ffffff;
 }
 
 .doc-info-box-label {
