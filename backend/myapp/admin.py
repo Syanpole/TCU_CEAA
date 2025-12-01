@@ -823,6 +823,19 @@ class GradeSubmissionAdmin(admin.ModelAdmin):
     def approve_selected(self, request, queryset):
         """Approve selected grade submissions"""
         count = queryset.update(status='approved', reviewed_by=request.user)
+        
+        # Calculate GWA for affected semesters
+        from myapp.services import gwa_calculation_service
+        semester_groups = set()
+        for grade in queryset:
+            semester_groups.add((grade.student, grade.academic_year, grade.semester))
+        
+        for student, academic_year, semester in semester_groups:
+            try:
+                gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
+            except Exception as e:
+                pass  # Don't fail approval if GWA calc fails
+        
         self.message_user(request, f'✓ Approved {count} grade submission(s).')
     approve_selected.short_description = '✓ Approve selected grades'
     

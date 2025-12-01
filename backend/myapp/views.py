@@ -75,6 +75,36 @@ def logout_view(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def validate_registration_fields(request):
+    """
+    Validate registration fields before sending verification code.
+    Checks if username, email, or student_id already exists.
+    """
+    username = request.data.get('username', '').strip()
+    email = request.data.get('email', '').strip().lower()
+    student_id = request.data.get('student_id', '').strip()
+    
+    errors = {}
+    
+    # Check username
+    if username and CustomUser.objects.filter(username=username).exists():
+        errors['username'] = 'This username is already taken. Please choose a different username.'
+    
+    # Check email
+    if email and CustomUser.objects.filter(email=email).exists():
+        errors['email'] = 'This email is already registered.'
+    
+    # Check student_id
+    if student_id and CustomUser.objects.filter(student_id=student_id).exists():
+        errors['student_id'] = 'This student ID is already registered.'
+    
+    if errors:
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({'valid': True}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def register_view(request):
     """
     Register a new user after email verification.
@@ -553,6 +583,135 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             # Regular users can only see their own profile
             return CustomUser.objects.filter(id=self.request.user.id)
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Override destroy to implement soft delete (archive) instead of hard delete
+        Only admins can archive users
+        """
+        if not request.user.is_admin():
+            return Response({'error': 'Only admins can archive users'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = self.get_object()
+        
+        # Prevent archiving yourself
+        if user.id == request.user.id:
+            return Response({'error': 'You cannot archive yourself'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent archiving other admins
+        if user.is_admin():
+            return Response({'error': 'Cannot archive admin users'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        reason = request.data.get('reason', 'No reason provided')
+        
+        # Soft delete - mark as archived
+        user.is_archived = True
+        user.archived_at = timezone.now()
+        user.archived_by = request.user
+        user.archive_reason = reason
+        user.is_active = False  # Also deactivate the account
+        user.save()
+        
+        # Log the archival
+        audit_logger.log(
+            user=request.user,
+            action_type='user_archived',
+            action_description=f'User archived: {user.username} ({user.student_id})',
+            severity='warning',
+            target_model='CustomUser',
+            target_object_id=user.id,
+            target_user=user,
+            metadata={
+                'archived_user_id': user.id,
+                'archived_username': user.username,
+                'archived_student_id': user.student_id,
+                'reason': reason
+            },
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
+        )
+        
+        logger.info(f"Admin {request.user.username} archived user {user.username}")
+        
+        return Response({
+            'success': True,
+            'message': f'User {user.username} has been archived successfully'
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def archive(self, request):
+        """
+        Get list of archived users
+        Only accessible by admins
+        """
+        if not request.user.is_admin():
+            return Response({'error': 'Only admins can view archive'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Use all_objects manager to get archived users
+        archived_users = CustomUser.all_objects.filter(is_archived=True).order_by('-archived_at')
+        
+        # Serialize the archived users
+        serializer = self.get_serializer(archived_users, many=True)
+        
+        return Response({
+            'success': True,
+            'archived_users': serializer.data,
+            'count': archived_users.count()
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def restore(self, request, pk=None):
+        """
+        Restore an archived user
+        Only accessible by admins
+        """
+        if not request.user.is_admin():
+            return Response({'error': 'Only admins can restore users'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get user from all_objects (including archived)
+        try:
+            user = CustomUser.all_objects.get(pk=pk)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not user.is_archived:
+            return Response({'error': 'User is not archived'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Restore the user
+        user.is_archived = False
+        user.archived_at = None
+        user.archived_by = None
+        user.archive_reason = None
+        user.is_active = True
+        user.save()
+        
+        # Log the restoration
+        audit_logger.log(
+            user=request.user,
+            action_type='user_restored',
+            action_description=f'User restored from archive: {user.username} ({user.student_id})',
+            severity='info',
+            target_model='CustomUser',
+            target_object_id=user.id,
+            target_user=user,
+            metadata={
+                'restored_user_id': user.id,
+                'restored_username': user.username,
+                'restored_student_id': user.student_id
+            },
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
+        )
+        
+        logger.info(f"Admin {request.user.username} restored user {user.username} from archive")
+        
+        serializer = self.get_serializer(user)
+        
+        return Response({
+            'success': True,
+            'message': f'User {user.username} has been restored successfully',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
 
 # API endpoint to get students (users with student role)
 @api_view(['GET'])
@@ -577,8 +736,8 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
         if self.request.user.is_admin():
             return DocumentSubmission.objects.all()
         else:
-            # Students can only see their own documents
-            return DocumentSubmission.objects.filter(student=self.request.user)
+            # Students can only see their own active documents (hide archived/superseded ones)
+            return DocumentSubmission.objects.filter(student=self.request.user, is_active=True)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def review(self, request, pk=None):
@@ -605,11 +764,20 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                 from .coe_verification_service import get_coe_verification_service
                 coe_service = get_coe_verification_service()
                 
-                # Get the file path
-                file_path = document.document_file.path if hasattr(document.document_file, 'path') else None
+                # Get the file path (handle both local and S3 storage)
+                file_path = None
+                try:
+                    if hasattr(document.document_file, 'path'):
+                        file_path = document.document_file.path
+                    elif hasattr(document.document_file, 'file'):
+                        # For S3 or other storage backends, try to get the file object
+                        file_path = document.document_file.file.name
+                except Exception as path_error:
+                    logger.warning(f"Could not get file path: {str(path_error)}")
                 
                 if file_path:
                     logger.info(f"Extracting subjects from approved COE for student {document.student.student_id}")
+                    logger.info(f"File path: {file_path}")
                     
                     # Extract subjects
                     subject_result = coe_service.extract_subject_list(file_path)
@@ -622,8 +790,12 @@ class DocumentSubmissionViewSet(viewsets.ModelViewSet):
                         logger.info(f"✅ Extracted {subject_result['subject_count']} subjects from COE")
                     else:
                         logger.warning(f"⚠️ Could not extract subjects from COE: {subject_result.get('errors')}")
+                else:
+                    logger.error(f"❌ No file path available for COE document {document.id}")
             except Exception as e:
                 logger.error(f"❌ Error extracting subjects from COE: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         # Create audit log
         AuditLog.objects.create(
@@ -795,6 +967,64 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(grade_submission)
         return Response(serializer.data)
     
+    def destroy(self, request, *args, **kwargs):
+        """Delete a grade submission - Admin only"""
+        if not request.user.is_admin():
+            return Response(
+                {'error': 'Only admins can delete grade submissions'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            grade_submission = self.get_object()
+            student_info = {
+                'student_id': grade_submission.student.student_id,
+                'student_name': grade_submission.student.get_full_name(),
+                'subject_code': grade_submission.subject_code,
+                'subject_name': grade_submission.subject_name,
+                'academic_year': grade_submission.academic_year,
+                'semester': grade_submission.semester,
+                'grade': float(grade_submission.grade_received) if grade_submission.grade_received else None,
+                'status': grade_submission.status
+            }
+            
+            # Create audit log before deletion
+            AuditLog.objects.create(
+                user=request.user,
+                action_type='grade_deleted',
+                action_description=f'Admin deleted grade submission for {student_info["student_name"]} ({student_info["subject_code"]})',
+                severity='high',
+                target_model='GradeSubmission',
+                target_object_id=grade_submission.id,
+                target_user=grade_submission.student,
+                metadata={
+                    'deleted_grade_info': student_info,
+                    'deletion_reason': request.query_params.get('reason', 'No reason provided')
+                },
+                ip_address=request.META.get('REMOTE_ADDR'),
+                timestamp=timezone.now()
+            )
+            
+            # Delete the grade submission
+            grade_submission.delete()
+            
+            logger.info(f"Admin {request.user.id} deleted grade submission {kwargs.get('pk')} for student {student_info['student_id']}")
+            
+            return Response(
+                {
+                    'message': 'Grade submission deleted successfully',
+                    'deleted_grade': student_info
+                }, 
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger.error(f"Error deleting grade submission: {str(e)}")
+            return Response(
+                {'error': f'Failed to delete grade submission: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def grouped_by_semester(self, request):
         """
@@ -907,6 +1137,128 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
             )
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def reprocess_semester(self, request):
+        """
+        Reprocess all grades in a semester with AI verification and auto-approval.
+        
+        Expected data:
+        - student_id: Student ID
+        - academic_year: Academic year
+        - semester: Semester
+        """
+        if not request.user.is_admin():
+            return Response(
+                {'error': 'Only admins can reprocess grades'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            student_id = request.data.get('student_id')
+            academic_year = request.data.get('academic_year')
+            semester = request.data.get('semester')
+            
+            if not all([student_id, academic_year, semester]):
+                return Response(
+                    {'error': 'Missing required fields: student_id, academic_year, semester'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get all grades in this semester
+            semester_grades = GradeSubmission.objects.filter(
+                student_id=student_id,
+                academic_year=academic_year,
+                semester=semester
+            )
+            
+            if not semester_grades.exists():
+                return Response(
+                    {'error': f'No grades found for this semester'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            processed_count = 0
+            auto_approved_count = 0
+            boosted_count = 0
+            
+            # Reprocess each grade
+            for grade in semester_grades:
+                # Trigger AI verification first
+                from .tasks import verify_grade_sheet_task
+                try:
+                    verify_grade_sheet_task(grade.id)
+                    processed_count += 1
+                    
+                    # Refresh to get updated status
+                    grade.refresh_from_db()
+                    
+                    # Check if grade needs confidence boost (authentic but OCR failed)
+                    if grade.ai_confidence_score < 0.85 and grade.ai_extracted_grades:
+                        extracted = grade.ai_extracted_grades
+                        is_authentic = extracted.get('is_authentic', False)
+                        subject_in_coe = extracted.get('subject_in_coe', False)
+                        extracted_grade = extracted.get('extracted_grade')
+                        user_grade = grade.grade_received
+                        
+                        # Boost confidence if document is authentic, subject in COE, and user entered grade
+                        if is_authentic and subject_in_coe and user_grade and not extracted_grade:
+                            old_confidence = grade.ai_confidence_score
+                            grade.ai_confidence_score = 0.85
+                            
+                            # Add boost note
+                            notes = grade.ai_evaluation_notes or ""
+                            notes += f"\n\n🔧 CONFIDENCE BOOST (Reprocess)"
+                            notes += f"\n   Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            notes += f"\n   Reason: OCR failed to extract grade, but document is authentic"
+                            notes += f"\n   Evidence:"
+                            notes += f"\n     • Document verified as authentic"
+                            notes += f"\n     • Subject verified in student's COE"
+                            notes += f"\n     • Student manually entered grade: {user_grade}"
+                            notes += f"\n   Confidence: {old_confidence:.0%} → {grade.ai_confidence_score:.0%}"
+                            
+                            grade.ai_evaluation_notes = notes
+                            grade.ai_evaluation_completed = True
+                            boosted_count += 1
+                    
+                    # Auto-approve if confidence >= 85%
+                    if grade.ai_confidence_score >= 0.85 and grade.status == 'pending':
+                        grade.status = 'approved'
+                        grade.reviewed_by = None  # Auto-approved
+                        grade.reviewed_at = timezone.now()
+                        auto_approved_count += 1
+                    
+                    grade.save()
+                        
+                except Exception as e:
+                    logger.error(f"Error reprocessing grade {grade.id}: {str(e)}")
+            
+            # Calculate GWA after reprocessing if any grades were approved
+            if auto_approved_count > 0 or semester_grades.filter(status='approved').exists():
+                try:
+                    from .services import gwa_calculation_service
+                    student = CustomUser.objects.get(id=student_id)
+                    gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
+                    if gwa_result:
+                        logger.info(f"✅ GWA calculated after reprocess: {gwa_result['gwa']:.2f} - {gwa_result['merit_level']}")
+                except Exception as e:
+                    logger.error(f"Error calculating GWA after reprocess: {str(e)}")
+            
+            logger.info(f"Admin {request.user.id} reprocessed {processed_count} grades, boosted {boosted_count}, auto-approved {auto_approved_count}")
+            
+            return Response({
+                'message': f'Reprocessed {processed_count} grades',
+                'processed_count': processed_count,
+                'boosted_count': boosted_count,
+                'auto_approved_count': auto_approved_count
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in reprocess_semester: {str(e)}")
+            return Response(
+                {'error': f'Error reprocessing semester: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def approve_semester_group(self, request):
         """
         Admin action to approve all grades in a semester group.
@@ -953,6 +1305,16 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
                 )
             
             logger.info(f"Admin {request.user.id} approved {updated_count} grades for semester group")
+            
+            # Calculate GWA after approval
+            try:
+                from .services import gwa_calculation_service
+                student = CustomUser.objects.get(id=student_id)
+                gwa_result = gwa_calculation_service.trigger_automated_gwa_calculation(student, academic_year, semester)
+                if gwa_result:
+                    logger.info(f"✅ GWA calculated after approval: {gwa_result['gwa']:.2f} - {gwa_result['merit_level']}")
+            except Exception as e:
+                logger.error(f"Error calculating GWA after approval: {str(e)}")
             
             # Get updated semester data
             from .semester_grouping_service import get_semester_grouping_service
@@ -1012,7 +1374,7 @@ def check_grade_submission_eligibility(request):
         )
         
         # Get all user documents for comprehensive check
-        all_docs = DocumentSubmission.objects.filter(student=request.user)
+        all_docs = DocumentSubmission.objects.filter(student=request.user, is_active=True)
         approved_docs = all_docs.filter(status='approved')
         pending_docs = all_docs.filter(status__in=['pending', 'needs_review', 'ai_processing'])
         
@@ -1127,6 +1489,8 @@ def submit_subject_grade(request):
     """
     try:
         from .serializers import GradeSubmissionCreateSerializer
+        from .models import GradeSubmissionSession
+        from datetime import timedelta
         
         # Validate required fields
         required_fields = ['subject_code', 'subject_name', 'academic_year', 'semester', 'grade_sheet']
@@ -1139,40 +1503,106 @@ def submit_subject_grade(request):
         # Create grade submission
         data = request.data.copy()
         
-        # Create the grade submission
-        grade_submission = GradeSubmission.objects.create(
+        # Check if this is a draft save or final submission
+        is_draft = data.get('is_draft', False) or data.get('is_draft', 'false').lower() == 'true'
+        
+        # Get or create session for this academic period
+        session, session_created = GradeSubmissionSession.objects.get_or_create(
             student=request.user,
-            subject_code=data.get('subject_code'),
-            subject_name=data.get('subject_name'),
             academic_year=data.get('academic_year'),
             semester=data.get('semester'),
-            units=data.get('units'),
-            grade_received=data.get('grade_received'),
-            grade_sheet=data.get('grade_sheet'),
-            status='processing'  # Set to processing while AI verifies
+            defaults={
+                'is_active': True,
+                'session_expires_at': timezone.now() + timedelta(hours=2)
+            }
         )
         
-        # Trigger AI verification asynchronously
+        # If session exists and is expired, reset it for new submission attempt
+        if not session_created and session.is_expired():
+            # Reset the session with a new 2-hour window
+            session.session_started_at = timezone.now()
+            session.session_expires_at = timezone.now() + timedelta(hours=2)
+            session.is_active = True
+            session.completed_at = None
+            session.save()
+            logger.info(f"Reset expired session for {request.user.username} - {data.get('academic_year')} {data.get('semester')}")
+        
+        # Check if session has expired (only for non-draft submissions and only if it's still expired after reset)
+        if not is_draft and session.is_expired():
+            return Response({
+                'error': 'Submission session has expired. You had 2 hours to complete all subject submissions.',
+                'session_expired': True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if updating existing draft
+        existing_submission = GradeSubmission.objects.filter(
+            student=request.user,
+            subject_code=data.get('subject_code'),
+            academic_year=data.get('academic_year'),
+            semester=data.get('semester'),
+            status='draft'
+        ).first()
+        
+        if existing_submission:
+            # Update existing draft
+            existing_submission.subject_name = data.get('subject_name')
+            existing_submission.units = data.get('units')
+            existing_submission.grade_received = data.get('grade_received')
+            if 'grade_sheet' in data:
+                # Delete old file from S3 if exists
+                if existing_submission.grade_sheet:
+                    existing_submission.grade_sheet.delete(save=False)
+                existing_submission.grade_sheet = data.get('grade_sheet')
+            
+            if not is_draft:
+                # Convert draft to final submission
+                existing_submission.status = 'processing'
+            
+            existing_submission.save()
+            grade_submission = existing_submission
+            logger.info(f"Updated {'draft' if is_draft else 'submission'} for {data.get('subject_code')}")
+        else:
+            # Create new grade submission (draft or final)
+            grade_submission = GradeSubmission.objects.create(
+                student=request.user,
+                subject_code=data.get('subject_code'),
+                subject_name=data.get('subject_name'),
+                academic_year=data.get('academic_year'),
+                semester=data.get('semester'),
+                units=data.get('units'),
+                grade_received=data.get('grade_received'),
+                grade_sheet=data.get('grade_sheet'),
+                status='draft' if is_draft else 'processing'
+            )
+            logger.info(f"Created new {'draft' if is_draft else 'submission'} for {data.get('subject_code')}")
+        
+        # Trigger AI verification asynchronously for ALL submissions (drafts and final)
+        # AI should calculate confidence immediately, not wait for approval
         from .tasks import verify_grade_sheet_task
         try:
             verify_grade_sheet_task(grade_submission.id)
+            logger.info(f"✅ AI verification triggered for {grade_submission.subject_code} (status: {grade_submission.status})")
         except Exception as e:
             logger.error(f"Error triggering AI verification: {str(e)}")
             # Continue even if AI verification fails
         
         serializer = GradeSubmissionSerializer(grade_submission)
         
+        action_type = 'GRADE_DRAFT_SAVED' if is_draft else 'GRADE_SUBMITTED'
+        action_desc = f'Grade draft auto-saved' if is_draft else f'Grade submitted'
+        
         audit_logger.log(
             user=request.user,
-            action_type='GRADE_SUBMITTED',
-            action_description=f'Grade submitted for {data.get("subject_code")} - {data.get("subject_name")}',
+            action_type=action_type,
+            action_description=f'{action_desc} for {data.get("subject_code")} - {data.get("subject_name")}',
             severity='info',
             target_model='GradeSubmission',
             target_object_id=grade_submission.id,
             metadata={
                 'subject_code': data.get('subject_code'),
                 'subject_name': data.get('subject_name'),
-                'semester': data.get('semester')
+                'semester': data.get('semester'),
+                'is_draft': is_draft
             },
             request=request
         )
@@ -1326,12 +1756,21 @@ def get_grade_submission_status(request):
                 'submitted_count': 0
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Get grade submissions
+        # Get grade submissions (exclude drafts from main count, include them separately)
         submissions = GradeSubmission.objects.filter(
             student=request.user,
             academic_year=academic_year,
             semester=semester,
             subject_code__isnull=False
+        ).exclude(status='draft')
+        
+        # Get draft submissions separately
+        draft_submissions = GradeSubmission.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            subject_code__isnull=False,
+            status='draft'
         )
         
         total_subjects = coe_document.subject_count
@@ -1339,6 +1778,7 @@ def get_grade_submission_status(request):
         approved_count = submissions.filter(status='approved').count()
         rejected_count = submissions.filter(status='rejected').count()
         pending_count = submissions.filter(status='pending').count()
+        draft_count = draft_submissions.count()
         
         # Check if can proceed to liveness (all submitted)
         is_complete = submitted_count == total_subjects
@@ -1360,6 +1800,25 @@ def get_grade_submission_status(request):
                 }
         
         serializer = GradeSubmissionSerializer(submissions, many=True)
+        draft_serializer = GradeSubmissionSerializer(draft_submissions, many=True)
+        
+        # Get session information
+        from .models import GradeSubmissionSession
+        session_info = None
+        session = GradeSubmissionSession.objects.filter(
+            student=request.user,
+            academic_year=academic_year,
+            semester=semester,
+            is_active=True
+        ).first()
+        
+        if session:
+            session_info = {
+                'session_started_at': session.session_started_at.isoformat(),
+                'session_expires_at': session.session_expires_at.isoformat(),
+                'time_remaining_seconds': session.get_time_remaining(),
+                'is_expired': session.is_expired()
+            }
         
         response_data = {
             'total_subjects': total_subjects,
@@ -1367,11 +1826,14 @@ def get_grade_submission_status(request):
             'approved_count': approved_count,
             'rejected_count': rejected_count,
             'pending_count': pending_count,
+            'draft_count': draft_count,
             'is_complete': is_complete,
             'all_approved': all_approved,
             'can_proceed_to_liveness': can_proceed_to_liveness,
             'submissions': serializer.data,
-            'coe_subjects': coe_document.extracted_subjects
+            'draft_submissions': draft_serializer.data,
+            'coe_subjects': coe_document.extracted_subjects,
+            'session_info': session_info
         }
         
         if gpa_data:
@@ -1591,26 +2053,39 @@ class AllowanceApplicationViewSet(viewsets.ModelViewSet):
                     'message': 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Save selfie temporarily
-            selfie_path = default_storage.save(
+            # Save selfie to S3
+            from myapp.storage_backends import get_storage_backend
+            from myapp.s3_utils import download_s3_file_to_temp, cleanup_temp_file, get_file_path_for_processing
+            
+            s3_storage = get_storage_backend('private')
+            selfie_path = s3_storage.save(
                 f'temp/allowance_selfie_{request.user.id}_{application.id}.jpg',
                 ContentFile(photo.read())
             )
             
+            id_temp_path = None
+            selfie_temp_path = None
+            
             try:
-                # Get full paths
-                id_full_path = default_storage.path(id_document.file.name)
-                selfie_full_path = default_storage.path(selfie_path)
+                # Get file paths for processing (downloads from S3 if needed)
+                id_temp_path, id_is_temp = get_file_path_for_processing(id_document.file)
+                selfie_temp_path = download_s3_file_to_temp(selfie_path)
+                
+                if not id_temp_path or not selfie_temp_path:
+                    raise Exception("Failed to get files for processing")
                 
                 # Perform face verification
                 verification_result = face_service.verify_id_with_selfie(
-                    id_full_path,
-                    selfie_full_path,
+                    id_temp_path,
+                    selfie_temp_path,
                     liveness_data
                 )
                 
-                # Clean up temporary file
-                default_storage.delete(selfie_path)
+                # Clean up temporary files
+                if id_is_temp:
+                    cleanup_temp_file(id_temp_path)
+                cleanup_temp_file(selfie_temp_path)
+                s3_storage.delete(selfie_path)
                 
                 face_verified = verification_result.get('match', False)
                 similarity_score = verification_result.get('similarity_score', 0.0)
@@ -1713,7 +2188,7 @@ def student_dashboard_data(request):
         return Response({'error': 'Only students can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
     
     # Get recent document submissions
-    documents = DocumentSubmission.objects.filter(student=request.user).order_by('-submitted_at')[:5]
+    documents = DocumentSubmission.objects.filter(student=request.user, is_active=True).order_by('-submitted_at')[:5]
     
     # Get recent grade submissions
     grades = GradeSubmission.objects.filter(student=request.user).order_by('-submitted_at')[:5]
@@ -1722,8 +2197,8 @@ def student_dashboard_data(request):
     applications = AllowanceApplication.objects.filter(student=request.user).order_by('-applied_at')[:5]
     
     # Calculate stats
-    total_documents = DocumentSubmission.objects.filter(student=request.user).count()
-    approved_documents = DocumentSubmission.objects.filter(student=request.user, status='approved').count()
+    total_documents = DocumentSubmission.objects.filter(student=request.user, is_active=True).count()
+    approved_documents = DocumentSubmission.objects.filter(student=request.user, status='approved', is_active=True).count()
     total_applications = AllowanceApplication.objects.filter(student=request.user).count()
     approved_applications = AllowanceApplication.objects.filter(student=request.user, status='approved').count()
     
@@ -2346,13 +2821,33 @@ def ai_document_analysis(request):
         # Check if document is COE (Certificate of Enrollment)
         if document.document_type == 'certificate_of_enrollment':
             from myapp.coe_verification_service import get_coe_verification_service
+            from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
             
             coe_service = get_coe_verification_service()
-            coe_result = coe_service.verify_coe_document(
-                image_path=document.document_file.path,
-                confidence_threshold=0.5,
-                include_ocr=True
-            )
+            
+            # Get user data for identity verification
+            user_data = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'student_id': request.user.student_id
+            }
+            
+            logger.info(f"🔍 COE Verification - User: {request.user.username}, Data: {user_data}")
+            
+            # Get file path for processing (downloads from S3 if needed)
+            file_path, is_temp = get_file_path_for_processing(document.document_file)
+            
+            try:
+                coe_result = coe_service.verify_coe_document(
+                    image_path=file_path,
+                    confidence_threshold=0.5,
+                    include_ocr=True,
+                    user_data=user_data
+                )
+            finally:
+                # Clean up temp file if downloaded from S3
+                if is_temp:
+                    cleanup_temp_file(file_path)
             
             # Format response for COE verification
             ai_results = {
@@ -2470,12 +2965,23 @@ def ai_document_analysis(request):
         # Check if document is Birth Certificate
         elif document.document_type == 'birth_certificate':
             from myapp.birth_certificate_verification_service import get_birth_certificate_verification_service
+            from myapp.s3_utils import get_file_path_for_processing, cleanup_temp_file
+            
             birth_service = get_birth_certificate_verification_service()
-            birth_result = birth_service.verify_birth_certificate_document(
-                image_path=document.document_file.path,
-                confidence_threshold=0.5,
-                include_ocr=True
-            )
+            
+            # Get file path for processing (downloads from S3 if needed)
+            file_path, is_temp = get_file_path_for_processing(document.document_file)
+            
+            try:
+                birth_result = birth_service.verify_birth_certificate_document(
+                    image_path=file_path,
+                    confidence_threshold=0.5,
+                    include_ocr=True
+                )
+            finally:
+                # Clean up temp file if downloaded from S3
+                if is_temp:
+                    cleanup_temp_file(file_path)
             ai_results = {
                 'document_id': document_id,
                 'document_type': 'birth_certificate',

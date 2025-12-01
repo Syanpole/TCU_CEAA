@@ -609,36 +609,66 @@ class VoterCertificateVerificationService:
                             else:
                                 result['recommendations'].append(f"❌ Only {matched_fields}/{total_fields} fields match user's application ({match_percentage:.0f}%)")
             
-            # Calculate overall confidence
+            # Calculate overall confidence (with field matching if available)
             logger.info("📊 Calculating confidence score...")
             confidence = self._calculate_confidence(
                 detected_elements, 
                 validation_checks, 
                 detections,
-                ocr_confidence
+                ocr_confidence,
+                field_matches=result.get('field_matches')
             )
             result['confidence'] = confidence
             
-            # Determine validity and status
-            is_valid = self._determine_validity(
-                detected_elements,
-                validation_checks,
-                confidence,
-                result.get('identity_verified', False)
-            )
-            result['is_valid'] = is_valid
+            # Check if identity was verified (name matches student or parents)
+            identity_verified = result.get('identity_verified', False)
             
-            if is_valid:
-                if confidence >= 0.85:
-                    result['status'] = 'VALID'
-                else:
-                    result['status'] = 'QUESTIONABLE'
-                    result['recommendations'].append("Manual review recommended due to moderate confidence")
-            else:
+            # CRITICAL: Reject if voter name doesn't match student or parents
+            if user_application_data and not identity_verified:
+                result['is_valid'] = False
                 result['status'] = 'INVALID'
-                result['recommendations'].append("Document does not meet validity requirements")
-                if user_application_data and not result.get('identity_verified', False):
-                    result['recommendations'].append("Name does not match student or parents")
+                # Keep the confidence score - it represents detection quality, not match validity
+                # High confidence rejection means: "We are confident this document doesn't match"
+                result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
+                result['recommendations'].append("📋 The name on this voter certificate doesn't match you or your parents.")
+                result['recommendations'].append("🔍 Voter certificates must belong to YOU or your MOTHER or FATHER.")
+                
+                # Add specific mismatch details
+                voter_name = result.get('extracted_info', {}).get('voter_name', 'N/A')
+                student_name = f"{user_application_data.get('first_name', '')} {user_application_data.get('last_name', '')}".strip()
+                mother_name = user_application_data.get('mother_name', 'N/A')
+                father_name = user_application_data.get('father_name', 'N/A')
+                
+                result['recommendations'].append(f"❌ Document shows: '{voter_name}'")
+                result['recommendations'].append(f"✅ Expected one of: Student '{student_name}' OR Mother '{mother_name}' OR Father '{father_name}'")
+                result['recommendations'].append("💡 What to do: Upload a voter certificate/ID that belongs to you or one of your parents listed in your application.")
+                
+                # Add confidence interpretation for rejections
+                if confidence >= 0.75:
+                    result['recommendations'].append(f"✅ AI Detection Quality: High ({confidence*100:.0f}%) - Rejection is accurate")
+                elif confidence >= 0.60:
+                    result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
+                else:
+                    result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
+            else:
+                # Determine validity and status when identity is verified
+                is_valid = self._determine_validity(
+                    detected_elements,
+                    validation_checks,
+                    confidence,
+                    identity_verified
+                )
+                result['is_valid'] = is_valid
+                
+                if is_valid:
+                    if confidence >= 0.85:
+                        result['status'] = 'VALID'
+                    else:
+                        result['status'] = 'QUESTIONABLE'
+                        result['recommendations'].append("Manual review recommended due to moderate confidence")
+                else:
+                    result['status'] = 'INVALID'
+                    result['recommendations'].append("Document does not meet validity requirements")
             
             # Generate recommendations
             result['recommendations'].extend(self._generate_recommendations(
@@ -807,7 +837,8 @@ class VoterCertificateVerificationService:
         detected_elements: Dict[str, Any],
         validation_checks: Dict[str, bool],
         detections: List[Dict[str, Any]],
-        ocr_confidence: float = 0.0
+        ocr_confidence: float = 0.0,
+        field_matches: Dict[str, Any] = None
     ) -> float:
         """
         Calculate overall confidence score.
@@ -817,6 +848,7 @@ class VoterCertificateVerificationService:
             validation_checks: Validation check results
             detections: List of detections
             ocr_confidence: OCR extraction confidence (0.0-1.0)
+            field_matches: Dictionary of field match results (optional)
         
         Returns:
             Confidence score (0.0-1.0)
@@ -825,7 +857,7 @@ class VoterCertificateVerificationService:
         
         try:
             if ocr_confidence > 0:
-                # With OCR: YOLO (60%) + OCR (40%)
+                # With OCR: YOLO + OCR + Field Matching
                 # YOLO component
                 if detections:
                     avg_detection_confidence = sum(d['confidence'] for d in detections) / len(detections)
@@ -844,8 +876,19 @@ class VoterCertificateVerificationService:
                     total_checks = len(validation_checks)
                     yolo_score += 0.15 * (checks_passed / total_checks)
                     
-                    # Combine: 60% YOLO + 40% OCR
-                    confidence = 0.60 * yolo_score + 0.40 * ocr_confidence
+                    if field_matches:
+                        # WITH FIELD MATCHING: YOLO (40%) + OCR (25%) + Field Matching (35%)
+                        confidence = 0.40 * yolo_score + 0.25 * ocr_confidence
+                        
+                        # FIELD MATCHING SCORE (35%) - Critical for ownership verification
+                        match_scores = [match.get('score', 0.0) for match in field_matches.values() if isinstance(match, dict)]
+                        if match_scores:
+                            avg_match_score = sum(match_scores) / len(match_scores)
+                            confidence += 0.35 * avg_match_score
+                            logger.info(f"🎯 Field matching average score: {avg_match_score:.2%} -> contributes {0.35 * avg_match_score:.2%} to confidence")
+                    else:
+                        # WITHOUT FIELD MATCHING: YOLO (60%) + OCR (40%)
+                        confidence = 0.60 * yolo_score + 0.40 * ocr_confidence
             else:
                 # Without OCR: YOLO only (100%)
                 if detections:

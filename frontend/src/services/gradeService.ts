@@ -57,16 +57,26 @@ export interface ValidationResult {
   warnings: string[];
 }
 
+export interface SessionInfo {
+  session_started_at: string;
+  session_expires_at: string;
+  time_remaining_seconds: number;
+  is_expired: boolean;
+}
+
 export interface GradeSubmissionStatus {
   total_subjects: number;
   submitted_count: number;
   approved_count: number;
   pending_count: number;
   rejected_count: number;
+  draft_count: number;
   can_proceed_to_liveness: boolean;
   gpa_calculated: boolean;
   general_weighted_average?: number;
   submissions: GradeSubmissionRecord[];
+  draft_submissions: GradeSubmissionRecord[];
+  session_info: SessionInfo | null;
 }
 
 export const gradeService = {
@@ -90,7 +100,7 @@ export const gradeService = {
   /**
    * Submit grade for a single subject
    */
-  submitSubjectGrade: async (gradeData: SubjectGradeSubmission): Promise<GradeSubmissionRecord> => {
+  submitSubjectGrade: async (gradeData: SubjectGradeSubmission, isDraft: boolean = false): Promise<GradeSubmissionRecord> => {
     try {
       const formData = new FormData();
       formData.append('subject_code', gradeData.subject_code);
@@ -100,6 +110,7 @@ export const gradeService = {
       formData.append('units', gradeData.units.toString());
       formData.append('grade_received', gradeData.grade_received.toString());
       formData.append('grade_sheet', gradeData.grade_sheet);
+      formData.append('is_draft', isDraft.toString());
 
       const response = await apiClient.post<GradeSubmissionRecord>(
         '/grade-workflow/submit-subject/',

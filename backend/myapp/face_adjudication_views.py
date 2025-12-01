@@ -86,9 +86,10 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
             return f"{settings.MEDIA_URL}{obj.school_id_image_path}"
         
         # For S3 storage, generate presigned URL
-        # Ensure path has media/ prefix for S3
-        s3_key = f"media/{obj.school_id_image_path}" if not obj.school_id_image_path.startswith('media/') else obj.school_id_image_path
-        return self._generate_s3_presigned_url(s3_key)
+        # Path is already correct from DocumentSubmission.document_file.name
+        # (e.g., 'documents/2025/11/school-id_22-00417_20251129_141353.jpg')
+        # Do NOT add 'media/' prefix - storage backend handles location
+        return self._generate_s3_presigned_url(obj.school_id_image_path)
     
     def get_selfie_image_url(self, obj):
         """Generate URL for selfie image (from AWS Rekognition liveness)"""
@@ -114,17 +115,50 @@ class VerificationAdjudicationSerializer(serializers.ModelSerializer):
             
             bucket_name = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
             
-            # Generate presigned URL
+            # Clean the key - storage backend may have added 'media/' prefix
+            # Try both with and withou
+            clean_key = s3_key.lstrip('/')
+            
+            # First try the key as-is
+            try:
+                s3_client.head_object(Bucket=bucket_name, Key=clean_key)
+                logger.info(f"✅ S3 object exists: {clean_key}")
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    # Try adding 'media/' prefix if not present
+                    if not clean_key.startswith('media/'):
+                        try:
+                            media_key = f'media/{clean_key}'
+                            s3_client.head_object(Bucket=bucket_name, Key=media_key)
+                            logger.info(f"✅ S3 object exists with media prefix: {media_key}")
+                            clean_key = media_key
+                        except ClientError:
+                            # Try with media/documents/ prefix for paths like 2025/12/filename.jpg
+                            try:
+                                documents_key = f'media/documents/{clean_key}'
+                                s3_client.head_object(Bucket=bucket_name, Key=documents_key)
+                                logger.info(f"✅ S3 object exists with media/documents prefix: {documents_key}")
+                                clean_key = documents_key
+                            except ClientError:
+                                logger.warning(f"❌ S3 object not found: {s3_key} (tried: {clean_key}, {media_key}, {documents_key})")
+                                return None
+                    else:
+                        logger.warning(f"❌ S3 object not found: {s3_key}")
+                        return None
+                else:
+                    raise
+            
+            # Generate presigned URL using the correct key
             url = s3_client.generate_presigned_url(
                 'get_object',
                 Params={
                     'Bucket': bucket_name,
-                    'Key': s3_key
+                    'Key': clean_key
                 },
                 ExpiresIn=expiration
             )
             
-            logger.info(f"Generated presigned URL for {s3_key}")
+            logger.info(f"Generated presigned URL for {clean_key}")
             return url
             
         except ClientError as e:
@@ -346,6 +380,116 @@ class VerificationAdjudicationViewSet(viewsets.ModelViewSet):
             logger.error(f"Error escalating verification: {str(e)}")
             return Response(
                 {'error': f'Failed to escalate: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete a face verification adjudication
+        Only allowed for admin users, logs deletion to audit trail
+        """
+        adjudication = self.get_object()
+        
+        try:
+            # Store info before deletion for logging
+            user_name = adjudication.user.username
+            user_id = adjudication.user.id
+            adjudication_id = adjudication.id
+            decision = adjudication.admin_decision
+            
+            # Log deletion before actually deleting
+            AuditLog.objects.create(
+                user=request.user,
+                action_type='admin_action',
+                action_description=f'Face verification deleted: {user_name} (Decision: {decision})',
+                severity='warning',
+                target_model='VerificationAdjudication',
+                target_object_id=adjudication_id,
+                target_user_id=user_id,
+                metadata={
+                    'deleted_by': request.user.username,
+                    'original_decision': decision,
+                    'similarity_score': float(adjudication.automated_similarity_score or 0),
+                    'confidence_level': adjudication.automated_confidence_level,
+                    'notes': adjudication.admin_notes[:500] if adjudication.admin_notes else 'None',
+                    'reason': 'Admin deleted face verification record'
+                },
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
+            )
+            
+            # Delete the adjudication
+            adjudication.delete()
+            
+            logger.info(f"Admin {request.user.username} deleted face verification {adjudication_id} for user {user_name}")
+            
+            return Response({
+                'success': True,
+                'message': f'Face verification for {user_name} has been deleted successfully'
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"Error deleting face verification: {str(e)}")
+            return Response(
+                {'error': f'Failed to delete verification: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        """
+        Get history of all face verifications (approved, rejected, deleted)
+        Shows complete audit trail with filtering options
+        """
+        try:
+            # Get all adjudications including completed ones
+            queryset = self.get_queryset()
+            
+            # Apply additional filters for history view
+            show_all = request.query_params.get('show_all', 'false').lower() == 'true'
+            
+            if not show_all:
+                # By default, only show completed adjudications
+                queryset = queryset.filter(status='completed')
+            
+            # Order by most recent
+            queryset = queryset.order_by('-reviewed_at', '-created_at')
+            
+            # Paginate results
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(queryset, many=True)
+            
+            # Get deletion logs from audit trail
+            deletion_logs = AuditLog.objects.filter(
+                action_type='admin_action',
+                action_description__icontains='Face verification deleted'
+            ).order_by('-created_at')[:50]
+            
+            deletion_data = [{
+                'id': f'deleted_{log.id}',
+                'user_name': log.target_user.get_full_name() if log.target_user else 'Unknown',
+                'user_student_id': log.target_user.student_id if log.target_user else 'N/A',
+                'deleted_by': log.user.get_full_name(),
+                'deleted_at': log.created_at,
+                'original_decision': log.metadata.get('original_decision', 'Unknown'),
+                'notes': log.metadata.get('notes', ''),
+                'type': 'deleted'
+            } for log in deletion_logs]
+            
+            return Response({
+                'success': True,
+                'verifications': serializer.data,
+                'deleted_verifications': deletion_data
+            })
+        
+        except Exception as e:
+            logger.error(f"Error getting verification history: {str(e)}")
+            return Response(
+                {'error': f'Failed to retrieve history: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     

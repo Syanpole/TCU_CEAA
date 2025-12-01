@@ -35,6 +35,7 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
   const totalApplications = applications.length;
   const approvedApplications = applications.filter(a => a.status === 'approved').length;
   const pendingApplications = applications.filter(a => a.status === 'pending').length;
+  const hasPendingApplication = pendingApplications > 0;
   const totalAmount = applications
     .filter(a => a.status === 'approved')
     .reduce((sum, app) => sum + app.amount, 0);
@@ -129,7 +130,7 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
       </div>
 
       {/* Apply for Allowance Section */}
-      {canApplyForAllowance && (
+      {canApplyForAllowance && !hasPendingApplication && (
         <div className="apply-section">
           <button 
             className="apply-button"
@@ -141,7 +142,17 @@ const ApplicationDetailsPage: React.FC<ApplicationDetailsPageProps> = ({
         </div>
       )}
 
-      {!canApplyForAllowance && (
+      {hasPendingApplication && (
+        <div className="requirement-notice pending-notice">
+          <div className="notice-icon">⏳</div>
+          <div className="notice-content">
+            <h3>Application Pending Review</h3>
+            <p>You have {pendingApplications} application{pendingApplications > 1 ? 's' : ''} currently pending review. Please wait for the admin to review your current application before submitting a new one.</p>
+          </div>
+        </div>
+      )}
+
+      {!canApplyForAllowance && !hasPendingApplication && (
         <div className="requirement-notice">
           <div className="notice-icon">
             <WarningIcon size={24} />

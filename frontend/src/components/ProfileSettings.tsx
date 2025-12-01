@@ -23,7 +23,7 @@ const ProfileSettings: React.FC = () => {
   
   // Theme state - sync with StudentDashboard theme
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'password'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'password' | 'archive'>('personal');
   
   const [formData, setFormData] = useState<ProfileUpdateData>({
     first_name: user?.first_name || '',
@@ -50,6 +50,11 @@ const ProfileSettings: React.FC = () => {
     new: false,
     confirm: false,
   });
+
+  // Archive state
+  const [archivedUsers, setArchivedUsers] = useState<any[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState<number | null>(null);
 
   // Utility function for consistent input styling
   const getInputStyle = () => ({
@@ -360,6 +365,47 @@ const ProfileSettings: React.FC = () => {
     }));
   };
 
+  // Archive functions
+  const fetchArchivedUsers = async () => {
+    if (!user?.role || user.role !== 'admin') return;
+    
+    setArchiveLoading(true);
+    try {
+      const response = await apiClient.get('/users/archive/');
+      const data = response.data as any;
+      setArchivedUsers(data.archived_users || []);
+    } catch (error) {
+      console.error('Error fetching archived users:', error);
+      setMessage({ type: 'error', text: 'Failed to load archived users' });
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const handleRestoreUser = async (userId: number) => {
+    try {
+      setArchiveLoading(true);
+      await apiClient.post(`/users/${userId}/restore/`);
+      setMessage({ type: 'success', text: 'User restored successfully!' });
+      setShowRestoreConfirm(null);
+      // Refresh archived users list
+      await fetchArchivedUsers();
+    } catch (error: any) {
+      console.error('Error restoring user:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to restore user';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  // Fetch archived users when archive tab is active
+  useEffect(() => {
+    if (activeTab === 'archive' && user?.role === 'admin') {
+      fetchArchivedUsers();
+    }
+  }, [activeTab, user?.role]);
+
   if (!user) {
     return (
       <div className={`profile-settings-container ${darkMode ? 'dark-theme' : ''}`}>
@@ -457,6 +503,15 @@ const ProfileSettings: React.FC = () => {
             >
               Password
             </button>
+            {user?.role === 'admin' && (
+              <button
+                className={`tab-button ${activeTab === 'archive' ? 'active' : ''}`}
+                onClick={() => setActiveTab('archive')}
+                type="button"
+              >
+                🗄️ Archive
+              </button>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="profile-form">
@@ -728,6 +783,227 @@ const ProfileSettings: React.FC = () => {
                     >
                       Cancel
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Archive Tab */}
+            {activeTab === 'archive' && user?.role === 'admin' && (
+              <div className="form-section">
+                <div className="form-section-header">
+                  <div>
+                    <h2>Archived Users</h2>
+                    <p className="form-section-description">View and restore archived student accounts</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchArchivedUsers}
+                    className="refresh-archive-button"
+                    disabled={archiveLoading}
+                    style={{
+                      backgroundColor: darkMode ? '#3b82f6' : '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: archiveLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    🔄 {archiveLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {archiveLoading && !archivedUsers.length ? (
+                  <div style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    color: darkMode ? '#94a3b8' : '#64748b'
+                  }}>
+                    Loading archived users...
+                  </div>
+                ) : archivedUsers.length === 0 ? (
+                  <div style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    color: darkMode ? '#94a3b8' : '#64748b',
+                    background: darkMode ? '#0f172a' : '#f8fafc',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#1e293b' : '#e2e8f0'}`
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗄️</div>
+                    <h3>No Archived Users</h3>
+                    <p>The archive is empty</p>
+                  </div>
+                ) : (
+                  <div className="archive-list" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    {archivedUsers.map((archivedUser) => (
+                      <div
+                        key={archivedUser.id}
+                        className="archive-user-card"
+                        style={{
+                          backgroundColor: darkMode ? '#0f172a' : '#f8fafc',
+                          border: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}`,
+                          borderRadius: '12px',
+                          padding: '20px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginBottom: '8px'
+                          }}>
+                            <h3 style={{
+                              margin: 0,
+                              fontSize: '18px',
+                              fontWeight: '600',
+                              color: darkMode ? '#f8fafc' : '#0f172a'
+                            }}>
+                              {archivedUser.first_name} {archivedUser.last_name}
+                            </h3>
+                            <span style={{
+                              padding: '4px 12px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: darkMode ? '#334155' : '#e2e8f0',
+                              color: darkMode ? '#94a3b8' : '#475569'
+                            }}>
+                              {archivedUser.role}
+                            </span>
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: '8px',
+                            color: darkMode ? '#94a3b8' : '#64748b',
+                            fontSize: '14px'
+                          }}>
+                            <div>
+                              <strong>Username:</strong> {archivedUser.username}
+                            </div>
+                            <div>
+                              <strong>Student ID:</strong> {archivedUser.student_id || 'N/A'}
+                            </div>
+                            <div>
+                              <strong>Email:</strong> {archivedUser.email}
+                            </div>
+                            <div>
+                              <strong>Archived:</strong> {new Date(archivedUser.archived_at).toLocaleDateString()}
+                            </div>
+                            {archivedUser.archived_by_username && (
+                              <div>
+                                <strong>Archived by:</strong> {archivedUser.archived_by_username}
+                              </div>
+                            )}
+                          </div>
+                          {archivedUser.archive_reason && (
+                            <div style={{
+                              marginTop: '12px',
+                              padding: '12px',
+                              backgroundColor: darkMode ? '#1e293b' : '#f1f5f9',
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              color: darkMode ? '#cbd5e1' : '#475569'
+                            }}>
+                              <strong>Reason:</strong> {archivedUser.archive_reason}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div style={{ marginLeft: '20px' }}>
+                          {showRestoreConfirm === archivedUser.id ? (
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}>
+                              <p style={{
+                                margin: 0,
+                                fontSize: '13px',
+                                color: darkMode ? '#fbbf24' : '#f59e0b',
+                                fontWeight: '600'
+                              }}>
+                                Restore this user?
+                              </p>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => handleRestoreUser(archivedUser.id)}
+                                  disabled={archiveLoading}
+                                  style={{
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    cursor: archiveLoading ? 'not-allowed' : 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  ✓ Yes
+                                </button>
+                                <button
+                                  onClick={() => setShowRestoreConfirm(null)}
+                                  disabled={archiveLoading}
+                                  style={{
+                                    backgroundColor: darkMode ? '#334155' : '#e2e8f0',
+                                    color: darkMode ? '#f8fafc' : '#0f172a',
+                                    border: 'none',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    cursor: archiveLoading ? 'not-allowed' : 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: '600'
+                                  }}
+                                >
+                                  ✕ Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowRestoreConfirm(archivedUser.id)}
+                              disabled={archiveLoading}
+                              style={{
+                                backgroundColor: darkMode ? '#3b82f6' : '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '8px',
+                                cursor: archiveLoading ? 'not-allowed' : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'all 0.2s',
+                                opacity: archiveLoading ? 0.6 : 1
+                              }}
+                              onMouseEnter={(e) => !archiveLoading && (e.currentTarget.style.backgroundColor = '#2563eb')}
+                              onMouseLeave={(e) => !archiveLoading && (e.currentTarget.style.backgroundColor = '#3b82f6')}
+                            >
+                              ↻ Restore
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

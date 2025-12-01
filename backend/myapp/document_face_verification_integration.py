@@ -7,9 +7,11 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.core.files.storage import default_storage
 from .models import DocumentSubmission
 from .face_comparison_service import FaceComparisonService
 from .fraud_detection_service import FraudDetectionService
+from .s3_utils import download_s3_file_to_temp, cleanup_temp_file
 import json
 import logging
 
@@ -82,20 +84,23 @@ def submit_document_with_face_verification(request):
         if document_type in face_required_types:
             logger.info(f"Face verification required for document type: {document_type}")
             
-            # Save uploaded files temporarily
-            from django.core.files.storage import default_storage
+            # Save uploaded files to S3 - NO LOCAL STORAGE
+            from myapp.storage_backends import get_storage_backend
             from django.core.files.base import ContentFile
             
-            document_path = default_storage.save(
+            s3_storage = get_storage_backend('private')
+            document_path = s3_storage.save(
                 f'temp/doc_{request.user.id}.jpg',
                 ContentFile(document_file.read())
             )
             
+            document_temp_path = None
             try:
-                document_full_path = default_storage.path(document_path)
+                # Download S3 file to temp location for processing
+                document_temp_path = download_s3_file_to_temp(document_path)
                 
                 # Step 1: Detect face in document
-                face, bbox = face_service._detect_face_yolo(document_full_path)
+                face, bbox = face_service._detect_face_yolo(document_temp_path)
                 
                 if face is not None:
                     document.face_detected_in_document = True
@@ -114,18 +119,20 @@ def submit_document_with_face_verification(request):
                         
                         # Step 3: If selfie provided, verify face match
                         if selfie_file:
-                            selfie_path = default_storage.save(
+                            selfie_path = s3_storage.save(
                                 f'temp/selfie_{request.user.id}.jpg',
                                 ContentFile(selfie_file.read())
                             )
                             
+                            selfie_temp_path = None
                             try:
-                                selfie_full_path = default_storage.path(selfie_path)
+                                # Download S3 file to temp location for processing
+                                selfie_temp_path = download_s3_file_to_temp(selfie_path)
                                 
                                 # Perform complete verification
                                 verification_result = face_service.verify_id_with_selfie(
-                                    document_full_path,
-                                    selfie_full_path,
+                                    document_temp_path,
+                                    selfie_temp_path,
                                     liveness_data
                                 )
                                 
@@ -174,6 +181,9 @@ def submit_document_with_face_verification(request):
                                 )
                                 
                             finally:
+                                # Clean up temp files
+                                if selfie_temp_path:
+                                    cleanup_temp_file(selfie_temp_path)
                                 default_storage.delete(selfie_path)
                         else:
                             # No selfie provided - mark as pending for manual selfie
@@ -189,7 +199,9 @@ def submit_document_with_face_verification(request):
                     document.status = 'pending'
                 
             finally:
-                # Clean up temporary document file
+                # Clean up temp files
+                if document_temp_path:
+                    cleanup_temp_file(document_temp_path)
                 default_storage.delete(document_path)
         else:
             # Document type doesn't require face verification
@@ -294,21 +306,24 @@ def submit_selfie_for_document(request, document_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Save selfie temporarily and verify
-        from django.core.files.storage import default_storage
+        # Save selfie to S3 and verify - NO LOCAL STORAGE
+        from myapp.storage_backends import get_storage_backend
         from django.core.files.base import ContentFile
         import numpy as np
         
-        selfie_path = default_storage.save(
+        s3_storage = get_storage_backend('private')
+        selfie_path = s3_storage.save(
             f'temp/selfie_{request.user.id}_{document_id}.jpg',
             ContentFile(selfie_file.read())
         )
         
+        selfie_temp_path = None
         try:
-            selfie_full_path = default_storage.path(selfie_path)
+            # Download S3 file to temp location for processing
+            selfie_temp_path = download_s3_file_to_temp(selfie_path)
             
             # Detect face in selfie
-            selfie_face, selfie_bbox = face_service._detect_face_yolo(selfie_full_path)
+            selfie_face, selfie_bbox = face_service._detect_face_yolo(selfie_temp_path)
             
             if selfie_face is None:
                 return Response(
@@ -411,6 +426,9 @@ def submit_selfie_for_document(request, document_id):
             }, status=status.HTTP_200_OK)
             
         finally:
+            # Clean up temp files
+            if selfie_temp_path:
+                cleanup_temp_file(selfie_temp_path)
             default_storage.delete(selfie_path)
             
     except Exception as e:
