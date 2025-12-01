@@ -7,6 +7,19 @@ import os
 from datetime import datetime
 from .validators import profile_image_validators, document_validators, grade_sheet_validators
 
+# Storage helper functions (not lambdas to allow migration serialization)
+def get_profile_storage():
+    from .storage_backends import get_storage_backend
+    return get_storage_backend('profile')
+
+def get_document_storage():
+    from .storage_backends import get_storage_backend
+    return get_storage_backend('document')
+
+def get_grade_storage():
+    from .storage_backends import get_storage_backend
+    return get_storage_backend('grade')
+
 def profile_image_upload_path(instance, filename):
     """Storage backend location 'media/profiles' is automatically prepended"""
     return f'{instance.id}/{filename}'
@@ -110,7 +123,7 @@ class CustomUser(AbstractUser):
         null=True, 
         blank=True, 
         validators=profile_image_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('profile')
+        storage=get_profile_storage
     )
     is_email_verified = models.BooleanField(default=False, help_text="Email verification status")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -372,7 +385,7 @@ class DocumentSubmission(models.Model):
     document_file = models.FileField(
         upload_to=document_upload_path, 
         validators=document_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('document')
+        storage=get_document_storage
     )
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -460,7 +473,7 @@ class GradeSubmission(models.Model):
     grade_sheet = models.FileField(
         upload_to=grade_upload_path, 
         validators=grade_sheet_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('grade')
+        storage=get_grade_storage
     )
     
     # Validation flags

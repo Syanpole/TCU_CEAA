@@ -460,6 +460,7 @@ body.dark-mode .faf-section-icon {
   color: var(--form-text);
   background: var(--form-input-bg);
   transition: all 0.2s ease;
+  text-transform: uppercase;
 }
 
 .faf-form-group input:focus,

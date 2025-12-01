@@ -196,6 +196,7 @@
   background: #ffffff;
   font-weight: 400;
   color: #1f2937;
+  text-transform: uppercase;
 }
 
 .form-input[type="password"],
