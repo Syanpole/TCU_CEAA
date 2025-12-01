@@ -174,7 +174,7 @@ const DocumentSubmissionForm: React.FC<DocumentSubmissionFormProps> = ({
       // Show instant processing status
       setProcessingStatus('⚡ Processing with AI...');
 
-      const response = await apiClient.post('/documents/', submitFormData, {
+      const response = await apiClient.post('/api/documents/', submitFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

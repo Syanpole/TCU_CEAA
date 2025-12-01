@@ -286,6 +286,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3002",
     "http://localhost:3003",
     "http://127.0.0.1:3003",
+    # Production frontend on Firebase
+    "https://tcu-ceaa-8863d.web.app",
+    "https://tcu-ceaa-8863d.firebaseapp.com",
 ]
 
 # ⚠️ WARNING: CORS_ALLOW_ALL_ORIGINS should be False in production
@@ -323,6 +326,48 @@ TEST_DISCOVER_PATTERN = 'test*.py'
 
 # This prevents Django from discovering test_*.py files in the backend root directory
 # Those are manual testing scripts, not Django test cases
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'myapp': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
 
 
 

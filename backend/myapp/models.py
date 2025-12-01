@@ -177,7 +177,7 @@ class CustomUser(AbstractUser):
                         img.save(self.profile_image.path)
             except (IOError, OSError) as e:
                 # Log the error or handle it gracefully
-                print(f"Error processing profile image: {e}")
+                # print(f"Error processing profile image: {e}")
                 pass
     
     def __str__(self):

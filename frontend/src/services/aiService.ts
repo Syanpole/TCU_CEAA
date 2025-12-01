@@ -128,7 +128,7 @@ class AIService {
    */
   async analyzeDocument(documentId: number): Promise<AIAnalysisResponse> {
     try {
-      const response = await this.axios.post('/ai/analyze-document/', {
+      const response = await this.axios.post('/api/ai/analyze-document/', {
         document_id: documentId
       });
       return response.data as AIAnalysisResponse;
@@ -144,7 +144,7 @@ class AIService {
    */
   async getAnalysisStatus(documentId: number): Promise<AIStatus> {
     try {
-      const response = await this.axios.get(`/ai/status/${documentId}/`);
+      const response = await this.axios.get(`/api/ai/status/${documentId}/`);
       return response.data as AIStatus;
     } catch (error: any) {
       console.error('AI Status Check Error:', error);
@@ -158,7 +158,7 @@ class AIService {
    */
   async getDashboardStats(): Promise<AIDashboardStats> {
     try {
-      const response = await this.axios.get('/ai/dashboard-stats/');
+      const response = await this.axios.get('/api/ai/dashboard-stats/');
       return response.data as AIDashboardStats;
     } catch (error: any) {
       console.error('AI Dashboard Stats Error:', error);
@@ -172,7 +172,7 @@ class AIService {
    */
   async batchProcess(documentIds: number[]): Promise<AIBatchResponse> {
     try {
-      const response = await this.axios.post('/ai/batch-process/', {
+      const response = await this.axios.post('/api/ai/batch-process/', {
         document_ids: documentIds
       });
       return response.data as AIBatchResponse;
