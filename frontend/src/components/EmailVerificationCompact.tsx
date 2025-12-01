@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, CSSProperties } from 'react';
 import { sendVerificationCode, verifyEmailCode, resendVerificationCode } from '../services/verificationService';
 import './EmailVerificationCompact.css';
 
@@ -13,6 +13,28 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
   onVerificationSuccess,
   onCancel
 }) => {
+  const overlayStyle: CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100vw',
+    height: '100vh',
+    minWidth: '100vw',
+    minHeight: '100vh',
+    maxWidth: '100vw',
+    maxHeight: '100vh',
+    background: '#000000',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999999,
+    padding: 0,
+    margin: 0,
+    boxSizing: 'border-box',
+    overflow: 'hidden'
+  };
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,11 +42,13 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
   const [timeLeft, setTimeLeft] = useState(600);
   const [canResend, setCanResend] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [codeSent, setCodeSent] = useState(false);
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Focus first input on mount
   useEffect(() => {
-    handleSendCode();
+    inputRefs.current[0]?.focus();
   }, []);
 
   useEffect(() => {
@@ -57,10 +81,12 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
     try {
       const result = await sendVerificationCode(email);
       if (result.success) {
-        setSuccess('Code sent to your email!');
+        setCodeSent(true);
+        setSuccess('✓ Verification code sent to your email!');
+        setTimeout(() => setSuccess(''), 4000);
         setTimeLeft(600);
         setCanResend(false);
-        setResendCooldown(120);
+        setResendCooldown(60);
       } else {
         setError(result.message);
       }
@@ -143,10 +169,11 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
     try {
       const result = await resendVerificationCode(email);
       if (result.success) {
-        setSuccess('New code sent!');
+        setSuccess('✓ New verification code sent!');
+        setTimeout(() => setSuccess(''), 4000);
         setTimeLeft(600);
         setCanResend(false);
-        setResendCooldown(120);
+        setResendCooldown(60);
       } else {
         setError(result.message);
       }
@@ -154,24 +181,24 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
       setError('Failed to resend');
     } finally {
       setIsLoading(false);
-    }
+    } 
   };
 
   return (
-    <div className="verify-overlay" onClick={onCancel}>
-      <div className="verify-modal" onClick={e => e.stopPropagation()}>
-        <div className="verify-head">
-          <h3>📧 Verify Email</h3>
-          <button className="verify-close" onClick={onCancel}>×</button>
+    <div className="email-verify-overlay-unique" style={overlayStyle} onClick={onCancel}>
+      <div className="email-verify-modal-unique" onClick={e => e.stopPropagation()}>
+        <div className="email-verify-head-unique">
+          <h3>Verify Email</h3>
+          <button className="email-verify-close-unique" onClick={onCancel}>×</button>
         </div>
 
-        <p className="verify-email-text">{email}</p>
+        <p className="email-verify-text-unique">{email}</p>
 
-        <div className={`verify-time ${timeLeft < 60 ? 'warn' : ''}`}>
+        <div className={`email-verify-time-unique ${timeLeft < 60 ? 'warn' : ''}`}>
           ⏱ {formatTime(timeLeft)}
         </div>
 
-        <div className="verify-code-grid">
+        <div className="email-verify-code-grid-unique">
           {code.map((digit, i) => (
             <input
               key={i}
@@ -183,35 +210,57 @@ const EmailVerificationCompact: React.FC<EmailVerificationProps> = ({
               onChange={e => handleInputChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
               onPaste={handlePaste}
-              className="verify-digit"
+              className="email-verify-digit-unique"
               disabled={isLoading || timeLeft === 0}
               autoFocus={i === 0}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
             />
           ))}
         </div>
 
-        {error && <div className="verify-err">❌ {error}</div>}
-        {success && <div className="verify-ok">✓ {success}</div>}
+        {error && <div className="email-verify-err-unique"><span className="email-err-icon-unique">⚠️</span>{error}</div>}
+        {success && <div className="email-verify-ok-unique"><span className="email-ok-icon-unique">✓</span>{success}</div>}
 
-        <div className="verify-btns">
-          <button
-            className="verify-submit"
-            onClick={() => handleVerify()}
-            disabled={isLoading || code.join('').length !== 6 || timeLeft === 0}
-          >
-            {isLoading ? 'Verifying...' : 'Verify'}
-          </button>
-          
-          <button
-            className="verify-resend"
-            onClick={handleResend}
-            disabled={!canResend || resendCooldown > 0 || isLoading}
-          >
-            {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
-          </button>
-        </div>
-
-        <p className="verify-hint">🔒 Don't share this code</p>
+        {!codeSent ? (
+          <div className="email-verify-actions-unique">
+            <button
+              className="email-verify-send-btn-unique"
+              onClick={handleSendCode}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <><span className="email-spinner-unique"></span>Sending...</>
+              ) : (
+                <>📧 Send Verification Code</>
+              )}
+            </button>
+            <p className="email-verify-info-unique">Click to send a 6-digit code to your email</p>
+          </div>
+        ) : (
+          <>
+            <div className="email-verify-btns-unique">
+              <button
+                className="email-verify-submit-unique"
+                onClick={() => handleVerify()}
+                disabled={isLoading || code.join('').length !== 6 || timeLeft === 0}
+              >
+                {isLoading ? <><span className="email-spinner-unique"></span>Verifying...</> : 'Verify Email'}
+              </button>
+              
+              <button
+                className="email-verify-resend-unique"
+                onClick={handleResend}
+                disabled={!canResend || resendCooldown > 0 || isLoading}
+              >
+                {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : '🔄 Resend Code'}
+              </button>
+            </div>
+            <p className="email-verify-hint-unique"><span className="email-lock-icon-unique">🔒</span>Never share this code with anyone</p>
+          </>
+        )}
       </div>
     </div>
   );

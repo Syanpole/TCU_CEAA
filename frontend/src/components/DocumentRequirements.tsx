@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/authService';
+import DocumentVerificationCard from './DocumentVerificationCard';
 import './DocumentRequirements.css';
 
 interface DocumentRequirementsProps {
@@ -616,71 +617,21 @@ const DocumentRequirements: React.FC<DocumentRequirementsProps> = ({ darkMode = 
             </button>
           </div>
         ) : (
-          <div className="documents-grid">
+          <div className="dvc-grid">
             {uploadedDocuments.map((doc) => (
-              <div key={doc.id} className="document-card">
-                <div className="card-header">
-                  <div className="document-icon">
-                    {getStatusIcon(doc.status)}
-                  </div>
-                  <button 
-                    className="delete-btn"
-                    onClick={() => handleDeleteDocument(doc)}
-                    title="Delete document"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <div className="card-body">
-                  <h3 className="document-title">{doc.document_type_display}</h3>
-                  
-                  <div className="document-info">
-                    <div className="info-item">
-                      <span className="info-icon">📅</span>
-                      <span className="info-text">
-                        {new Date(doc.submitted_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="info-item">
-                      <span className="info-icon">ℹ️</span>
-                      <span className="info-text">
-                        Status: <span style={{ color: getStatusColor(doc.status), fontWeight: 600 }}>
-                          {doc.status_display}
-                        </span>
-                      </span>
-                    </div>
-                    {doc.ai_confidence_score !== undefined && doc.ai_confidence_score !== null && (
-                      <div className="info-item">
-                        <span className="info-text">
-                          AI Confidence: <strong>{(doc.ai_confidence_score * 100).toFixed(1)}%</strong>
-                        </span>
-                      </div>
-                    )}
-                    {doc.ai_analysis_completed && (
-                      <div className="info-item ai-badge">
-                        <span className="ai-verified">✓ AI Verified</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {doc.ai_analysis_notes && (
-                    <div className="ai-notes">
-                      <strong>AI Analysis:</strong>
-                      <p>{doc.ai_analysis_notes.substring(0, 100)}{doc.ai_analysis_notes.length > 100 ? '...' : ''}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="card-footer">
-                  <button 
-                    className="btn-view-document"
-                    onClick={() => handleViewDocument(doc)}
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
+              <DocumentVerificationCard
+                key={doc.id}
+                id={doc.id}
+                documentType={doc.document_type}
+                documentTypeDisplay={doc.document_type_display}
+                status={doc.status as 'approved' | 'rejected' | 'pending'}
+                submittedAt={doc.submitted_at}
+                aiConfidenceScore={doc.ai_confidence_score}
+                aiAnalysisNotes={doc.ai_analysis_notes}
+                aiAutoApproved={doc.ai_auto_approved}
+                onDelete={(id) => handleDeleteDocument(doc)}
+                onViewDetails={() => handleViewDocument(doc)}
+              />
             ))}
           </div>
         )}

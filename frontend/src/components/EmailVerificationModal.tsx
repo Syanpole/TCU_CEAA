@@ -20,6 +20,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [timeLeft, setTimeLeft] = useState<number>(600); // 10 minutes in seconds
   const [canResend, setCanResend] = useState<boolean>(false);
+  const [initialSent, setInitialSent] = useState<boolean>(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Timer countdown
@@ -37,8 +38,29 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Focus first input on mount
+  // Automatically send verification code on mount and focus first input
   useEffect(() => {
+    const sendInitialCode = async () => {
+      if (!initialSent) {
+        setInitialSent(true);
+        setLoading(true);
+        try {
+          const result = await onResend();
+          if (result.success) {
+            setSuccess('Verification code sent to your email!');
+            setTimeout(() => setSuccess(''), 3000);
+          } else {
+            setError(result.message);
+          }
+        } catch (err) {
+          setError('Failed to send verification code');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    sendInitialCode();
     inputRefs.current[0]?.focus();
   }, []);
 
@@ -127,7 +149,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       const result = await onResend();
       
       if (result.success) {
-        setSuccess(result.message);
+        setSuccess('New verification code sent!');
+        setTimeout(() => setSuccess(''), 3000);
         setCode(['', '', '', '', '', '']);
         setTimeLeft(600); // Reset timer to 10 minutes
         setCanResend(false);

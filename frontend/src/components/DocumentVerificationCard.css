@@ -1,0 +1,427 @@
+/* ==========================================
+   DOCUMENT VERIFICATION CARD - MODERN DESIGN
+   Clean, minimalist, vertical dashboard card
+   ========================================== */
+
+/* Card Container */
+.dvc-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 28px 24px 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #e5e7eb;
+  width: 100%;
+  max-width: 340px;
+  min-height: 420px;
+}
+
+.dvc-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Status-specific subtle border colors */
+.dvc-card.dvc-status-approved {
+  border-left: 3px solid #10B981;
+}
+
+.dvc-card.dvc-status-rejected {
+  border-left: 3px solid #EF4444;
+}
+
+.dvc-card.dvc-status-pending {
+  border-left: 3px solid #F59E0B;
+}
+
+/* Delete Button */
+.dvc-delete-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.dvc-delete-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  transform: scale(1.05);
+}
+
+.dvc-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* Status Icon Wrapper */
+.dvc-icon-wrapper {
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.dvc-status-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInScale 0.4s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Document Title */
+.dvc-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+  padding: 0 16px;
+}
+
+/* Information List */
+.dvc-info-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.dvc-info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.dvc-info-icon {
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dvc-info-value {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* Status-specific text colors */
+.dvc-status-text-approved strong {
+  color: #10B981;
+}
+
+.dvc-status-text-rejected strong {
+  color: #EF4444;
+}
+
+.dvc-status-text-pending strong {
+  color: #F59E0B;
+}
+
+/* AI Badge */
+.dvc-badge-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.dvc-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.dvc-ai-badge svg {
+  stroke: white;
+}
+
+/* Accordion */
+.dvc-accordion {
+  width: 100%;
+  background: #f9fafb;
+  border-radius: 12px;
+  overflow: visible;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 100;
+}
+
+.dvc-accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.dvc-accordion-trigger:hover {
+  background: #f3f4f6;
+}
+
+.dvc-accordion-trigger.open {
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dvc-accordion-icon {
+  transition: transform 0.3s ease;
+  color: #6b7280;
+}
+
+.dvc-accordion-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.dvc-accordion-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: white;
+  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 0 0 12px 12px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 200;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dvc-analysis-summary {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+  font-weight: 500;
+}
+
+.dvc-analysis-details {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* View Details Button */
+.dvc-details-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background: #EF4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+.dvc-details-btn:hover {
+  background: #DC2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+.dvc-details-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+/* Dark Mode Support - Only when explicitly set with .dark-mode class */
+.dark-mode .dvc-card,
+.dark-theme .dvc-card {
+  background: #1f2937;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dvc-title,
+.dark-theme .dvc-title {
+  color: #f9fafb;
+}
+
+.dark-mode .dvc-info-value,
+.dark-theme .dvc-info-value {
+  color: #d1d5db;
+}
+
+.dark-mode .dvc-info-list,
+.dark-theme .dvc-info-list {
+  border-top-color: rgba(255, 255, 255, 0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dvc-accordion,
+.dark-theme .dvc-accordion {
+  background: #111827;
+}
+
+.dark-mode .dvc-accordion-trigger,
+.dark-theme .dvc-accordion-trigger {
+  color: #d1d5db;
+}
+
+.dark-mode .dvc-accordion-trigger:hover,
+.dark-theme .dvc-accordion-trigger:hover {
+  background: #1e293b;
+}
+
+.dark-mode .dvc-accordion-trigger.open,
+.dark-theme .dvc-accordion-trigger.open {
+  color: #f9fafb;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dvc-accordion-content,
+.dark-theme .dvc-accordion-content {
+  background: #1f2937;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .dvc-analysis-summary,
+.dark-theme .dvc-analysis-summary {
+  color: #d1d5db;
+}
+
+.dark-mode .dvc-analysis-details,
+.dark-theme .dvc-analysis-details {
+  color: #9ca3af;
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dvc-delete-btn,
+.dark-theme .dvc-delete-btn {
+  background: #374151;
+  color: #9ca3af;
+}
+
+.dark-mode .dvc-delete-btn:hover,
+.dark-theme .dvc-delete-btn:hover {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dvc-card {
+    max-width: 100%;
+    min-height: auto;
+    padding: 24px 20px;
+  }
+
+  .dvc-title {
+    font-size: 15px;
+  }
+
+  .dvc-info-value {
+    font-size: 13px;
+  }
+
+  .dvc-status-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dvc-status-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Grid Layout for Multiple Cards */
+.dvc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .dvc-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
+/* Smooth Animations */
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
