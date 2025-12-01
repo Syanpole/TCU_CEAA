@@ -568,8 +568,7 @@ class COEVerificationService:
         self, 
         image_path: str, 
         confidence_threshold: float = 0.5,
-        include_ocr: bool = True,
-        user_data: Optional[Dict[str, Any]] = None
+        include_ocr: bool = True
     ) -> Dict[str, Any]:
         """
         Verify a Certificate of Enrollment document.
@@ -578,8 +577,6 @@ class COEVerificationService:
             image_path: Path to the COE document image
             confidence_threshold: Minimum confidence for detections (default: 0.5)
             include_ocr: Whether to include OCR text extraction (default: True)
-            user_data: Optional user profile data for identity verification
-                Expected fields: first_name, last_name, student_id
         
         Returns:
             Dictionary containing:
@@ -677,63 +674,11 @@ class COEVerificationService:
             )
             result['confidence'] = confidence
             
-            # Check identity match if user data provided
-            identity_match = True
-            identity_mismatch_reasons = []
-            
-            logger.info(f"🔍 Identity Verification - User data provided: {bool(user_data)}")
-            logger.info(f"🔍 Identity Verification - Extracted info: {bool(result['extracted_info'])}")
-            
-            if user_data and result['extracted_info']:
-                from fuzzywuzzy import fuzz
-                
-                # Check student name match
-                extracted_name = result['extracted_info'].get('student_name', '').strip().lower()
-                user_full_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip().lower()
-                
-                logger.info(f"🔍 Comparing names: '{extracted_name}' vs '{user_full_name}'")
-                
-                if extracted_name and user_full_name:
-                    name_similarity = fuzz.token_sort_ratio(extracted_name, user_full_name) / 100.0
-                    logger.info(f"🔍 Name similarity: {name_similarity*100:.1f}%")
-                    if name_similarity < 0.8:  # Less than 80% match
-                        identity_match = False
-                        identity_mismatch_reasons.append(f"❌ Name mismatch: Document '{result['extracted_info'].get('student_name', 'N/A')}' vs Your name '{user_data.get('first_name', '')} {user_data.get('last_name', '')}' (similarity: {name_similarity*100:.0f}%)")
-                        logger.warning(f"❌ NAME MISMATCH DETECTED: {name_similarity*100:.1f}% similarity")
-                
-                # Check student ID match
-                extracted_id = result['extracted_info'].get('student_id', '').strip()
-                user_id = user_data.get('student_id', '').strip()
-                
-                logger.info(f"🔍 Comparing IDs: '{extracted_id}' vs '{user_id}'")
-                
-                if extracted_id and user_id:
-                    if extracted_id.lower() != user_id.lower():
-                        identity_match = False
-                        identity_mismatch_reasons.append(f"❌ Student ID mismatch: Document '{extracted_id}' vs Your ID '{user_id}'")
-                        logger.warning(f"❌ STUDENT ID MISMATCH DETECTED")
-            else:
-                if not user_data:
-                    logger.warning("⚠️ No user data provided for identity verification - SKIPPING IDENTITY CHECK")
-                if not result['extracted_info']:
-                    logger.warning("⚠️ No extracted info available for identity verification")
-            
             # Determine status
             checks_passed = sum(1 for v in validation_checks.values() if v)
             total_checks = len(validation_checks)
             
-            # REJECT if identity doesn't match (wrong person's COE)
-            if not identity_match:
-                result['is_valid'] = False
-                result['status'] = 'INVALID'
-                # Lower confidence for identity mismatch
-                result['confidence'] = min(confidence * 0.3, 0.5)  # Max 50% confidence
-                result['recommendations'].append("❌ DOCUMENT REJECTED - Identity Verification Failed")
-                result['recommendations'].append("📋 This Certificate of Enrollment belongs to a different person")
-                result['recommendations'].append("🔍 Please upload YOUR OWN Certificate of Enrollment")
-                result['recommendations'].extend(identity_mismatch_reasons)
-                result['recommendations'].append("💡 What to do: Request and upload your official TCU Certificate of Enrollment with your correct name and student ID")
-            elif checks_passed >= 3 and confidence >= 0.8:
+            if checks_passed >= 3 and confidence >= 0.8:
                 result['status'] = 'VALID'
                 result['is_valid'] = True
             elif checks_passed >= 2 and confidence >= 0.6:
@@ -743,16 +688,7 @@ class COEVerificationService:
             else:
                 result['status'] = 'INVALID'
                 result['is_valid'] = False
-                result['recommendations'].append("❌ DOCUMENT REJECTED - COE Verification Failed")
-                result['recommendations'].append("📋 This document may not be a valid Certificate of Enrollment")
-                result['recommendations'].append("💡 What to do: Upload a clear photo of your official TCU Certificate of Enrollment")
-                # Add confidence interpretation for rejections
-                if confidence >= 0.75:
-                    result['recommendations'].append(f"✅ AI Detection Quality: High ({confidence*100:.0f}%) - Rejection is accurate")
-                elif confidence >= 0.60:
-                    result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
-                else:
-                    result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
+                result['recommendations'].append("Document may not be a valid COE")
             
             # Generate recommendations
             recommendations = self._generate_recommendations(

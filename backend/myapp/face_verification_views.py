@@ -10,7 +10,6 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -26,42 +25,17 @@ face_service = FaceComparisonService()
 
 def get_user_id_document(user):
     """
-    Retrieve the user's submitted ID document with priority order.
-    
-    Priority (highest to lowest):
-    1. School ID (most reliable for students)
-    2. Government-issued photo IDs (PhilSys, UMID, Driver's License, Passport)
-    3. Other valid IDs (Voters, SSS, BIR, Pag-IBIG, Postal, PhilHealth)
-    
-    Returns the highest priority approved/pending document
+    Retrieve the user's submitted ID document (school_id or valid_id)
+    Returns the most recent approved or pending document
     """
-    # Priority 1: School ID (best for student verification)
+    # Try to find school_id or valid_id document types
+    id_document_types = ['school_id', 'valid_id', 'philsys_id', 'umid_card', 
+                         'drivers_license', 'voters_id', 'passport', 'sss_id',
+                         'bir_tin_id', 'pag_ibig_id', 'postal_id', 'philhealth_id']
+    
     document = DocumentSubmission.objects.filter(
         student=user,
-        document_type='school_id',
-        status__in=['approved', 'pending', 'ai_processing']
-    ).order_by('-submitted_at').first()
-    
-    if document:
-        return document
-    
-    # Priority 2: Government photo IDs
-    gov_photo_ids = ['philsys_id', 'umid_card', 'drivers_license', 'passport']
-    document = DocumentSubmission.objects.filter(
-        student=user,
-        document_type__in=gov_photo_ids,
-        status__in=['approved', 'pending', 'ai_processing']
-    ).order_by('-submitted_at').first()
-    
-    if document:
-        return document
-    
-    # Priority 3: Other valid IDs
-    other_ids = ['valid_id', 'voters_id', 'sss_id', 'bir_tin_id', 
-                 'pag_ibig_id', 'postal_id', 'philhealth_id']
-    document = DocumentSubmission.objects.filter(
-        student=user,
-        document_type__in=other_ids,
+        document_type__in=id_document_types,
         status__in=['approved', 'pending', 'ai_processing']
     ).order_by('-submitted_at').first()
     
@@ -112,39 +86,25 @@ def verify_face_with_id(request):
             except json.JSONDecodeError:
                 logger.warning("Invalid liveness data JSON")
         
-        # Save uploaded files to S3
-        from myapp.storage_backends import get_storage_backend
-        from myapp.s3_utils import download_s3_file_to_temp, cleanup_temp_file
-        
-        s3_storage = get_storage_backend('private')
-        id_path = s3_storage.save(f'temp/id_{request.user.id}.jpg', ContentFile(id_document.read()))
-        selfie_path = s3_storage.save(f'temp/selfie_{request.user.id}.jpg', ContentFile(selfie.read()))
-        
-        id_temp_path = None
-        selfie_temp_path = None
+        # Save uploaded files temporarily
+        id_path = default_storage.save(f'temp/id_{request.user.id}.jpg', ContentFile(id_document.read()))
+        selfie_path = default_storage.save(f'temp/selfie_{request.user.id}.jpg', ContentFile(selfie.read()))
         
         try:
-            # Download S3 files to temp for processing
-            id_temp_path = download_s3_file_to_temp(id_path)
-            selfie_temp_path = download_s3_file_to_temp(selfie_path)
-            
-            if not id_temp_path or not selfie_temp_path:
-                raise Exception("Failed to download files from S3 for processing")
+            # Get full paths
+            id_full_path = default_storage.path(id_path)
+            selfie_full_path = default_storage.path(selfie_path)
             
             # Perform face verification
             result = face_service.verify_id_with_selfie(
-                id_temp_path,
-                selfie_temp_path,
+                id_full_path,
+                selfie_full_path,
                 liveness_data
             )
             
-            # Clean up temporary local files
-            cleanup_temp_file(id_temp_path)
-            cleanup_temp_file(selfie_temp_path)
-            
-            # Clean up S3 temp files
-            s3_storage.delete(id_path)
-            s3_storage.delete(selfie_path)
+            # Clean up temporary files
+            default_storage.delete(id_path)
+            default_storage.delete(selfie_path)
             
             # Log verification attempt
             logger.info(
@@ -156,15 +116,9 @@ def verify_face_with_id(request):
             return Response(result, status=status.HTTP_200_OK)
             
         except Exception as processing_error:
-            # Clean up temp files on error
-            if id_temp_path:
-                cleanup_temp_file(id_temp_path)
-            if selfie_temp_path:
-                cleanup_temp_file(selfie_temp_path)
-            
-            # Clean up S3 files on error
-            s3_storage.delete(id_path)
-            s3_storage.delete(selfie_path)
+            # Clean up on error
+            default_storage.delete(id_path)
+            default_storage.delete(selfie_path)
             raise processing_error
             
     except Exception as e:
@@ -201,44 +155,21 @@ def extract_id_face(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Save uploaded file to S3
-        from myapp.storage_backends import get_storage_backend
-        from myapp.s3_utils import download_s3_file_to_temp, cleanup_temp_file, upload_file_to_s3
-        import tempfile
-        
-        s3_storage = get_storage_backend('private')
-        id_path = s3_storage.save(
+        # Save uploaded file temporarily
+        id_path = default_storage.save(
             f'temp/id_{request.user.id}_extract.jpg',
             ContentFile(id_document.read())
         )
         
-        id_temp_path = None
-        output_temp_path = None
-        
         try:
-            # Download from S3 for processing
-            id_temp_path = download_s3_file_to_temp(id_path)
-            
-            if not id_temp_path:
-                raise Exception("Failed to download ID from S3")
-            
-            # Create temp file for output
-            output_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-            output_temp_path = output_temp.name
-            output_temp.close()
+            id_full_path = default_storage.path(id_path)
             
             # Extract face
-            success = face_service.extract_and_save_id_face(id_temp_path, output_temp_path)
+            output_path = default_storage.path(f'id_faces/user_{request.user.id}_face.jpg')
+            success = face_service.extract_and_save_id_face(id_full_path, output_path)
             
-            # Upload result to S3
-            if success:
-                s3_output_key = f'id_faces/user_{request.user.id}_face.jpg'
-                upload_file_to_s3(output_temp_path, s3_output_key)
-            
-            # Clean up temporary files
-            cleanup_temp_file(id_temp_path)
-            cleanup_temp_file(output_temp_path)
-            s3_storage.delete(id_path)
+            # Clean up temporary file
+            default_storage.delete(id_path)
             
             if success:
                 return Response({
@@ -395,39 +326,26 @@ def verify_grade_submission_identity(request):
                 'message': 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Save selfie to S3
-        from myapp.storage_backends import get_storage_backend
-        from myapp.s3_utils import download_s3_file_to_temp, cleanup_temp_file, get_file_path_for_processing
-        
-        s3_storage = get_storage_backend('private')
-        selfie_path = s3_storage.save(
+        # Save selfie temporarily
+        selfie_path = default_storage.save(
             f'temp/grade_selfie_{request.user.id}.jpg',
             ContentFile(photo.read())
         )
         
-        id_temp_path = None
-        selfie_temp_path = None
-        
         try:
-            # Get file paths for processing (downloads from S3 if needed)
-            id_temp_path, id_is_temp = get_file_path_for_processing(id_document.file)
-            selfie_temp_path = download_s3_file_to_temp(selfie_path)
-            
-            if not id_temp_path or not selfie_temp_path:
-                raise Exception("Failed to get files for processing")
+            # Get full paths
+            id_full_path = default_storage.path(id_document.file.name)
+            selfie_full_path = default_storage.path(selfie_path)
             
             # Perform face verification
             verification_result = face_service.verify_id_with_selfie(
-                id_temp_path,
-                selfie_temp_path,
+                id_full_path,
+                selfie_full_path,
                 liveness_data
             )
             
-            # Clean up temporary files
-            if id_is_temp:
-                cleanup_temp_file(id_temp_path)
-            cleanup_temp_file(selfie_temp_path)
-            s3_storage.delete(selfie_path)
+            # Clean up temporary file
+            default_storage.delete(selfie_path)
             
             face_verified = verification_result.get('match', False)
             similarity_score = verification_result.get('similarity_score', 0.0)
@@ -641,39 +559,26 @@ def verify_allowance_application_identity(request):
                 'message': 'No approved ID document found. Please upload and get your School ID, Birth Certificate, or Voter\'s Certificate approved first.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Save selfie to S3
-        from myapp.storage_backends import get_storage_backend
-        from myapp.s3_utils import download_s3_file_to_temp, cleanup_temp_file, get_file_path_for_processing
-        
-        s3_storage = get_storage_backend('private')
-        selfie_path = s3_storage.save(
+        # Save selfie temporarily
+        selfie_path = default_storage.save(
             f'temp/allowance_selfie_{request.user.id}_{timezone.now().timestamp()}.jpg',
             ContentFile(photo.read())
         )
         
-        id_temp_path = None
-        selfie_temp_path = None
-        
         try:
-            # Get file paths for processing (downloads from S3 if needed)
-            id_temp_path, id_is_temp = get_file_path_for_processing(id_document.file)
-            selfie_temp_path = download_s3_file_to_temp(selfie_path)
-            
-            if not id_temp_path or not selfie_temp_path:
-                raise Exception("Failed to get files for processing")
+            # Get full paths
+            id_full_path = default_storage.path(id_document.file.name)
+            selfie_full_path = default_storage.path(selfie_path)
             
             # Perform face verification
             verification_result = face_service.verify_id_with_selfie(
-                id_temp_path,
-                selfie_temp_path,
+                id_full_path,
+                selfie_full_path,
                 liveness_data
             )
             
-            # Clean up temporary files
-            if id_is_temp:
-                cleanup_temp_file(id_temp_path)
-            cleanup_temp_file(selfie_temp_path)
-            s3_storage.delete(selfie_path)
+            # Clean up temporary file
+            default_storage.delete(selfie_path)
             
             face_verified = verification_result.get('match', False)
             similarity_score = verification_result.get('similarity_score', 0.0)
@@ -1244,20 +1149,14 @@ def verify_liveness(request):
                     logger.info(f"📸 Attempting face comparison with submitted ID: {id_document.document_type}")
                     
                     # Get the S3 paths
-                    id_photo_path = id_document.document_file.name  # Path relative to storage location
+                    id_photo_path = id_document.document_file.name  # Path in S3
                     reference_s3_object = reference_image.get('S3Object', {})
                     reference_photo_path = reference_s3_object.get('Name', '')
                     
                     if reference_photo_path:
-                        # Build full S3 key including storage location
-                        # document_file.name returns path relative to storage location (e.g., "2025/12/file.jpg")
-                        # Storage location is "media/documents", so full key is "media/documents/2025/12/file.jpg"
-                        if hasattr(id_document.document_file, 'storage') and hasattr(id_document.document_file.storage, 'location'):
-                            storage_location = id_document.document_file.storage.location
-                            id_photo_path = f"{storage_location}/{id_photo_path}"
-                        elif not id_photo_path.startswith('media/'):
-                            # Fallback: prepend media/documents if no storage location available
-                            id_photo_path = f"media/documents/{id_photo_path}"
+                        # Ensure ID photo path has media/ prefix for S3
+                        if not id_photo_path.startswith('media/'):
+                            id_photo_path = f"media/{id_photo_path}"
                         
                         # Use AWS Rekognition to compare faces
                         compare_result = verification_service.compare_faces_s3(
@@ -1317,15 +1216,10 @@ def verify_liveness(request):
                 else:
                     confidence_level = 'very_low'
                 
-                # Get ID document path if available - use full S3 key including storage location
+                # Get ID document path if available
                 id_photo_path = ''
                 if id_document and id_document.document_file:
-                    # Get the storage location and prepend to the file name for full S3 key
-                    storage = id_document.document_file.storage
-                    if hasattr(storage, 'location') and storage.location:
-                        id_photo_path = f"{storage.location}/{id_document.document_file.name}"
-                    else:
-                        id_photo_path = id_document.document_file.name
+                    id_photo_path = id_document.document_file.name
                 
                 # Create adjudication record
                 adjudication = VerificationAdjudication.objects.create(
@@ -1393,17 +1287,6 @@ def verify_liveness(request):
             f"Confidence={confidence_score:.1f}%, FraudScore={session.fraud_risk_score}"
         )
         
-        # Generate presigned URLs for images
-        from .s3_utils import generate_presigned_url
-        audit_image_presigned = None
-        reference_image_presigned = None
-        
-        if session.audit_image_url:
-            audit_image_presigned = generate_presigned_url(session.audit_image_url, expiration=3600)
-        
-        if session.reference_image_url:
-            reference_image_presigned = generate_presigned_url(session.reference_image_url, expiration=3600)
-        
         return Response({
             'success': is_live,
             'is_live': is_live,
@@ -1411,8 +1294,8 @@ def verify_liveness(request):
             'session_id': session_id,
             'fraud_risk_score': session.fraud_risk_score,
             'fraud_flags': session.fraud_flags,
-            'audit_image_url': audit_image_presigned or session.audit_image_url,
-            'reference_image_url': reference_image_presigned or session.reference_image_url,
+            'audit_image_url': session.audit_image_url,
+            'reference_image_url': session.reference_image_url,
             'face_match': face_match,
             'similarity_score': similarity_score,
             'adjudication_id': adjudication_id,
@@ -1504,12 +1387,6 @@ def verify_with_liveness(request):
             ContentFile(school_id_bytes)
         )
         
-        # Get full S3 key including storage location if applicable
-        if hasattr(default_storage, 'location') and default_storage.location:
-            school_id_full_path = f"{default_storage.location}/{school_id_path}"
-        else:
-            school_id_full_path = school_id_path
-        
         # Get or create AllowanceApplication if application_id provided
         application = None
         if application_id:
@@ -1525,7 +1402,7 @@ def verify_with_liveness(request):
         adjudication = VerificationAdjudication.objects.create(
             user=request.user,
             application=application,
-            school_id_image_path=school_id_full_path,
+            school_id_image_path=school_id_path,
             selfie_image_path=f'liveness-sessions/{session_id}/reference_image.jpg',  # S3 path from liveness
             verification_backend='rekognition',
             automated_liveness_score=liveness_confidence,

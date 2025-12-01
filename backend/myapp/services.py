@@ -72,14 +72,15 @@ class GWACalculationService:
     @staticmethod
     def check_eligibility(gwa: float, total_units: int) -> Dict[str, bool]:
         """
-        Check basic and merit eligibility based on official rules:
-        - Basic Allowance: GWA ≤ 2.5 (80%) and ≥15 units
-        - Merit Incentive: GWA ≤ 1.75 (87%) and ≥15 units
+        Check basic and merit eligibility based on updated rules:
+        - GWA < 2.00: Basic allowance only (₱5,000)
+        - GWA ≥ 2.00: Both basic and merit allowances (₱10,000 total)
         
-        Students with GWA ≤ 1.75 qualify for BOTH allowances (₱10,000 total)
+        Also considers subject count as part of eligibility validation.
         """
-        basic_eligible = gwa <= 2.5 and total_units >= 15   # Basic: GWA ≤ 2.5
-        merit_eligible = gwa <= 1.75 and total_units >= 15  # Merit: GWA ≤ 1.75 (87%)
+        # Updated eligibility logic: GWA threshold is now 2.00
+        basic_eligible = gwa <= 2.5 and total_units >= 15  # Basic eligibility still requires GWA ≤ 2.5
+        merit_eligible = gwa < 2.00 and total_units >= 15   # Merit eligibility now requires GWA < 2.00
         
         return {
             'basic_eligible': basic_eligible,

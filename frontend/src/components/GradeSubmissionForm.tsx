@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/authService';
 import documentService, { GradeSubmissionEligibility } from '../services/documentService';
-import gradeService, { COESubject, GradeSubmissionStatus, SessionInfo } from '../services/gradeService';
+import gradeService, { COESubject, GradeSubmissionStatus } from '../services/gradeService';
 import NotificationModal from './NotificationModal';
 import LiveCameraCapture from './LiveCameraCapture';
-import GradeSubmissionDisclaimerModal from './GradeSubmissionDisclaimerModal';
-import SubmissionCountdownTimer from './SubmissionCountdownTimer';
 import './GradeSubmissionForm.css';
 
 interface GradeSubmissionFormProps {
@@ -28,68 +26,11 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   onSubmissionSuccess,
   onCancel
 }) => {
-  // LocalStorage key for persistence
-  const STORAGE_KEY = 'grade_submission_form_state';
-
-  // Helper functions for localStorage
-  const saveFormState = useCallback((states: SubjectSubmissionState[], sem: string, year: string) => {
-    try {
-      const stateToSave = {
-        semester: sem,
-        academicYear: year,
-        subjects: states.map(state => ({
-          subject_code: state.subject.subject_code,
-          subject_name: state.subject.subject_name,
-          units: state.units,
-          grade: state.grade,
-          status: state.status,
-          // Don't save file objects, they can't be serialized
-        })),
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-    } catch (error) {
-      console.error('Error saving form state:', error);
-    }
-  }, []);
-
-  const loadFormState = useCallback(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Check if saved state is not too old (24 hours)
-        const savedTime = new Date(parsed.timestamp);
-        const now = new Date();
-        const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
-        
-        if (hoursDiff < 24) {
-          return parsed;
-        } else {
-          // Clear old state
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading form state:', error);
-    }
-    return null;
-  }, []);
-
-  const clearFormState = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error clearing form state:', error);
-    }
-  }, []);
-
   // COE and subject state
   const [coeSubjects, setCoeSubjects] = useState<COESubject[]>([]);
   const [subjectStates, setSubjectStates] = useState<SubjectSubmissionState[]>([]);
   const [semester, setSemester] = useState('');
   const [academicYear, setAcademicYear] = useState('');
-  const [restoredFromCache, setRestoredFromCache] = useState(false);
   
   // UI state
   const [loading, setLoading] = useState(false);
@@ -104,15 +45,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [gradeStatus, setGradeStatus] = useState<GradeSubmissionStatus | null>(null);
   
-  // Session management
-  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
-  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
-  
-  // Auto-save ref for debouncing
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
 
 
   const semesters = [
@@ -121,19 +53,13 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     { value: 'summer', label: 'Summer' }
   ];
 
-  // Fetch submission status (without showing restoration notification)
-  const fetchSubmissionStatus = useCallback(async (showRestorationNotification: boolean = false) => {
+  // Fetch submission status
+  const fetchSubmissionStatus = useCallback(async () => {
     if (!semester || !academicYear) return;
     
     try {
       const status = await gradeService.getGradeSubmissionStatus(academicYear, semester);
       setGradeStatus(status);
-      setSessionInfo(status.session_info);
-      
-      // Check if session expired
-      if (status.session_info && status.session_info.is_expired) {
-        setSessionExpired(true);
-      }
 
       // Update subject states with existing submissions
       if (status.submissions && status.submissions.length > 0) {
@@ -156,76 +82,10 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           })
         );
       }
-      
-      // Restore draft submissions
-      if (status.draft_submissions && status.draft_submissions.length > 0) {
-        setSubjectStates(prevStates => 
-          prevStates.map(state => {
-            const draftSubmission = status.draft_submissions.find(
-              sub => sub.subject_code === state.subject.subject_code
-            );
-            if (draftSubmission) {
-              return {
-                ...state,
-                units: draftSubmission.units,
-                grade: draftSubmission.grade_received,
-                // Note: Can't restore file from draft
-              };
-            }
-            return state;
-          })
-        );
-        
-        // Only show notification if requested (e.g., on manual refresh)
-        if (showRestorationNotification) {
-          setRestoredFromCache(true);
-          setNotificationMessage(`✅ Progress restored! ${status.draft_count} draft${status.draft_count > 1 ? 's' : ''} found.`);
-          setNotificationType('success');
-          setShowNotification(true);
-        }
-      }
     } catch (error) {
       console.error('Error fetching submission status:', error);
     }
   }, [semester, academicYear]);
-
-  // Function to reload COE subjects
-  const reloadCOESubjects = async () => {
-    try {
-      setCoeLoading(true);
-      setError('');
-      
-      const coeData = await gradeService.getCOESubjects();
-      setCoeSubjects(coeData.subjects);
-      
-      // Initialize subject states
-      const initialStates: SubjectSubmissionState[] = coeData.subjects.map(subject => ({
-        subject,
-        file: null,
-        units: 3,
-        grade: 1.0,
-        status: 'not-submitted' as const,
-      }));
-      setSubjectStates(initialStates);
-      
-      // Set default semester and academic year from COE if available
-      if (coeData.semester) setSemester(coeData.semester);
-      if (coeData.academic_year) setAcademicYear(coeData.academic_year);
-      
-      // Show success message
-      setNotificationMessage(`Successfully loaded ${coeData.subjects.length} subjects from your COE`);
-      setNotificationType('success');
-      setShowNotification(true);
-      
-    } catch (error: any) {
-      setError(error.message || 'Failed to reload COE subjects');
-      setNotificationMessage(error.message || 'Failed to reload COE subjects');
-      setNotificationType('error');
-      setShowNotification(true);
-    } finally {
-      setCoeLoading(false);
-    }
-  };
 
   // Check document eligibility and load COE subjects on mount
   useEffect(() => {
@@ -243,7 +103,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           const coeData = await gradeService.getCOESubjects();
           setCoeSubjects(coeData.subjects);
           
-          // Initialize with default values first
+          // Initialize subject states
           const initialStates: SubjectSubmissionState[] = coeData.subjects.map(subject => ({
             subject,
             file: null,
@@ -257,71 +117,8 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           if (coeData.semester) setSemester(coeData.semester);
           if (coeData.academic_year) setAcademicYear(coeData.academic_year);
 
-          // Fetch existing submissions status (including drafts from database)
-          if (coeData.semester && coeData.academic_year) {
-            try {
-              const status = await gradeService.getGradeSubmissionStatus(coeData.academic_year, coeData.semester);
-              setGradeStatus(status);
-              setSessionInfo(status.session_info);
-              
-              // Check if session expired
-              if (status.session_info && status.session_info.is_expired) {
-                setSessionExpired(true);
-              }
-
-              // Check if there are any draft submissions in the database
-              const hasDrafts = status.draft_submissions && status.draft_submissions.length > 0;
-              
-              // Restore draft submissions from database
-              if (hasDrafts) {
-                const restoredStates = initialStates.map(state => {
-                  const draftSubmission = status.draft_submissions.find(
-                    sub => sub.subject_code === state.subject.subject_code
-                  );
-                  if (draftSubmission) {
-                    return {
-                      ...state,
-                      units: draftSubmission.units,
-                      grade: draftSubmission.grade_received,
-                      // Note: Can't restore file from draft
-                    };
-                  }
-                  return state;
-                });
-                setSubjectStates(restoredStates);
-                setRestoredFromCache(true);
-                
-                // Show notification about restored drafts from database
-                setNotificationMessage(`✅ Your previous progress has been restored! ${status.draft_count} draft${status.draft_count > 1 ? 's' : ''} found.`);
-                setNotificationType('success');
-                setShowNotification(true);
-              }
-              
-              // Update subject states with existing final submissions
-              if (status.submissions && status.submissions.length > 0) {
-                setSubjectStates(prevStates => 
-                  prevStates.map(state => {
-                    const existingSubmission = status.submissions.find(
-                      sub => sub.subject_code === state.subject.subject_code
-                    );
-                    if (existingSubmission) {
-                      return {
-                        ...state,
-                        status: existingSubmission.status as any,
-                        submissionId: existingSubmission.id,
-                        units: existingSubmission.units,
-                        grade: existingSubmission.grade_received,
-                        adminNotes: existingSubmission.admin_notes,
-                      };
-                    }
-                    return state;
-                  })
-                );
-              }
-            } catch (error) {
-              console.error('Error fetching submission status:', error);
-            }
-          }
+          // Fetch existing submissions status
+          await fetchSubmissionStatus();
         }
       } catch (error: any) {
         console.error('Error initializing form:', error);
@@ -342,20 +139,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     initializeForm();
   }, []); // Run only once on mount
 
-  // Auto-save form state to localStorage whenever it changes
-  useEffect(() => {
-    if (subjectStates.length > 0 && semester && academicYear) {
-      saveFormState(subjectStates, semester, academicYear);
-    }
-  }, [subjectStates, semester, academicYear, saveFormState]);
-
-  // Clear saved state when all subjects are submitted
-  useEffect(() => {
-    if (gradeStatus && gradeStatus.submitted_count === gradeStatus.total_subjects && gradeStatus.total_subjects > 0) {
-      clearFormState();
-    }
-  }, [gradeStatus, clearFormState]);
-
   // Handle file selection for a subject
   const handleFileChange = (index: number, file: File | null) => {
     setSubjectStates(prev => {
@@ -363,9 +146,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       newStates[index] = { ...newStates[index], file, error: undefined };
       return newStates;
     });
-    
-    // Trigger auto-save
-    autoSaveDraft(index);
   };
 
   // Handle units change for a subject
@@ -375,44 +155,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       newStates[index] = { ...newStates[index], units };
       return newStates;
     });
-    
-    // Trigger auto-save
-    autoSaveDraft(index);
   };
-
-  // Auto-save draft with debounce
-  const autoSaveDraft = useCallback((index: number) => {
-    const state = subjectStates[index];
-    
-    // Only auto-save if we have file, units, and grade
-    if (!state.file || !state.units || !state.grade || !semester || !academicYear) {
-      return;
-    }
-
-    // Clear existing timeout
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-
-    // Set new timeout for 30 seconds
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await gradeService.submitSubjectGrade({
-          subject_code: state.subject.subject_code,
-          subject_name: state.subject.subject_name,
-          academic_year: academicYear,
-          semester: semester,
-          units: state.units,
-          grade_received: state.grade,
-          grade_sheet: state.file!,
-        }, true); // isDraft = true
-        
-        console.log(`Draft auto-saved for ${state.subject.subject_code}`);
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    }, 30000); // 30 seconds
-  }, [subjectStates, semester, academicYear]);
 
   // Handle grade change for a subject
   const handleGradeChange = (index: number, grade: number) => {
@@ -421,9 +164,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       newStates[index] = { ...newStates[index], grade };
       return newStates;
     });
-    
-    // Trigger auto-save
-    autoSaveDraft(index);
   };
 
   // Submit grade for a single subject
@@ -444,22 +184,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       return;
     }
 
-    // Check if session expired
-    if (sessionExpired) {
-      setNotificationType('error');
-      setNotificationMessage('❌ Your submission session has expired. Please contact the administrator.');
-      setShowNotification(true);
-      return;
-    }
-
-    // Show disclaimer on first submission
-    if (!disclaimerAccepted && !sessionInfo) {
-      setShowDisclaimerModal(true);
-      // Store the index to submit after accepting
-      (window as any).pendingSubmissionIndex = index;
-      return;
-    }
-
     // Update status to uploading
     setSubjectStates(prev => {
       const newStates = [...prev];
@@ -476,7 +200,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         units: state.units,
         grade_received: state.grade,
         grade_sheet: state.file,
-      }, false); // isDraft = false (final submission)
+      });
 
       // Update state with submission result
       setSubjectStates(prev => {
@@ -497,14 +221,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
       setNotificationMessage(`✅ Grade submitted for ${state.subject.subject_code} - ${state.subject.subject_name}`);
       setShowNotification(true);
     } catch (error: any) {
-      // Check if session expired error
-      if (error.message && error.message.includes('expired')) {
-        setSessionExpired(true);
-        setNotificationType('error');
-        setNotificationMessage('❌ Your submission session has expired. Please contact the administrator to reset your session.');
-        setShowNotification(true);
-      }
-      
       setSubjectStates(prev => {
         const newStates = [...prev];
         newStates[index] = {
@@ -515,27 +231,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
         return newStates;
       });
     }
-  };
-  
-  // Handle disclaimer acceptance
-  const handleDisclaimerAccept = () => {
-    setDisclaimerAccepted(true);
-    setShowDisclaimerModal(false);
-    
-    // Submit the pending subject
-    const pendingIndex = (window as any).pendingSubmissionIndex;
-    if (typeof pendingIndex === 'number') {
-      delete (window as any).pendingSubmissionIndex;
-      handleSubmitSubject(pendingIndex);
-    }
-  };
-  
-  // Handle session expiry
-  const handleSessionExpire = () => {
-    setSessionExpired(true);
-    setNotificationType('error');
-    setNotificationMessage('⏰ Your 2-hour submission window has expired. Please contact the administrator.');
-    setShowNotification(true);
   };
 
   // Validate all submissions
@@ -581,29 +276,11 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
 
   return (
     <div className="grade-submission-form-compact">
-      {/* Disclaimer Modal */}
-      <GradeSubmissionDisclaimerModal
-        open={showDisclaimerModal}
-        onClose={() => {
-          setShowDisclaimerModal(false);
-          delete (window as any).pendingSubmissionIndex;
-        }}
-        onAccept={handleDisclaimerAccept}
-      />
-      
       {/* Header */}
       <div className="compact-header">
         <h2>Submit Grades by Subject</h2>
         <p className="header-subtitle">Upload grade sheet for each subject from your COE</p>
       </div>
-
-      {/* Countdown Timer */}
-      {sessionInfo && !sessionInfo.is_expired && (
-        <SubmissionCountdownTimer
-          expiresAt={sessionInfo.session_expires_at}
-          onExpire={handleSessionExpire}
-        />
-      )}
 
       {/* Loading states */}
       {(documentsLoading || coeLoading) && (
@@ -659,27 +336,6 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
             </div>
           </div>
 
-          {/* Restored State Notice */}
-          {restoredFromCache && (
-            <div className="info-message" style={{ 
-              backgroundColor: '#e7f3ff', 
-              border: '1px solid #2196F3', 
-              borderRadius: '4px', 
-              padding: '12px', 
-              marginBottom: '15px',
-              color: '#1565C0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '1.2rem' }}>💾</span>
-              <div>
-                <strong>Form Progress Restored</strong>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem' }}>Your previous entries have been recovered. You can continue where you left off!</p>
-              </div>
-            </div>
-          )}
-
           {/* Progress Indicator */}
           {totalSubjects > 0 && (
             <div className="progress-section">
@@ -700,20 +356,10 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
           {coeSubjects.length === 0 ? (
             <div className="no-subjects-message">
               <p>📋 No subjects found in your COE. Please ensure your Certificate of Enrollment has been approved and contains subject information.</p>
-              <p>If you just uploaded a new COE, please wait for admin approval. Once approved, subjects will be extracted automatically.</p>
-              <button 
-                onClick={reloadCOESubjects} 
-                disabled={coeLoading}
-                className="refresh-button"
-                style={{ marginTop: '10px', padding: '8px 16px', cursor: 'pointer' }}
-              >
-                {coeLoading ? '⏳ Loading...' : '🔄 Reload Subjects'}
-              </button>
             </div>
           ) : (
             <div className="subject-list">
               <h4>📚 Subjects from COE ({coeSubjects.length})</h4>
-              
               {subjectStates.map((state, index) => (
                 <div key={state.subject.subject_code} className="subject-card">
                   <div className="subject-header">
@@ -787,14 +433,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
                         type="button"
                         onClick={() => handleSubmitSubject(index)}
                         className="btn-submit-subject"
-                        disabled={
-                          !state.file || 
-                          state.status === 'uploading'
-                        }
-                        title={
-                          !state.file ? 'Please select a grade sheet file' : 
-                          'Submit grade for AI verification and review'
-                        }
+                        disabled={!state.file || state.status === 'uploading'}
                       >
                         {state.status === 'uploading' ? 'Uploading...' : 'Submit Grade'}
                       </button>

@@ -115,15 +115,6 @@ export const authService = {
     return response.data;
   },
 
-  validateRegistrationFields: async (username: string, email: string, studentId: string): Promise<{ valid: boolean }> => {
-    const response = await axios.post<{ valid: boolean }>(`${API_BASE_URL}/auth/validate-registration/`, {
-      username,
-      email,
-      student_id: studentId,
-    });
-    return response.data;
-  },
-
   register: async (userData: RegisterData): Promise<RegisterResponse> => {
     const response = await axios.post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, userData);
     return response.data;

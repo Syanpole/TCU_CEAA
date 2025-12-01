@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from PIL import Image
@@ -8,14 +8,12 @@ from datetime import datetime
 from .validators import profile_image_validators, document_validators, grade_sheet_validators
 
 def profile_image_upload_path(instance, filename):
-    """Storage backend location 'media/profiles' is automatically prepended"""
-    return f'{instance.id}/{filename}'
+    return f'profile_images/{instance.id}/{filename}'
 
 def document_upload_path(instance, filename):
     """
     Custom upload path for documents with naming convention:
-    YYYY/MM/doc-type_student-number_YYYYMMDD_HHMMSS.ext
-    Note: Storage backend location 'media/documents' is automatically prepended
+    documents/YYYY/MM/doc-type_student-number_YYYYMMDD_HHMMSS.ext
     """
     ext = os.path.splitext(filename)[1]
     # Get document type (replace underscores with hyphens for readability)
@@ -26,14 +24,13 @@ def document_upload_path(instance, filename):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     # Create filename
     new_filename = f"{doc_type}_{student_id}_{timestamp}{ext}"
-    # Return path with year/month structure (storage location is prepended automatically)
-    return f"{datetime.now().strftime('%Y/%m')}/{new_filename}"
+    # Return full path with year/month structure
+    return f"documents/{datetime.now().strftime('%Y/%m')}/{new_filename}"
 
 def grade_upload_path(instance, filename):
     """
     Custom upload path for grade sheets with naming convention:
-    YYYY/MM/grade_student-number_subject-code_YYYYMMDD_HHMMSS.ext
-    Note: Storage backend location 'media/grades' is automatically prepended
+    grades/YYYY/MM/grade_student-number_subject-code_YYYYMMDD_HHMMSS.ext
     """
     ext = os.path.splitext(filename)[1]
     # Get student ID (or username if no student_id)
@@ -44,57 +41,8 @@ def grade_upload_path(instance, filename):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     # Create filename
     new_filename = f"grade_{student_id}_{subject_code}_{timestamp}{ext}"
-    # Return path with year/month structure (storage location is prepended automatically)
-    return f"{datetime.now().strftime('%Y/%m')}/{new_filename}"
-
-class CustomUserManager(BaseUserManager):
-    """Custom manager to exclude archived users by default"""
-    def get_queryset(self):
-        return super().get_queryset().filter(is_archived=False)
-    
-    def archived(self):
-        """Return only archived users"""
-        return super().get_queryset().filter(is_archived=True)
-    
-    def with_archived(self):
-        """Return all users including archived"""
-        return super().get_queryset()
-    
-    def get_by_natural_key(self, username):
-        """
-        Required for Django authentication backend.
-        Get user by their natural key (username).
-        """
-        return self.get(**{self.model.USERNAME_FIELD: username})
-    
-    def create_user(self, username, email=None, password=None, **extra_fields):
-        """
-        Create and save a regular user with the given username, email, and password.
-        """
-        if not username:
-            raise ValueError('The Username field must be set')
-        
-        email = self.normalize_email(email) if email else None
-        user = self.model(username=username, email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-    
-    def create_superuser(self, username, email=None, password=None, **extra_fields):
-        """
-        Create and save a superuser with the given username, email, and password.
-        """
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', 'admin')
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-        
-        return self.create_user(username, email, password, **extra_fields)
-
+    # Return full path with year/month structure
+    return f"grades/{datetime.now().strftime('%Y/%m')}/{new_filename}"
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -105,13 +53,7 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
     student_id = models.CharField(max_length=8, unique=True, null=True, blank=True, help_text="Format: YY-XXXXX (e.g., 22-00001)")
     middle_initial = models.CharField(max_length=5, blank=True, null=True, help_text="Middle initial (e.g., A. or M.)")
-    profile_image = models.ImageField(
-        upload_to=profile_image_upload_path, 
-        null=True, 
-        blank=True, 
-        validators=profile_image_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('profile')
-    )
+    profile_image = models.ImageField(upload_to=profile_image_upload_path, null=True, blank=True, validators=profile_image_validators)
     is_email_verified = models.BooleanField(default=False, help_text="Email verification status")
     created_at = models.DateTimeField(auto_now_add=True)
     ai_verification_score = models.FloatField(default=0.0, help_text="AI verification confidence score (0.0-1.0)")
@@ -119,16 +61,6 @@ class CustomUser(AbstractUser):
     # Email verification
     is_email_verified = models.BooleanField(default=False, help_text="Email address has been verified")
     email_verified_at = models.DateTimeField(null=True, blank=True, help_text="When email was verified")
-    
-    # Archive/Soft delete
-    is_archived = models.BooleanField(default=False, help_text="User is archived (soft deleted)")
-    archived_at = models.DateTimeField(null=True, blank=True, help_text="When user was archived")
-    archived_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='archived_users', help_text="Admin who archived this user")
-    archive_reason = models.TextField(blank=True, null=True, help_text="Reason for archiving the user")
-    
-    # Custom managers
-    objects = CustomUserManager()  # Default manager (excludes archived)
-    all_objects = models.Manager()  # Access all users including archived
     
     def is_admin(self):
         return self.role == 'admin'
@@ -369,11 +301,7 @@ class DocumentSubmission(models.Model):
     
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
-    document_file = models.FileField(
-        upload_to=document_upload_path, 
-        validators=document_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('document')
-    )
+    document_file = models.FileField(upload_to=document_upload_path, validators=document_validators)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True)
@@ -405,9 +333,6 @@ class DocumentSubmission(models.Model):
     extracted_subjects = models.JSONField(default=list, blank=True, help_text="List of subjects extracted from COE: [{subject_code, subject_name}, ...]")
     subject_count = models.IntegerField(default=0, help_text="Total number of subjects extracted from COE")
     
-    # Archive/Active Status
-    is_active = models.BooleanField(default=True, help_text="Whether this document is active or archived (superseded by newer submission)")
-    
     submitted_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, 
@@ -427,7 +352,6 @@ class GradeSubmission(models.Model):
     ]
     
     STATUS_CHOICES = [
-        ('draft', 'Draft (Auto-saved)'),
         ('pending', 'Pending Review'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
@@ -456,12 +380,8 @@ class GradeSubmission(models.Model):
                                                    validators=[MinValueValidator(1.0), MaxValueValidator(100.0)],
                                                    null=True, blank=True, default=None)
     
-    # Grade sheet upload (one grade image per subject) - S3 ONLY
-    grade_sheet = models.FileField(
-        upload_to=grade_upload_path, 
-        validators=grade_sheet_validators,
-        storage=lambda: __import__('myapp.storage_backends', fromlist=['get_storage_backend']).get_storage_backend('grade')
-    )
+    # Grade sheet upload (one grade image per subject)
+    grade_sheet = models.FileField(upload_to=grade_upload_path, validators=grade_sheet_validators)
     
     # Validation flags
     has_failing_grades = models.BooleanField(default=False)
@@ -723,52 +643,6 @@ class GradeSubmission(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.academic_year} {self.semester} ({self.status})"
-
-
-class GradeSubmissionSession(models.Model):
-    """
-    Tracks the 2-hour submission window for grade submissions.
-    A session starts when the student submits their first subject grade.
-    """
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
-    academic_year = models.CharField(max_length=20, help_text="Format: YYYY-YYYY (e.g., 2024-2025)")
-    semester = models.CharField(max_length=10, choices=GradeSubmission.SEMESTER_CHOICES)
-    
-    session_started_at = models.DateTimeField(auto_now_add=True, help_text="When the first grade was submitted")
-    session_expires_at = models.DateTimeField(help_text="2 hours after session start")
-    
-    is_active = models.BooleanField(default=True, help_text="Whether the session is still active")
-    completed_at = models.DateTimeField(null=True, blank=True, help_text="When all subjects were submitted")
-    
-    class Meta:
-        ordering = ['-session_started_at']
-        unique_together = ['student', 'academic_year', 'semester']
-        indexes = [
-            models.Index(fields=['student', 'is_active']),
-            models.Index(fields=['session_expires_at']),
-        ]
-    
-    def save(self, *args, **kwargs):
-        """Set expiry time to 2 hours from start if not already set"""
-        if not self.session_expires_at:
-            from datetime import timedelta
-            self.session_expires_at = self.session_started_at + timedelta(hours=2)
-        super().save(*args, **kwargs)
-    
-    def is_expired(self):
-        """Check if the session has expired"""
-        return timezone.now() > self.session_expires_at
-    
-    def get_time_remaining(self):
-        """Get remaining time in seconds"""
-        if self.is_expired():
-            return 0
-        remaining = (self.session_expires_at - timezone.now()).total_seconds()
-        return max(0, int(remaining))
-    
-    def __str__(self):
-        return f"{self.student.username} - {self.academic_year} {self.semester} - Session {self.id}"
-
 
 class AllowanceApplication(models.Model):
     APPLICATION_TYPES = [

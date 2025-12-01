@@ -316,38 +316,13 @@ const GradesPage: React.FC<GradesPageProps> = ({
         </div>
       </div>
 
-      {/* Notice for Grade Submission Status */}
-      {!canSubmitGrades && groupedGrades.length > 0 && (
-        <div className="grades-complete-banner">
-          <div className="banner-decoration">
-            <div className="success-circle">
-              <svg viewBox="0 0 24 24" fill="none" className="check-icon">
-                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-          <div className="banner-main-content">
-            <div className="banner-badge">Academic Achievement</div>
-            <h3 className="banner-title">🎓 Grades Successfully Submitted!</h3>
-            <p className="banner-description">
-              Your academic records are complete and approved. You're all set for allowance eligibility!
-            </p>
-            <div className="banner-stats">
-              <div className="stat-item">
-                <div className="stat-icon">📚</div>
-                <div className="stat-text">
-                  <span className="stat-value">{groupedGrades.length}</span>
-                  <span className="stat-label">Semester{groupedGrades.length !== 1 ? 's' : ''}</span>
-                </div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-icon">✅</div>
-                <div className="stat-text">
-                  <span className="stat-value">Approved</span>
-                  <span className="stat-label">Status</span>
-                </div>
-              </div>
-            </div>
+      {/* Notice for Document Requirements */}
+      {!canSubmitGrades && (
+        <div className="info-banner warning">
+          <div className="banner-icon">⚠️</div>
+          <div className="banner-content">
+            <h3>Documents Required First</h3>
+            <p>You need to submit at least 2 approved documents before submitting grades.</p>
           </div>
         </div>
       )}

@@ -117,35 +117,7 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       return;
     }
 
-    // Step 3: Validate registration fields (check for duplicates)
-    try {
-      await authService.validateRegistrationFields(
-        formData.username,
-        formData.email,
-        formData.studentId
-      );
-    } catch (validationError: any) {
-      console.error('Field validation error:', validationError);
-      if (validationError.response?.data) {
-        const errorData = validationError.response.data;
-        
-        if (errorData.username) {
-          setError(errorData.username);
-        } else if (errorData.email) {
-          setError(errorData.email);
-        } else if (errorData.student_id) {
-          setError(errorData.student_id);
-        } else {
-          setError('Registration validation failed. Please check your information.');
-        }
-      } else {
-        setError('Unable to validate registration. Please try again.');
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Step 4: Send verification code to email
+    // Step 3: Send verification code to email
     try {
       const result = await sendVerificationCode(formData.email);
       
@@ -174,19 +146,16 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       if (verifyResult.success) {
         setVerificationCode(code);
         setEmailVerified(true);
+        setShowVerificationModal(false);
         
         // Complete registration with verified email
         await completeRegistration(code);
-        
-        // Only close modal if registration succeeds
-        setShowVerificationModal(false);
       } else {
         setError(verifyResult.message);
         setLoading(false);
       }
     } catch (error: any) {
       console.error('Verification error:', error);
-      setShowVerificationModal(false);
       setError('Verification failed. Please try again.');
       setLoading(false);
     }
@@ -213,9 +182,6 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ onBack, onGoT
       setShowVerificationModal(false);
     } catch (registrationError: any) {
       console.error('Registration error:', registrationError);
-      
-      // Close modal immediately
-      setShowVerificationModal(false);
       
       if (registrationError.response?.data) {
         const errorData = registrationError.response.data;

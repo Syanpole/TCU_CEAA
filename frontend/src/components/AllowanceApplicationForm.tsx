@@ -309,27 +309,15 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     return selectedType ? selectedType.amount : '₱0';
   };
 
-  const handleLivenessComplete = async (result: LivenessResult) => {
+  const handleLivenessComplete = (result: LivenessResult) => {
     // Store the verification result
     setSelfieImage(result.referenceImageUrl || '');
     setFaceVerificationComplete(true);
     setShowFaceVerification(false);
     console.log('✅ Biometric liveness verification completed!', result);
     
-    // Fetch the image from S3 URL and convert to blob for upload
-    if (result.referenceImageUrl) {
-      try {
-        const response = await fetch(result.referenceImageUrl);
-        const blob = await response.blob();
-        setSelfieBlob(blob);
-        console.log('✅ Selfie blob created from S3 image');
-      } catch (error) {
-        console.error('❌ Failed to fetch selfie image from S3:', error);
-        // Continue anyway since we have the URL
-      }
-    }
-    
-    // Store the full result for later use
+    // You can store the full result for later use
+    // For example, store sessionId and confidence scores
     localStorage.setItem('livenessVerificationResult', JSON.stringify(result));
   };
 
@@ -360,8 +348,14 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     }
 
     // Check if face verification is complete
-    // Allow submission if face verification is complete OR there's a pending adjudication
-    if (!faceVerificationComplete && !hasPendingAdjudication) {
+    // If there's a pending adjudication, allow submission without selfieBlob
+    if (!faceVerificationComplete) {
+      setError('Please complete face verification before submitting your application.');
+      return;
+    }
+    
+    // If not pending adjudication, require selfieBlob
+    if (!hasPendingAdjudication && !selfieBlob) {
       setError('Please complete face verification before submitting your application.');
       return;
     }

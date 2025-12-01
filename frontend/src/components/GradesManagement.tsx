@@ -43,13 +43,6 @@ interface StudentGrades {
   semester_groups: SemesterGroup[];
 }
 
-interface ReprocessResponse {
-  message: string;
-  processed_count: number;
-  boosted_count: number;
-  auto_approved_count: number;
-}
-
 interface GradeDetailsModal {
   id: number;
   student_name: string;
@@ -95,9 +88,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedGrade, setSelectedGrade] = useState<GradeDetailsModal | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [showReasonModal, setShowReasonModal] = useState(false);
-  const [deletionReason, setDeletionReason] = useState('');
-  const [pendingDeleteGrade, setPendingDeleteGrade] = useState<{id: number, code: string, name: string} | null>(null);
 
   useEffect(() => {
     const fetchGroupedGrades = async () => {
@@ -244,51 +234,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
     }
   };
 
-  const handleReprocessSemester = async (studentId: number, academicYear: string, semester: string) => {
-    try {
-      await showAlert({
-        message: '🔄 Reprocessing all grades in this semester with AI verification...',
-        type: 'info',
-        confirmText: 'OK'
-      });
-
-      const response = await apiClient.post<ReprocessResponse>('/grades/reprocess_semester/', {
-        student_id: studentId,
-        academic_year: academicYear,
-        semester: semester
-      });
-
-      // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
-      setStudentGrades(updatedResponse.data);
-      
-      const { processed_count, boosted_count, auto_approved_count } = response.data;
-      let message = `✅ Reprocessed ${processed_count} grades!\n\n`;
-      
-      if (boosted_count > 0) {
-        message += `🔧 Boosted ${boosted_count} grades with OCR issues (authentic docs, manual grades)\n`;
-      }
-      if (auto_approved_count > 0) {
-        message += `🎉 Auto-approved ${auto_approved_count} grades with 85%+ confidence`;
-      } else {
-        message += `⏳ All grades need manual review (confidence < 85%)`;
-      }
-      
-      await showAlert({
-        message: message,
-        type: 'success',
-        confirmText: 'OK'
-      });
-    } catch (err: any) {
-      console.error('Error reprocessing semester:', err);
-      await showAlert({
-        message: err.response?.data?.error || 'Failed to reprocess semester. Please try again.',
-        type: 'error',
-        confirmText: 'OK'
-      });
-    }
-  };
-
   const handleRecalculateSemesterGWA = async (studentId: number, academicYear: string, semester: string) => {
     try {
       const response = await apiClient.post('/grades/grouped_by_semester/', {
@@ -306,61 +251,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
     } catch (err) {
       console.error('Error recalculating GWA:', err);
       alert('Failed to recalculate GWA. Please try again.');
-    }
-  };
-
-  const handleDeleteGrade = async (gradeId: number, subjectCode: string, studentName: string) => {
-    const confirmed = await showConfirm({
-      message: `⚠️ Are you sure you want to delete ${subjectCode} for ${studentName}?\n\nThis action cannot be undone and will permanently remove the grade record.`,
-      type: 'warning',
-      confirmText: 'Delete',
-      cancelText: 'Cancel'
-    });
-    
-    if (!confirmed) return;
-    
-    // Show custom reason modal
-    setPendingDeleteGrade({ id: gradeId, code: subjectCode, name: studentName });
-    setDeletionReason('');
-    setShowReasonModal(true);
-  };
-
-  const confirmDeleteWithReason = async () => {
-    if (!pendingDeleteGrade || !deletionReason.trim()) {
-      await showAlert({
-        message: 'Please provide a reason for deletion.',
-        type: 'error',
-        confirmText: 'OK'
-      });
-      return;
-    }
-
-    try {
-      await apiClient.delete(`/grades/${pendingDeleteGrade.id}/`, {
-        params: { reason: deletionReason }
-      });
-      
-      // Close modal and reset state
-      setShowReasonModal(false);
-      setPendingDeleteGrade(null);
-      setDeletionReason('');
-      
-      // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
-      setStudentGrades(updatedResponse.data);
-      
-      await showAlert({
-        message: `✅ Grade submission for ${pendingDeleteGrade.code} deleted successfully!`,
-        type: 'success',
-        confirmText: 'OK'
-      });
-    } catch (err) {
-      console.error('Error deleting grade:', err);
-      await showAlert({
-        message: 'Failed to delete grade submission. Please try again.',
-        type: 'error',
-        confirmText: 'OK'
-      });
     }
   };
 
@@ -551,39 +441,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                           </div>
                         </div>
 
-                        {/* Action Buttons - Always Visible */}
-                        <div className="card-actions">
-                          <button 
-                            className="action-btn approve-all-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApproveSemesterGroup(student.student_id, group.academic_year, group.semester);
-                            }}
-                            disabled={group.all_approved}
-                          >
-                            ✅ Approve All
-                          </button>
-                          <button 
-                            className="action-btn reprocess-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReprocessSemester(student.student_id, group.academic_year, group.semester);
-                            }}
-                            title="Reprocess all grades with AI verification and auto-approve high confidence (≥85%)"
-                          >
-                            🤖 Reprocess
-                          </button>
-                          <button 
-                            className="action-btn recalculate-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRecalculateSemesterGWA(student.student_id, group.academic_year, group.semester);
-                            }}
-                          >
-                            🔄 Recalculate
-                          </button>
-                        </div>
-
                         {/* Card Content - Subjects Table (Collapsible) */}
                         {isExpanded && (
                           <div className="card-content">
@@ -596,7 +453,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                                   <th className="text-center">Grade</th>
                                   <th className="text-center">Status</th>
                                   <th className="text-center">AI Confidence</th>
-                                  <th className="text-center">Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -621,15 +477,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                                         <span className="confidence-text">{(subject.ai_confidence_score * 100).toFixed(0)}%</span>
                                       </div>
                                     </td>
-                                    <td className="text-center">
-                                      <button
-                                        className="delete-grade-btn"
-                                        onClick={() => handleDeleteGrade(subject.id, subject.subject_code, student.student_name)}
-                                        title="Delete this grade submission"
-                                      >
-                                        🗑️
-                                      </button>
-                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -642,6 +489,21 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
                                   <span className="summary-label">Completion:</span>
                                   <span className="summary-value">{group.approved_count}/{group.subject_count} approved</span>
                                 </div>
+                              </div>
+                              <div className="footer-right">
+                                <button 
+                                  className="action-btn approve-all-btn"
+                                  onClick={() => handleApproveSemesterGroup(student.student_id, group.academic_year, group.semester)}
+                                  disabled={group.all_approved}
+                                >
+                                  ✅ Approve All
+                                </button>
+                                <button 
+                                  className="action-btn recalculate-btn"
+                                  onClick={() => handleRecalculateSemesterGWA(student.student_id, group.academic_year, group.semester)}
+                                >
+                                  🔄 Recalculate
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -662,50 +524,6 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
           grade={selectedGrade as any}
           onClose={() => setSelectedGrade(null)}
         />
-      )}
-
-      {/* Deletion Reason Modal */}
-      {showReasonModal && pendingDeleteGrade && (
-        <div className="reason-modal-overlay" onClick={() => setShowReasonModal(false)}>
-          <div className="reason-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="reason-modal-header">
-              <h3>🗑️ Delete Grade Submission</h3>
-              <button className="reason-modal-close" onClick={() => setShowReasonModal(false)}>✕</button>
-            </div>
-            <div className="reason-modal-body">
-              <p className="reason-modal-message">
-                Please provide a reason for deleting <strong>{pendingDeleteGrade.code}</strong> for <strong>{pendingDeleteGrade.name}</strong>:
-              </p>
-              <textarea
-                className="reason-modal-input"
-                placeholder="Enter deletion reason (e.g., re-upload, correction needed, duplicate entry...)"
-                value={deletionReason}
-                onChange={(e) => setDeletionReason(e.target.value)}
-                autoFocus
-                rows={4}
-              />
-            </div>
-            <div className="reason-modal-footer">
-              <button 
-                className="reason-modal-btn cancel-btn" 
-                onClick={() => {
-                  setShowReasonModal(false);
-                  setPendingDeleteGrade(null);
-                  setDeletionReason('');
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="reason-modal-btn confirm-btn" 
-                onClick={confirmDeleteWithReason}
-                disabled={!deletionReason.trim()}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
       )}
       
       <NotificationDialog {...notification} />

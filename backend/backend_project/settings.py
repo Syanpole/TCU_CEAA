@@ -189,27 +189,21 @@ EMAIL_TIMEOUT = 30
 # ============================================================================
 # CLOUD STORAGE CONFIGURATION (Amazon S3)
 # ============================================================================
-# FORCE S3 USAGE - All files must be stored in S3, no local storage allowed
-USE_CLOUD_STORAGE = True  # Hardcoded to True - S3 is mandatory
+USE_CLOUD_STORAGE = os.environ.get('USE_CLOUD_STORAGE', 'False') == 'True'
 
-# AWS S3 Configuration
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
-AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')
-AWS_S3_FILE_OVERWRITE = False  # Prevent accidental overwrites
-AWS_DEFAULT_ACL = 'private'  # All files are private by default
-AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',  # Cache for 24 hours
-}
-AWS_QUERYSTRING_AUTH = True  # Use signed URLs for private files
-AWS_QUERYSTRING_EXPIRE = 3600  # URLs expire after 1 hour
-
-# Use S3 for all file storage - NO LOCAL STORAGE
-DEFAULT_FILE_STORAGE = 'myapp.storage_backends.PrivateMediaStorage'
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
-MEDIA_ROOT = None  # Disable local media storage
+if USE_CLOUD_STORAGE:
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'tcu-ceaa-documents')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')
+    AWS_S3_FILE_OVERWRITE = os.environ.get('AWS_S3_FILE_OVERWRITE', 'False') == 'True'
+    AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL', 'private')
+    
+    # Use S3 for media files
+    DEFAULT_FILE_STORAGE = 'myapp.storage_backends.PrivateMediaStorage'
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
 
 # ============================================================================
 # ADVANCED OCR CONFIGURATION (AWS Textract)
