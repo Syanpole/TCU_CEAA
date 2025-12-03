@@ -1142,24 +1142,38 @@ class GradeSubmissionViewSet(viewsets.ModelViewSet):
         Reprocess all grades in a semester with AI verification and auto-approval.
         
         Expected data:
-        - student_id: Student ID
+        - student_id: Student ID (optional for students, required for admins)
         - academic_year: Academic year
         - semester: Semester
-        """
-        if not request.user.is_admin():
-            return Response(
-                {'error': 'Only admins can reprocess grades'},
-                status=status.HTTP_403_FORBIDDEN
-            )
         
+        Students can reprocess their own grades.
+        Admins can reprocess any student's grades by providing student_id.
+        """
         try:
+            # Get student_id from request data or use current user
             student_id = request.data.get('student_id')
             academic_year = request.data.get('academic_year')
             semester = request.data.get('semester')
             
-            if not all([student_id, academic_year, semester]):
+            # If no student_id provided, use current user (for students)
+            if not student_id:
+                if not hasattr(request.user, 'student_id'):
+                    return Response(
+                        {'error': 'User has no associated student record'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                student_id = request.user.student_id
+            else:
+                # If student_id is provided, only admins can use it
+                if not request.user.is_admin() and student_id != request.user.student_id:
+                    return Response(
+                        {'error': 'You can only reprocess your own grades'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            if not all([academic_year, semester]):
                 return Response(
-                    {'error': 'Missing required fields: student_id, academic_year, semester'},
+                    {'error': 'Missing required fields: academic_year, semester'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             

@@ -96,7 +96,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
   const [coeLoading, setCoeLoading] = useState(true);
   const [error, setError] = useState('');
   const [showNotification, setShowNotification] = useState(false);
-  const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'error'>('success');
+  const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
   const [notificationMessage, setNotificationMessage] = useState('');
   
   // Eligibility and status
@@ -538,7 +538,7 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
     setShowNotification(true);
   };
 
-  // Validate all submissions
+  // Validate all submissions with AI reprocessing
   const handleValidateAll = async () => {
     if (!semester || !academicYear) {
       setError('Please select semester and academic year');
@@ -547,27 +547,46 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
 
     setLoading(true);
     try {
-      const validation = await gradeService.validateGradeSubmissions(academicYear, semester);
-      
-      if (validation.is_valid) {
-        setNotificationType('success');
-        setNotificationMessage('✅ All grades validated successfully! Your submissions match your COE subjects.');
-      } else {
-        const errorMsg = [
-          '⚠️ Grade validation issues found:',
-          '',
-          ...validation.errors,
-          '',
-          ...(validation.warnings.length > 0 ? ['Warnings:', ...validation.warnings] : [])
-        ].join('\n');
-        
-        setNotificationType('warning');
-        setNotificationMessage(errorMsg);
-      }
+      // Show processing message
+      setNotificationType('info');
+      setNotificationMessage('🔄 Reprocessing all grades in this semester with AI verification...');
       setShowNotification(true);
+
+      // Call the reprocess endpoint (works for current user without student_id)
+      const response = await apiClient.post<{
+        processed_count: number;
+        boosted_count: number;
+        auto_approved_count: number;
+      }>('/grades/reprocess_semester/', {
+        academic_year: academicYear,
+        semester: semester
+      });
+
+      const { processed_count, boosted_count, auto_approved_count } = response.data;
+      
+      // Build success message
+      let message = `✅ Reprocessed ${processed_count} grades!\n\n`;
+      
+      if (boosted_count > 0) {
+        message += `🔧 Boosted ${boosted_count} grades with OCR issues (authentic docs, manual grades)\n`;
+      }
+      if (auto_approved_count > 0) {
+        message += `🎉 Auto-approved ${auto_approved_count} grades with 85%+ confidence`;
+      } else {
+        message += `⏳ All grades need manual review (confidence < 85%)`;
+      }
+      
+      setNotificationType('success');
+      setNotificationMessage(message);
+      setShowNotification(true);
+
+      // Refresh the submission status
+      await fetchSubmissionStatus(false);
+      
     } catch (error: any) {
+      console.error('Error reprocessing grades:', error);
       setNotificationType('error');
-      setNotificationMessage(error.message || 'Failed to validate submissions');
+      setNotificationMessage(error.response?.data?.error || 'Failed to reprocess grades. Please try again.');
       setShowNotification(true);
     } finally {
       setLoading(false);
@@ -831,8 +850,9 @@ const GradeSubmissionForm: React.FC<GradeSubmissionFormProps> = ({
                 onClick={handleValidateAll}
                 className="btn-compact btn-validate"
                 disabled={loading}
+                title="Reprocess all grades with AI verification and auto-approve high confidence (≥85%)"
               >
-                Validate All
+                🤖 Validate All
               </button>
             )}
           </div>
