@@ -16,7 +16,7 @@ export interface VerificationResponse {
  */
 export const sendVerificationCode = async (email: string): Promise<VerificationResponse> => {
   try {
-    const response = await apiClient.post('/api/auth/send-verification-code/', { email });
+    const response = await apiClient.post('/auth/send-verification-code/', { email });
     const data = response.data as any;
     
     return {
@@ -44,7 +44,7 @@ export const sendVerificationCode = async (email: string): Promise<VerificationR
  */
 export const verifyEmailCode = async (email: string, code: string): Promise<VerificationResponse> => {
   try {
-    const response = await apiClient.post('/api/auth/verify-email-code/', { email, code });
+    const response = await apiClient.post('/auth/verify-email-code/', { email, code });
     const data = response.data as any;
     
     return {
@@ -76,7 +76,7 @@ export const verifyEmailCode = async (email: string, code: string): Promise<Veri
  */
 export const resendVerificationCode = async (email: string): Promise<VerificationResponse> => {
   try {
-    const response = await apiClient.post('/api/auth/resend-verification-code/', { email });
+    const response = await apiClient.post('/auth/resend-verification-code/', { email });
     const data = response.data as any;
     
     return {

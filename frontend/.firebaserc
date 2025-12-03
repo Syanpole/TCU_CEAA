@@ -1,3 +1,5 @@
-build
-node_modules
-.git
+﻿{
+  "projects": {
+    "default": "tcu-ceaa-8863d"
+  }
+}

@@ -6,6 +6,8 @@
   margin: 0 auto;
   padding: 1.5rem;
   min-height: 100vh;
+  overflow: visible !important;
+  contain: none;
 }
 
 .dp-container.dark-theme {

@@ -4,6 +4,7 @@ django-cors-headers==4.4.0
 psycopg[binary]==3.2.3
 python-dotenv==1.0.1
 Pillow==10.4.0
+gunicorn==23.0.0
 
 # ============================================================================
 # 6 CORE AI ALGORITHMS + ADVANCED FEATURES
@@ -21,11 +22,15 @@ python-Levenshtein==0.26.1  # Updated for Python 3.13 compatibility
 numpy==1.26.4
 scipy==1.14.1  # Updated to 1.14.1 for better Python 3.13 wheel support
 
-# 4. Face Verifier - OpenCV Face Detection
-opencv-python==4.10.0.84
+# 4. Face Verifier - OpenCV Face Detection (CPU-only, headless for Cloud Run)
+opencv-python-headless==4.10.0.84
 
 # 4b. YOLO Object Detection - Document Element Detection
-ultralytics==8.3.0  # YOLOv8 for COE/ID/Voter Certificate verification
+# Force CPU-only PyTorch to avoid downloading 900MB CUDA libraries
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+# NOTE: ultralytics is installed separately in Dockerfile to handle opencv-python conflict
 
 # 5. Fraud Detector - Metadata Analysis
 PyPDF2==3.0.1

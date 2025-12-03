@@ -161,16 +161,9 @@ const DocumentsPage: React.FC<DocumentsPageProps> = ({
     <div className={`dp-container ${darkMode ? 'dark-theme' : 'light-theme'}`}>
       <div className="dp-header">
         <div className="dp-header-content">
-          <h1>📄 My Documents</h1>
+          <h1>My Documents</h1>
           <p>View and manage your submitted documents</p>
         </div>
-        <button 
-          className="dp-upload-button"
-          onClick={() => setShowDocumentForm(true)}
-        >
-          <span className="upload-icon">+</span>
-          Upload Document
-        </button>
       </div>
 
       {/* Page Guide Banner */}

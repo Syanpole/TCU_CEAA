@@ -135,7 +135,7 @@
   color: #1a1a1a;
 }
 
-.form-input-modal[data-has-toggle="true"] {
+.form-input-modal.password-with-toggle {
   padding-right: 44px;
 }
 

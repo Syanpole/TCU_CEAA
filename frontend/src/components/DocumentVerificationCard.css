@@ -19,11 +19,14 @@
   width: 100%;
   max-width: 340px;
   min-height: 420px;
+  overflow: visible !important;
+  contain: none;
 }
 
 .dvc-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+  z-index: 10;
 }
 
 /* Status-specific subtle border colors */
@@ -187,7 +190,7 @@
   overflow: visible;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .dvc-accordion-trigger {
@@ -214,6 +217,11 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+/* Elevate card when accordion is open */
+.dvc-card:has(.dvc-accordion-trigger.open) {
+  z-index: 100;
+}
+
 .dvc-accordion-icon {
   transition: transform 0.3s ease;
   color: #6b7280;
@@ -231,13 +239,14 @@
   padding: 16px;
   background: white;
   animation: slideDown 0.3s ease-out;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 4px 8px rgba(0, 0, 0, 0.15);
   border-radius: 0 0 12px 12px;
   border: 1px solid #e5e7eb;
   border-top: none;
   max-height: 300px;
   overflow-y: auto;
-  z-index: 200;
+  z-index: 9999;
+  margin-top: -1px;
 }
 
 @keyframes slideDown {
@@ -405,8 +414,13 @@
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
   padding: 24px;
+  padding-bottom: 350px;
   max-width: 1400px;
   margin: 0 auto;
+  overflow: visible !important;
+  position: relative;
+  z-index: 1;
+  contain: none;
 }
 
 @media (max-width: 768px) {
