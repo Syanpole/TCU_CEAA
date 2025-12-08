@@ -14,7 +14,8 @@ gunicorn==23.0.0
 pytesseract==0.3.13
 
 # 2. Cross-Document Matcher - Fuzzy String Matching
-python-Levenshtein==0.26.1  # Updated for Python 3.13 compatibility
+fuzzywuzzy==0.18.0  # Fuzzy string matching for name comparisons
+python-Levenshtein==0.26.1  # Updated for Python 3.13 compatibility (speeds up fuzzywuzzy)
 
 # 3. Grade Verifier - GWA Calculation + Pattern Detection
 # NOTE: Install these first with --only-binary to avoid long compilation

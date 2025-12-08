@@ -197,22 +197,48 @@ class BirthCertificateVerificationService:
             )
             result['confidence'] = confidence
             
-            # Check critical field matches - REJECT if name or DOB don't match
+            # Check critical field matches - Use intelligent matching with parent verification
             critical_fields_match = True
             mismatch_reasons = []
+            partial_match_warning = False
+            parent_match_count = 0
             
             if field_matches:
-                # Name is CRITICAL - must match
-                if 'child_name' in field_matches and not field_matches['child_name'].get('match', False):
-                    critical_fields_match = False
-                    mismatch_reasons.append(f"❌ Name mismatch: Document '{field_matches['child_name'].get('extracted', 'N/A')}' vs Application '{field_matches['child_name'].get('application', 'N/A')}'")
+                # Name matching - allow partial matches if parents match
+                if 'child_name' in field_matches:
+                    name_score = field_matches['child_name'].get('score', 0)
+                    name_match = field_matches['child_name'].get('match', False)
+                    
+                    # Check if it's a partial name match (e.g., missing last name)
+                    if not name_match and name_score >= 0.70:
+                        # Partial match - check parent names for verification
+                        partial_match_warning = True
+                        if 'father_name' in field_matches and field_matches['father_name'].get('match', False):
+                            parent_match_count += 1
+                        if 'mother_name' in field_matches and field_matches['mother_name'].get('match', False):
+                            parent_match_count += 1
+                        
+                        # If at least one parent matches, accept the document
+                        if parent_match_count >= 1:
+                            mismatch_reasons.append(f"✓ Partial name match ({name_score*100:.0f}%) verified by parent information")
+                        else:
+                            critical_fields_match = False
+                            mismatch_reasons.append(f"❌ Name mismatch: Document '{field_matches['child_name'].get('extracted', 'N/A')}' vs Application '{field_matches['child_name'].get('application', 'N/A')}'")
+                    elif not name_match and name_score < 0.70:
+                        critical_fields_match = False
+                        mismatch_reasons.append(f"❌ Name mismatch: Document '{field_matches['child_name'].get('extracted', 'N/A')}' vs Application '{field_matches['child_name'].get('application', 'N/A')}'")
                 
                 # Date of birth is CRITICAL - must match
                 if 'date_of_birth' in field_matches and not field_matches['date_of_birth'].get('match', False):
-                    critical_fields_match = False
-                    mismatch_reasons.append(f"❌ Date of birth mismatch: Document '{field_matches['date_of_birth'].get('extracted', 'N/A')}' vs Application '{field_matches['date_of_birth'].get('application', 'N/A')}'")
+                    dob_score = field_matches['date_of_birth'].get('score', 0)
+                    # Allow slight DOB variations if parents match
+                    if dob_score >= 0.85 and parent_match_count >= 1:
+                        mismatch_reasons.append(f"✓ Date of birth close match ({dob_score*100:.0f}%) verified by parent information")
+                    else:
+                        critical_fields_match = False
+                        mismatch_reasons.append(f"❌ Date of birth mismatch: Document '{field_matches['date_of_birth'].get('extracted', 'N/A')}' vs Application '{field_matches['date_of_birth'].get('application', 'N/A')}'")
             
-            # Determine validity - REJECT if critical fields don't match
+            # Determine validity - APPROVE if critical fields match OR parent verification successful
             if not critical_fields_match:
                 result['is_valid'] = False
                 result['status'] = 'INVALID'
@@ -231,6 +257,18 @@ class BirthCertificateVerificationService:
                     result['recommendations'].append(f"⚠️ AI Detection Quality: Medium ({confidence*100:.0f}%) - Manual review may be needed")
                 else:
                     result['recommendations'].append(f"❌ AI Detection Quality: Low ({confidence*100:.0f}%) - Document quality poor, please reupload")
+            elif partial_match_warning and parent_match_count >= 1:
+                # Partial name match but verified by parent info - APPROVE
+                result['is_valid'] = True
+                result['status'] = 'VALID'
+                result['recommendations'].append("✅ Birth certificate approved - Identity verified by parent information")
+                result['recommendations'].extend(mismatch_reasons)  # Show partial match details
+                if parent_match_count == 2:
+                    result['recommendations'].append("✅ Both father and mother names match - Strong verification")
+                elif 'father_name' in field_matches and field_matches['father_name'].get('match', False):
+                    result['recommendations'].append("✅ Father's name verified - Identity confirmed")
+                elif 'mother_name' in field_matches and field_matches['mother_name'].get('match', False):
+                    result['recommendations'].append("✅ Mother's name verified - Identity confirmed")
             elif confidence >= 0.85:
                 result['is_valid'] = True
                 result['status'] = 'VALID'
@@ -493,17 +531,25 @@ class BirthCertificateVerificationService:
                     fields['mother_name'] = mother_name.strip()
                     break
         
-        # Extract Father's Name
+        # Extract Father's Name - Enhanced patterns for better extraction
         father_patterns = [
+            # Pattern 1: Multi-line format similar to child name
+            r"13\.\s*NAME[^\n]*\n[^\n]*\n[^\n]*\n\s*(.+?)\s*\n\s*([A-Z\s]+?)\s*\n\s*([A-Z]+)",
+            # Pattern 2: Father's name with field labels
             r"(?:FATHER'S NAME|13\.\s*NAME)[:\s]*(?:\(FIRST\))?[:\s]*([A-Z][A-Z\s,\.]+?)(?:\n|14\.|CITIZENSHIP)",
-            r"(?:13\.\s*NAME)[:\s]*(?:\(LAST\))?[:\s]*([A-Z]+)[:\s]*(?:\(FIRST\))?[:\s]*([A-Z\s]+?)(?:\(MIDDLE\)|MIDDLE)",
+            # Pattern 3: Format with LAST/FIRST/MIDDLE labels
+            r"(?:13\.\s*NAME|FATHER)[:\s]*(?:\(LAST\))?[:\s]*([A-Z]+)[:\s]*(?:\(FIRST\))?[:\s]*([A-Z\s]+?)(?:\(MIDDLE\)|MIDDLE|14\.)",
+            # Pattern 4: Simple FATHER line
+            r"F\s*A\s*T\s*H\s*E\s*R[:\s]*\n\s*13\.\s*NAME[:\s]*([A-Z\s]+)",
         ]
         
         for pattern in father_patterns:
-            match = re.search(pattern, text_upper)
+            match = re.search(pattern, text_upper, re.MULTILINE | re.DOTALL)
             if match:
-                father_parts = [g.strip() for g in match.groups() if g]
+                father_parts = [g.strip() for g in match.groups() if g and g.strip()]
                 father_name = ' '.join(father_parts)
+                # Clean up common OCR artifacts
+                father_name = re.sub(r'\(.*?\)', '', father_name).strip()
                 if len(father_name) > 5:
                     fields['father_name'] = father_name.strip()
                     break
@@ -560,7 +606,7 @@ class BirthCertificateVerificationService:
         from difflib import SequenceMatcher
         
         def fuzzy_match(str1: str, str2: str, threshold: float = 0.80) -> Tuple[bool, float]:
-            """Compare two strings with fuzzy matching"""
+            """Compare two strings with fuzzy matching using fuzzywuzzy for better results"""
             if not str1 or not str2:
                 return False, 0.0
             
@@ -571,8 +617,17 @@ class BirthCertificateVerificationService:
             if str1_clean == str2_clean:
                 return True, 1.0
             
-            # Fuzzy match
-            ratio = SequenceMatcher(None, str1_clean, str2_clean).ratio()
+            # Try fuzzywuzzy for better partial matching
+            try:
+                from fuzzywuzzy import fuzz
+                # Use token_sort_ratio for better name matching (handles word order)
+                ratio = fuzz.token_sort_ratio(str1_clean, str2_clean) / 100.0
+                logger.info(f"🔍 Fuzzy match (fuzzywuzzy): '{str1_clean}' vs '{str2_clean}' = {ratio*100:.1f}%")
+            except ImportError:
+                # Fallback to difflib if fuzzywuzzy not available
+                ratio = SequenceMatcher(None, str1_clean, str2_clean).ratio()
+                logger.info(f"🔍 Fuzzy match (difflib): '{str1_clean}' vs '{str2_clean}' = {ratio*100:.1f}%")
+            
             return ratio >= threshold, ratio
         
         def compare_date(date1: str, date2: Any) -> Tuple[bool, float]:

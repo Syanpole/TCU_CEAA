@@ -250,9 +250,9 @@ VERIFICATION_COOLDOWN_HOURS = int(os.environ.get('VERIFICATION_COOLDOWN_HOURS', 
 # 🔒 SECURITY: Production security headers
 if not DEBUG:
     # Force HTTPS
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
     
     # HSTS (HTTP Strict Transport Security)
     SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -289,6 +289,18 @@ CORS_ALLOWED_ORIGINS = [
     # Production frontend on Firebase
     "https://tcu-ceaa-8863d.web.app",
     "https://tcu-ceaa-8863d.firebaseapp.com",
+    # New custom Firebase domain
+    "https://tcu-ceaa-portal.web.app",
+    "https://tcu-ceaa-portal.firebaseapp.com",
+]
+
+# CSRF trusted origins for POST requests
+CSRF_TRUSTED_ORIGINS = [
+    "https://tcu-ceaa-8863d.web.app",
+    "https://tcu-ceaa-8863d.firebaseapp.com",
+    "https://tcu-ceaa-portal.web.app",
+    "https://tcu-ceaa-portal.firebaseapp.com",
+    "https://tcu-ceaa-backend-twbzto2vrq-uc.a.run.app",
 ]
 
 # ⚠️ WARNING: CORS_ALLOW_ALL_ORIGINS should be False in production

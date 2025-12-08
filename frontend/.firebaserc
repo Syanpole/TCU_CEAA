@@ -1,5 +1,18 @@
-﻿{
+{
   "projects": {
     "default": "tcu-ceaa-8863d"
-  }
+  },
+  "targets": {
+    "tcu-ceaa-8863d": {
+      "hosting": {
+        "portal": [
+          "tcu-ceaa-portal"
+        ],
+        "main": [
+          "tcu-ceaa-8863d"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
