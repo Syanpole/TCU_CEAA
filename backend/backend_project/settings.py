@@ -250,9 +250,9 @@ VERIFICATION_COOLDOWN_HOURS = int(os.environ.get('VERIFICATION_COOLDOWN_HOURS', 
 # 🔒 SECURITY: Production security headers
 if not DEBUG:
     # Force HTTPS
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
     
     # HSTS (HTTP Strict Transport Security)
     SECURE_HSTS_SECONDS = 31536000  # 1 year
