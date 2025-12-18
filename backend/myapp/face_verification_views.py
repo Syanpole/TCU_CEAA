@@ -889,25 +889,25 @@ def create_liveness_session(request):
         today = timezone.now().date()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
         
-        # Check daily limit (15 attempts per 24 hours)
+        # Check daily limit (20 attempts per 24 hours)
         daily_sessions = FaceVerificationSession.objects.filter(
             user=request.user,
             created_at__gte=today_start
         ).order_by('-created_at')
         daily_count = daily_sessions.count()
         
-        if daily_count >= 15:
-            logger.warning(f"🚫 User {request.user.id} exceeded daily verification limit ({daily_count}/15)")
+        if daily_count >= 20:
+            logger.warning(f"🚫 User {request.user.id} exceeded daily verification limit ({daily_count}/20)")
             # Security: Flag excessive attempts as suspicious
-            if daily_count >= 20:
+            if daily_count >= 25:
                 logger.error(f"⚠️ FRAUD ALERT: User {request.user.id} attempted {daily_count} verifications today")
             return Response(
                 {
                     'success': False,
-                    'error': 'Daily verification limit reached (15 attempts). Please contact support if you need assistance.',
+                    'error': 'Daily verification limit reached (20 attempts). Please contact support if you need assistance.',
                     'daily_count': daily_count,
                     'retry_after': 86400,  # 24 hours
-                    'max_daily_attempts': 15,
+                    'max_daily_attempts': 20,
                     'remaining_attempts': 0
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS
