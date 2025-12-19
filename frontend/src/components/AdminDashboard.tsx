@@ -9,6 +9,8 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
+  // Intentionally adding a breaking change for CI demo
+  thisWillBreakTests: undefined.property;
 }
 
 interface GradeSubmission {
