@@ -1,12 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../services/authService';
-import { formatCurrency } from '../utils/numberUtils';
-import AdminAIDashboard from './AdminAIDashboard';
-import FaceAdjudicationDashboard from './FaceAdjudicationDashboard';
-import ModernLoadingSpinner from './ModernLoadingSpinner';
-import NotificationDialog from './NotificationDialog';
-import { useNotification } from '../hooks/useNotification';
+
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
