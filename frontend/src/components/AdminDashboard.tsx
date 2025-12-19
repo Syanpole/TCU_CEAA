@@ -1,4 +1,12 @@
-
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { apiClient } from '../services/authService';
+import { formatCurrency } from '../utils/numberUtils';
+import AdminAIDashboard from './AdminAIDashboard';
+import FaceAdjudicationDashboard from './FaceAdjudicationDashboard';
+import ModernLoadingSpinner from './ModernLoadingSpinner';
+import NotificationDialog from './NotificationDialog';
+import { useNotification } from '../hooks/useNotification';
 import './AdminDashboard.css';
 
 interface DocumentSubmission {
@@ -9,8 +17,6 @@ interface DocumentSubmission {
   status: string;
   status_display: string;
   submitted_at: string;
-  // Intentionally adding a breaking change for CI demo
-  thisWillBreakTests: undefined.property;
 }
 
 interface GradeSubmission {
