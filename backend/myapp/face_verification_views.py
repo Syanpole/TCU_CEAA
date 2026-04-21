@@ -14,14 +14,21 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
-from .face_comparison_service import FaceComparisonService
 from .rekognition_service import get_verification_service
 from .models import GradeSubmission, DocumentSubmission, AllowanceApplication, VerificationAdjudication
 
 logger = logging.getLogger(__name__)
 
-# Fallback to FaceComparisonService for non-AWS workflows
-face_service = FaceComparisonService()
+# Lazy import to avoid loading heavy ML libraries during Django startup
+_face_service = None
+
+def get_face_service():
+    """Lazy initialization of FaceComparisonService"""
+    global _face_service
+    if _face_service is None:
+        from .face_comparison_service import FaceComparisonService
+        _face_service = FaceComparisonService()
+    return _face_service
 
 
 def get_user_id_document(user):
@@ -132,7 +139,7 @@ def verify_face_with_id(request):
                 raise Exception("Failed to download files from S3 for processing")
             
             # Perform face verification
-            result = face_service.verify_id_with_selfie(
+            result = get_face_service().verify_id_with_selfie(
                 id_temp_path,
                 selfie_temp_path,
                 liveness_data
@@ -228,7 +235,7 @@ def extract_id_face(request):
             output_temp.close()
             
             # Extract face
-            success = face_service.extract_and_save_id_face(id_temp_path, output_temp_path)
+            success = get_face_service().extract_and_save_id_face(id_temp_path, output_temp_path)
             
             # Upload result to S3
             if success:
@@ -299,7 +306,7 @@ def verify_liveness_only(request):
             )
         
         # Verify liveness
-        liveness_passed = face_service._verify_liveness_data(liveness_data)
+        liveness_passed = get_face_service()._verify_liveness_data(liveness_data)
         
         return Response({
             'liveness_passed': liveness_passed,
@@ -368,7 +375,7 @@ def verify_grade_submission_identity(request):
             )
         
         # Verify liveness first
-        liveness_passed = face_service._verify_liveness_data(liveness_data)
+        liveness_passed = get_face_service()._verify_liveness_data(liveness_data)
         
         if not liveness_passed:
             logger.warning(f"Liveness verification failed for user {request.user.id}")
@@ -417,7 +424,7 @@ def verify_grade_submission_identity(request):
                 raise Exception("Failed to get files for processing")
             
             # Perform face verification
-            verification_result = face_service.verify_id_with_selfie(
+            verification_result = get_face_service().verify_id_with_selfie(
                 id_temp_path,
                 selfie_temp_path,
                 liveness_data
@@ -596,7 +603,7 @@ def verify_allowance_application_identity(request):
                     allowance_app.save()
         
         # Verify liveness first
-        liveness_passed = face_service._verify_liveness_data(liveness_data)
+        liveness_passed = get_face_service()._verify_liveness_data(liveness_data)
         
         if not liveness_passed:
             logger.warning(f"Liveness verification failed for user {request.user.id} for allowance app")
@@ -663,7 +670,7 @@ def verify_allowance_application_identity(request):
                 raise Exception("Failed to get files for processing")
             
             # Perform face verification
-            verification_result = face_service.verify_id_with_selfie(
+            verification_result = get_face_service().verify_id_with_selfie(
                 id_temp_path,
                 selfie_temp_path,
                 liveness_data
@@ -882,25 +889,25 @@ def create_liveness_session(request):
         today = timezone.now().date()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
         
-        # Check daily limit (15 attempts per 24 hours)
+        # Check daily limit (20 attempts per 24 hours)
         daily_sessions = FaceVerificationSession.objects.filter(
             user=request.user,
             created_at__gte=today_start
         ).order_by('-created_at')
         daily_count = daily_sessions.count()
         
-        if daily_count >= 15:
-            logger.warning(f"🚫 User {request.user.id} exceeded daily verification limit ({daily_count}/15)")
+        if daily_count >= 20:
+            logger.warning(f"🚫 User {request.user.id} exceeded daily verification limit ({daily_count}/20)")
             # Security: Flag excessive attempts as suspicious
-            if daily_count >= 20:
+            if daily_count >= 25:
                 logger.error(f"⚠️ FRAUD ALERT: User {request.user.id} attempted {daily_count} verifications today")
             return Response(
                 {
                     'success': False,
-                    'error': 'Daily verification limit reached (15 attempts). Please contact support if you need assistance.',
+                    'error': 'Daily verification limit reached (20 attempts). Please contact support if you need assistance.',
                     'daily_count': daily_count,
                     'retry_after': 86400,  # 24 hours
-                    'max_daily_attempts': 15,
+                    'max_daily_attempts': 20,
                     'remaining_attempts': 0
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS

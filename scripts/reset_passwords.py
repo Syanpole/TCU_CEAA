@@ -1,6 +1,6 @@
 """
 Reset passwords for all users in the TCU-CEAA system
-This will set default passwords for testing
+⚠️  WARNING: FOR DEVELOPMENT/TESTING ONLY
 """
 import os
 import django
@@ -12,15 +12,33 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 django.setup()
 
 from myapp.models import CustomUser
+from django.conf import settings
 
 print("=" * 80)
-print("PASSWORD RESET UTILITY")
+print("🔒 MASS PASSWORD RESET UTILITY - DEVELOPMENT ONLY")
+print("=" * 80)
+print("⚠️  WARNING: This will reset ALL user passwords to a weak default")
+print("⚠️  This script should ONLY be used in development/testing")
 print("=" * 80)
 
-# Default password for all users
-DEFAULT_PASSWORD = 'password'
+# 🔒 SECURITY: Prevent running in production
+if not settings.DEBUG:
+    print("\n❌ ERROR: This script can only run in DEBUG mode (development)")
+    print("🔒 For production password resets:")
+    print("  - Use individual password reset flows")
+    print("  - Use Django admin: python manage.py changepassword <username>")
+    print("  - Use password reset email functionality")
+    sys.exit(1)
 
-print(f"\nResetting all user passwords to: '{DEFAULT_PASSWORD}'")
+confirm = input("\nType 'RESET' to confirm mass password reset: ")
+if confirm != 'RESET':
+    print("❌ Operation cancelled")
+    sys.exit(0)
+
+# Default password for all users - TESTING ONLY
+DEFAULT_PASSWORD = 'DevPassword123!'
+
+print(f"\n⚠️  Resetting all user passwords to: '{DEFAULT_PASSWORD}'")
 print("\nProcessing users...")
 
 try:

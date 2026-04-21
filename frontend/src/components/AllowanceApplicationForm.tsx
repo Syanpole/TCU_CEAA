@@ -333,11 +333,25 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
     localStorage.setItem('livenessVerificationResult', JSON.stringify(result));
   };
 
-  const handleLivenessError = (error: string, errorData?: any) => {
+  const handleLivenessError = (error: string | Error | any, errorData?: any) => {
     console.error('❌ Biometric liveness verification error:', error);
     
+    // Convert error to string if it's an Error object
+    let errorMsg: string;
+    if (typeof error === 'string') {
+      errorMsg = error;
+    } else if (error instanceof Error) {
+      errorMsg = error.message;
+    } else if (error?.message) {
+      errorMsg = error.message;
+    } else if (error?.error) {
+      errorMsg = error.error;
+    } else {
+      errorMsg = String(error);
+    }
+    
     // Check if this is a rate limit error
-    if (error.includes('Daily verification limit reached') || error.includes('429')) {
+    if (errorMsg.includes('Daily verification limit reached') || errorMsg.includes('429')) {
       setLimitInfo({
         dailyCount: errorData?.daily_count || errorData?.dailyCount || 15,
         maxAttempts: errorData?.max_daily_attempts || errorData?.maxAttempts || 15,
@@ -345,7 +359,7 @@ const AllowanceApplicationForm: React.FC<AllowanceApplicationFormProps> = ({
       });
       setShowLimitModal(true);
     } else {
-      setError(`Face verification failed: ${error}`);
+      setError(`Face verification failed: ${errorMsg}`);
     }
     
     setShowFaceVerification(false);

@@ -4,13 +4,15 @@ Implements liveness verification and face matching for ID verification
 """
 
 import os
-import cv2
-import numpy as np
 import logging
 from typing import Dict, Tuple, Optional, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Lazy imports - will be imported when class is instantiated
+cv2 = None
+np = None
 
 
 class FaceComparisonService:
@@ -35,6 +37,15 @@ class FaceComparisonService:
     
     def __init__(self):
         """Initialize face detection and recognition models."""
+        # Lazy import heavy ML libraries only when needed
+        global cv2, np
+        if cv2 is None:
+            import cv2 as _cv2
+            cv2 = _cv2
+        if np is None:
+            import numpy as _np
+            np = _np
+            
         self.face_detector = None
         self.face_recognizer = None
         self._initialize_models()

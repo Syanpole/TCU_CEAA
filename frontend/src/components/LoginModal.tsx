@@ -246,9 +246,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ onStudentRegister, onClose }) =
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                       minLength={8}
-                      className="form-input-modal"
+                      className="form-input-modal password-with-toggle"
                       placeholder="Enter new password (min 8 characters)"
-                      data-has-toggle="true"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -283,9 +283,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ onStudentRegister, onClose }) =
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       minLength={8}
-                      className="form-input-modal"
+                      className="form-input-modal password-with-toggle"
                       placeholder="Re-enter new password"
-                      data-has-toggle="true"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -397,9 +397,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ onStudentRegister, onClose }) =
                 value={formData.password}
                 onChange={handleInputChange}
                 required
-                className="form-input-modal"
+                className="form-input-modal password-with-toggle"
                 placeholder="Enter your password"
-                data-has-toggle="true"
+                autoComplete="current-password"
               />
               <button
                 type="button"

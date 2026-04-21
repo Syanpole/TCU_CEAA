@@ -10,12 +10,32 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--username', type=str, default='admin', help='Admin username')
         parser.add_argument('--email', type=str, default='admin@tcu.edu', help='Admin email')
-        parser.add_argument('--password', type=str, default='admin123', help='Admin password')
+        parser.add_argument('--password', type=str, help='Admin password (required, min 12 chars)')
 
     def handle(self, *args, **options):
+        from django.conf import settings
+        import getpass
+        import secrets
+        
         username = options['username']
         email = options['email']
-        password = options['password']
+        password = options.get('password')
+        
+        # 🔒 SECURITY: Require password input if not provided
+        if not password:
+            if settings.DEBUG:
+                self.stdout.write("⚠️  Running in DEBUG mode")
+                password = getpass.getpass("Enter admin password (or press Enter to generate): ")
+                if not password:
+                    password = secrets.token_urlsafe(16)
+                    self.stdout.write(self.style.SUCCESS(f"✅ Generated password: {password}"))
+                    self.stdout.write(self.style.WARNING("⚠️  SAVE THIS PASSWORD!"))
+            else:
+                password = getpass.getpass("Enter admin password (min 12 chars): ")
+        
+        if len(password) < 12:
+            self.stdout.write(self.style.ERROR("❌ Password must be at least 12 characters"))
+            return
 
         try:
             # Check if admin user already exists

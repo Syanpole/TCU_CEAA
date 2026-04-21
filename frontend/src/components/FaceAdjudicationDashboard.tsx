@@ -4,13 +4,15 @@ import './FaceAdjudicationDashboard.css';
 
 // Get the API base URL for constructing image URLs
 const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.protocol + '//' + window.location.hostname + ':8000';
+
 const getImageUrl = (path: string) => {
   if (!path) return '';
   // If it's already a full URL, return it
   if (path.startsWith('http')) return path;
-  // Remove leading slash if present and construct full URL
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
+  
+  // For S3 paths, request through backend API endpoint that generates presigned URLs
+  // The path will be like: media/documents/2025/12/filename.jpg
+  return `${API_BASE_URL}/documents/serve/?path=${encodeURIComponent(path)}`;
 };
 
 interface DashboardResponse {

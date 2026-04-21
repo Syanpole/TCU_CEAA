@@ -30,7 +30,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-FALLBACK-KEY-ONLY-FOR
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,192.168.100.13,*').split(',')
+# 🔒 SECURITY: No wildcard in ALLOWED_HOSTS - specify exact domains
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+if not DEBUG and ('*' in ALLOWED_HOSTS or not ALLOWED_HOSTS):
+    raise ValueError('❌ SECURITY ERROR: ALLOWED_HOSTS must be set to specific domains in production')
 
 
 # Application definition
@@ -92,12 +95,20 @@ WSGI_APPLICATION = 'backend_project.wsgi.application'
 
 # PostgreSQL configuration
 # Supports both POSTGRES_* (CI standard) and DB_* (local dev) environment variables
+# 🔒 SECURITY: Require DB_PASSWORD in production
+DB_PASSWORD = os.environ.get('POSTGRES_PASSWORD') or os.environ.get('DB_PASSWORD')
+if not DB_PASSWORD:
+    if DEBUG:
+        DB_PASSWORD = 'dev-only-password'  # Development fallback only
+    else:
+        raise ValueError('❌ SECURITY ERROR: DB_PASSWORD environment variable required in production')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('POSTGRES_DB', os.environ.get('DB_NAME', 'tcu_ceaa_database')),
         'USER': os.environ.get('POSTGRES_USER', os.environ.get('DB_USER', 'postgres')),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', os.environ.get('DB_PASSWORD', 'TCU@ADMIN!scholarship')),
+        'PASSWORD': DB_PASSWORD,
         'HOST': os.environ.get('DATABASE_HOST', os.environ.get('DB_HOST', 'localhost')),
         'PORT': os.environ.get('DATABASE_PORT', os.environ.get('DB_PORT', '5432')),
     }
@@ -249,10 +260,10 @@ VERIFICATION_COOLDOWN_HOURS = int(os.environ.get('VERIFICATION_COOLDOWN_HOURS', 
 
 # 🔒 SECURITY: Production security headers
 if not DEBUG:
-    # Force HTTPS
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    # Force HTTPS - ⚠️ Ensure SSL/TLS certificate is configured before enabling
+    SECURE_SSL_REDIRECT = True  # Redirect all HTTP to HTTPS
+    SESSION_COOKIE_SECURE = True  # Only send session cookie over HTTPS
+    CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS
     
     # HSTS (HTTP Strict Transport Security)
     SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -278,21 +289,30 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-    "http://localhost:3003",
-    "http://127.0.0.1:3003",
-    # Production frontend on Firebase
-    "https://tcu-ceaa-8863d.web.app",
-    "https://tcu-ceaa-8863d.firebaseapp.com",
-]
+# 🔒 SECURITY: CORS settings - separate dev and production
+if DEBUG:
+    # Development: Allow localhost origins
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3002",
+        "http://127.0.0.1:3002",
+        "http://localhost:3003",
+        "http://127.0.0.1:3003",
+    ]
+else:
+    # Production: Only allow production frontend domains
+    CORS_ALLOWED_ORIGINS = [
+        "https://tcu-ceaa-8863d.web.app",
+        "https://tcu-ceaa-8863d.firebaseapp.com",
+    ]
+    # Add custom domain from environment if provided
+    custom_frontend = os.environ.get('FRONTEND_URL')
+    if custom_frontend:
+        CORS_ALLOWED_ORIGINS.append(custom_frontend)
 
 # ⚠️ WARNING: CORS_ALLOW_ALL_ORIGINS should be False in production
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
+CORS_ALLOW_ALL_ORIGINS = False  # Never allow all origins
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',

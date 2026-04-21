@@ -226,7 +226,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       });
 
       // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/api/grades/');
       setStudentGrades(updatedResponse.data);
       
       await showAlert({
@@ -259,7 +259,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       });
 
       // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/api/grades/');
       setStudentGrades(updatedResponse.data);
       
       const { processed_count, boosted_count, auto_approved_count } = response.data;
@@ -291,7 +291,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
 
   const handleRecalculateSemesterGWA = async (studentId: number, academicYear: string, semester: string) => {
     try {
-      const response = await apiClient.post('/grades/grouped_by_semester/', {
+      const response = await apiClient.post('/grades/', {
         student_id: studentId,
         academic_year: academicYear,
         semester: semester,
@@ -299,7 +299,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       });
 
       // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/api/grades/');
       setStudentGrades(updatedResponse.data);
       
       alert(`✅ GWA recalculated for this semester group!`);
@@ -346,7 +346,7 @@ const GradesManagement: React.FC<GradesManagementProps> = ({ onViewChange }) => 
       setDeletionReason('');
       
       // Refresh the grouped grades
-      const updatedResponse = await apiClient.get<StudentGrades[]>('/grades/grouped_by_semester/');
+      const updatedResponse = await apiClient.get<StudentGrades[]>('/api/grades/');
       setStudentGrades(updatedResponse.data);
       
       await showAlert({
